@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Container } from '@agendai/ui';
 import { Logo } from '../common/Logo';
+import { Instagram, Linkedin, Youtube } from 'lucide-react';
 export function Footer() {
   return (
     <footer className="site-footer">
@@ -23,7 +24,23 @@ export function Footer() {
           ))}
         </nav>
         <div className="footer-meta">
-          <span lang="pt">PT · Português</span>
+          <div className="footer-socials">
+            {[
+              { name: 'LinkedIn', icon: Linkedin },
+              { name: 'Instagram', icon: Instagram },
+              { name: 'YouTube', icon: Youtube },
+            ].map(({ name, icon: Icon }) => (
+              <span
+                key={name}
+                title={`${name} — em breve`}
+                role="img"
+                aria-label={`${name} — em breve`}
+              >
+                <Icon size={16} />
+              </span>
+            ))}
+            <span lang="pt">PT · Português</span>
+          </div>
           <small>© 2026 AgendAI. Todos os direitos reservados.</small>
         </div>
       </Container>

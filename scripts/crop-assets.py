@@ -9,7 +9,7 @@ import sys
 source = Path(sys.argv[1])
 target = Path(__file__).resolve().parents[1] / 'apps/website/public/images'
 crops = [
-    ('1.png', (435, 64, 984, 457), 'home/hero-teacher.webp'),
+    ('1.png', (520, 64, 984, 457), 'home/hero-teacher.webp'),
     ('4.png', (582, 70, 1312, 461), 'schools/school-team.webp'),
     ('5.png', (573, 70, 1230, 343), 'blog/teacher-writing.webp'),
     ('5.png', (51, 416, 314, 553), 'blog/lesson-plan.webp'),

@@ -1,0 +1,26 @@
+[
+  {
+    "route": "/",
+    "violations": []
+  },
+  {
+    "route": "/funcionalidades",
+    "violations": []
+  },
+  {
+    "route": "/planos",
+    "violations": []
+  },
+  {
+    "route": "/para-escolas",
+    "violations": []
+  },
+  {
+    "route": "/blog",
+    "violations": []
+  },
+  {
+    "route": "/contacto",
+    "violations": []
+  }
+]

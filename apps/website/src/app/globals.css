@@ -4,7 +4,7 @@
 @theme {
   --color-brand-green: #76ff3e;
   --color-brand-green-light: #eafced;
-  --color-brand-green-dark: #089d20;
+  --color-brand-green-dark: #087d1c;
   --color-brand-black: #06120f;
   --color-brand-dark-green: #001b13;
   --color-background: #f8fafb;
@@ -12,14 +12,14 @@
   --color-border: #e4e9ed;
   --color-text-primary: #080e0c;
   --color-text-secondary: #58606e;
-  --color-muted: #7b8492;
+  --color-muted: #657080;
   --color-purple: #6540cf;
   --color-purple-light: #eae5ff;
   --color-blue: #078cde;
   --color-blue-light: #dff2ff;
   --color-coral: #ed5c40;
   --color-coral-light: #ffe5e1;
-  --font-sans: Arial, Helvetica, sans-serif;
+  --font-sans: 'Inter Variable', Arial, Helvetica, sans-serif;
   --radius-card: 14px;
   --shadow-card: 0 12px 35px #001b1308;
 }
@@ -457,6 +457,14 @@ textarea {
   font-size: 10px;
   color: var(--color-text-secondary);
 }
+.footer-socials {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.footer-socials > span:last-child {
+  margin-left: 14px;
+}
 /* Home */
 .home-hero {
   position: relative;
@@ -642,7 +650,7 @@ textarea {
   font-size: 9px;
 }
 .dashboard-sidebar > div.selected {
-  background: #078c2c;
+  background: #087d2c;
   border-radius: 4px;
 }
 .dashboard-main {
@@ -915,7 +923,7 @@ textarea {
 .templates-box h2 {
   font-size: 28px;
 }
-.templates-box p:not(.eyebrow) {
+.templates-box > div > p:not(.eyebrow) {
   margin: 9px 0 15px;
   max-width: 280px;
   font-size: 14px;
@@ -983,7 +991,7 @@ textarea {
 }
 .document-school {
   font-size: 4px;
-  color: #7b827f;
+  color: #66716b;
   margin-bottom: 17px;
   display: flex;
   justify-content: space-between;
@@ -1392,7 +1400,7 @@ textarea {
   gap: 8px;
   align-items: center;
   width: max-content;
-  margin: 35px auto 20px;
+  margin: 25px auto 18px;
   background: white;
   border-radius: 999px;
   padding: 5px;
@@ -1449,7 +1457,7 @@ textarea {
   display: flex;
   gap: 14px;
   align-items: center;
-  margin-bottom: 22px;
+  margin-bottom: 18px;
   margin-top: 2px;
 }
 .plan-heading .icon-tile {
@@ -1488,7 +1496,7 @@ textarea {
 .plan-description {
   font-size: 14px;
   line-height: 1.45;
-  min-height: 62px;
+  min-height: 44px;
   margin-bottom: 14px;
 }
 .pricing-card .button {
@@ -3063,7 +3071,7 @@ textarea {
   .templates-box h2 {
     font-size: 24px;
   }
-  .templates-box p:not(.eyebrow) {
+  .templates-box > div > p:not(.eyebrow) {
     font-size: 12px;
   }
   .template-grid {
@@ -3631,7 +3639,7 @@ textarea {
   .templates-box h2 {
     font-size: 28px;
   }
-  .templates-box p:not(.eyebrow) {
+  .templates-box > div > p:not(.eyebrow) {
     font-size: 14px;
     max-width: 450px;
   }

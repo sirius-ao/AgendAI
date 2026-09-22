@@ -3,6 +3,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { siteUrl, pageMetadata } from '@/lib/site';
 import './globals.css';
+import '@fontsource-variable/inter';
 export const metadata: Metadata = {
   ...pageMetadata(
     'AgendAI — Planos de aula, presenças e avaliações para professores',
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-AO">
+    <html lang="pt-AO" data-scroll-behavior="smooth">
       <body>
         <a className="skip-link" href="#main">
           Saltar para o conteúdo

@@ -4,3 +4,4 @@ node_modules
 .turbo
 public/images
 artifacts
+next-env.d.ts

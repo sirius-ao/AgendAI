@@ -3,12 +3,17 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
   workers: 1,
-  timeout: 60000,
+  timeout: 180000,
   use: {
-    baseURL: 'http://127.0.0.1:3000',
+    baseURL: 'http://localhost:3000',
     viewport: { width: 1312, height: 900 },
-    launchOptions: { channel: 'chrome' },
     trace: 'retain-on-failure',
+  },
+  webServer: {
+    command: 'pnpm --filter @agendai/website dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: true,
+    timeout: 120000,
   },
   reporter: [['list'], ['html', { open: 'never' }]],
 });

@@ -1,13 +1,13 @@
 import {
   CircleHelp,
   ChartNoAxesColumnIncreasing,
-  ArrowRight,
   LockKeyhole,
   RotateCw,
   ShieldCheck,
   Headphones,
 } from 'lucide-react';
 import { faqs, plans } from '@/data/plans';
+import { CompareLink } from './CompareLink';
 export function PricingExtras() {
   return (
     <>
@@ -31,10 +31,7 @@ export function PricingExtras() {
           <div>
             <h3>Comparar planos</h3>
             <p>Veja em detalhe as funcionalidades de cada plano.</p>
-            <a href="#comparacao" className="button button-outline">
-              Ver comparação completa
-              <ArrowRight size={16} />
-            </a>
+            <CompareLink />
           </div>
         </div>
         <div className="card pricing-quote">
