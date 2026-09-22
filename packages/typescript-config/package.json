@@ -1,0 +1,8 @@
+{
+  "name": "@agendai/typescript-config",
+  "private": true,
+  "version": "0.0.0",
+  "exports": {
+    "./next.json": "./next.json"
+  }
+}

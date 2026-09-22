@@ -1,0 +1,115 @@
+export const billing = { annualDiscount: 0.2, annualMonths: 12 };
+export const plans = [
+  {
+    id: 'gratuito',
+    name: 'Gratuito',
+    subtitle: 'Ideal para começar',
+    price: 0,
+    description: 'Conheça o AgendAI e explore o essencial.',
+    cta: 'Começar grátis',
+    href: '/comecar?plano=gratuito',
+    features: [
+      '1 escola',
+      '2 turmas',
+      'Planos de aula (até 10)',
+      'Lista de presença',
+      'Avaliações básicas',
+      'Exportação em PDF',
+      'Acesso no computador e telemóvel',
+    ],
+    unavailable: ['Modelos personalizados', 'Assistente com IA', 'Histórico ilimitado'],
+  },
+  {
+    id: 'pro',
+    name: 'Professor Pro',
+    subtitle: 'Mais produtividade para si',
+    price: 3500,
+    description: 'Tudo o que precisa para planificar, registar e avaliar sem limites.',
+    cta: 'Escolher plano',
+    href: '/comecar?plano=pro',
+    features: [
+      'Escolas ilimitadas',
+      'Turmas ilimitadas',
+      'Planos de aula ilimitados',
+      'Modelos de planos prontos',
+      'Assistente com IA',
+      'Lista de presença avançada',
+      'Avaliações e cálculos automáticos',
+      'Histórico de anos anteriores',
+      'Exportação em PDF e Excel',
+      'Partilha via WhatsApp e e-mail',
+      'Suporte prioritário',
+    ],
+    unavailable: [],
+  },
+  {
+    id: 'escola',
+    name: 'Escola',
+    subtitle: 'Para instituições de ensino',
+    price: 15000,
+    detail: 'Até 20 professores',
+    description: 'Padronize o trabalho pedagógico e acompanhe toda a equipa.',
+    cta: 'Falar com a equipa',
+    href: '/contacto?plano=escola',
+    features: [
+      'Até 20 professores',
+      'Turmas e alunos ilimitados',
+      'Modelos personalizados da escola',
+      'Relatórios por professor e turma',
+      'Exportação em lote (PDF/Excel)',
+      'Gestão de utilizadores (professores)',
+      'Suporte dedicado',
+      'Formação inicial',
+      'Possibilidade de integração',
+      'Funcionalidades premium',
+    ],
+    unavailable: [],
+  },
+  {
+    id: 'plus',
+    name: 'Escola Plus',
+    subtitle: 'Para instituições em crescimento',
+    price: 25000,
+    detail: 'Professores ilimitados',
+    description: 'Solução completa para escolas com várias turmas e departamentos.',
+    cta: 'Falar com a equipa',
+    href: '/contacto?plano=plus',
+    popular: true,
+    features: [
+      'Professores ilimitados',
+      'Turmas e alunos ilimitados',
+      'Modelos personalizados avançados',
+      'Relatórios completos e analíticos',
+      'Gestão multi-campi (várias escolas)',
+      'Integração com outros sistemas',
+      'Suporte prioritário',
+      'Formação da equipa',
+      'Consultoria na implementação',
+      'Funcionalidades exclusivas',
+    ],
+    unavailable: [],
+  },
+];
+export const faqs = [
+  [
+    'Posso mudar de plano mais tarde?',
+    'A proposta prevê a mudança de plano conforme as suas necessidades. As condições finais serão disponibilizadas antes da abertura das subscrições.',
+  ],
+  [
+    'Existe fidelização?',
+    'Não está prevista fidelização. Os planos apresentados são uma proposta de lançamento; a faturação ainda não está disponível.',
+  ],
+  [
+    'Os meus dados estão seguros?',
+    'Este website é uma demonstração e não recebe dados de alunos. As práticas de segurança do serviço serão documentadas antes do lançamento.',
+  ],
+  [
+    'Posso usar em mais de uma escola?',
+    'Sim. Na proposta atual, o plano Gratuito inclui uma escola e o Professor Pro inclui escolas ilimitadas.',
+  ],
+];
+export function formatKz(value: number) {
+  return new Intl.NumberFormat('pt-AO', { maximumFractionDigits: 0 })
+    .format(value)
+    .replace(/\s/g, '.');
+}
