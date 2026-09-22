@@ -4,6 +4,7 @@
   "packageManager": "pnpm@11.0.9",
   "scripts": {
     "dev": "turbo dev",
+    "start": "pnpm --filter @agendai/website start",
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",

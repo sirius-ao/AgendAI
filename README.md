@@ -18,6 +18,16 @@ pnpm build
 pnpm --filter @agendai/website start
 ```
 
+## Docker e Coolify
+
+O repositório inclui `Dockerfile` multi-stage, `.dockerignore`, `docker-compose.yml` e `/health`. O Next.js produz um servidor `standalone` para a imagem de produção.
+
+```sh
+docker compose up --build -d
+```
+
+No Coolify, usar build pack **Dockerfile**, contexto `/`, Dockerfile `/Dockerfile` e porta `3000`. Definir `NEXT_PUBLIC_SITE_URL` como variável de build e de runtime. Instruções completas em [docs/coolify.md](docs/coolify.md).
+
 ## Estrutura
 
 ```text
@@ -72,6 +82,8 @@ pnpm test:a11y
 Os testes iniciam o servidor quando necessário, ou reutilizam o servidor existente. Verificam as cinco páginas nas larguras 375, 390, 430, 768, 1024 e 1312 px, carregamento de imagens, ausência de overflow, navegação por teclado, apresentação, menus, planos, FAQ, comparação, blog, formulários e SEO. Geram capturas desktop/móvel em `artifacts/screenshots` e relatório em `playwright-report`.
 
 A auditoria `test:a11y` requer o servidor ativo em `localhost:3000`, usa axe-core com regras WCAG A/AA e guarda os resultados em `artifacts/accessibility.json`. A verificação automática complementa a revisão visual e de teclado; não constitui certificação de acessibilidade.
+
+Para verificar um servidor de produção ou container já iniciado, definir `PLAYWRIGHT_BASE_URL` com a URL correspondente antes de executar os testes. Nesse modo o Playwright não inicia outro servidor.
 
 ## Fotografias das referências
 

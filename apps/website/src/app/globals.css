@@ -478,6 +478,7 @@ textarea {
   position: absolute;
   inset: 0 0 0 40%;
   z-index: -2;
+  mask-image: linear-gradient(to right, transparent, black 22%);
 }
 .hero-photo img {
   object-fit: cover;
@@ -3383,6 +3384,13 @@ textarea {
   }
 }
 @media (max-width: 760px) {
+  .hero-photo {
+    mask-image: none;
+  }
+  .schools-hero::after,
+  .blog-hero::after {
+    display: none;
+  }
   :root {
     --header-height: 72px;
   }

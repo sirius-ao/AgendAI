@@ -144,5 +144,8 @@ test('rotas auxiliares, SEO e formulários sem envio', async ({ page }) => {
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', /AgendAI/);
   expect((await page.request.get('/sitemap.xml')).status()).toBe(200);
   expect((await page.request.get('/robots.txt')).status()).toBe(200);
+  const health = await page.request.get('/health');
+  expect(health.status()).toBe(200);
+  expect(await health.json()).toEqual({ status: 'ok' });
   expect((await page.request.get('/pagina-inexistente')).status()).toBe(404);
 });
