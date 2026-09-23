@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
+import { SiteFrame } from '@/components/layout/SiteFrame';
 import { siteUrl, pageMetadata } from '@/lib/site';
 import './globals.css';
 import '@fontsource-variable/inter';
@@ -20,9 +19,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <a className="skip-link" href="#main">
           Saltar para o conteúdo
         </a>
-        <Header />
-        <main id="main">{children}</main>
-        <Footer />
+        <SiteFrame>{children}</SiteFrame>
       </body>
     </html>
   );

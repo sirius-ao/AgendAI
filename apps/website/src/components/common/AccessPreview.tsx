@@ -4,8 +4,10 @@ import Link from 'next/link';
 import { ArrowRight, Check } from 'lucide-react';
 import { Button, Input } from '@agendai/ui';
 import { Logo } from './Logo';
+import { useRouter } from 'next/navigation';
 export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto' }) {
   const [message, setMessage] = useState(false);
+  const router = useRouter();
   const contact = mode === 'contacto';
   const login = mode === 'entrar';
   return (
@@ -59,7 +61,8 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            setMessage(true);
+            if (contact) setMessage(true);
+            else router.push('/dashboard');
           }}
         >
           {!login && (
@@ -123,6 +126,7 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
             </p>
           )}
         </form>
+        {!contact && <Link className="button button-outline demo-access-link" href="/dashboard">Explorar dashboard de demonstração <ArrowRight size={16}/></Link>}
         {!contact && (
           <p className="access-switch">
             {login ? 'Ainda não tem conta?' : 'Já tem uma conta?'}{' '}
