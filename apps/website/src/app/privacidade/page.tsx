@@ -10,8 +10,16 @@ export default function Privacy() {
       <p className="eyebrow">Website de demonstração</p>
       <h1>Privacidade</h1>
       <p>
-        Este website apresenta uma demonstração visual do AgendAI. Os formulários são validados
-        apenas no seu navegador: não enviam nem guardam os dados introduzidos.
+        Este website apresenta uma demonstração do AgendAI. Os formulários de entrada, criação de
+        conta e contacto são validados no navegador: não enviam nem guardam os dados introduzidos.
+      </p>
+      <h2>Dados locais do dashboard</h2>
+      <p>
+        O dashboard guarda planos, notas, presenças, mensagens e preferências no armazenamento local
+        deste navegador (localStorage). As alterações permanecem após fechar a página, mas não são
+        sincronizadas entre dispositivos. Em Configurações → Privacidade pode exportar os dados ou
+        repor os exemplos. Limpar os dados do site no navegador remove este armazenamento. Os anexos
+        guardam apenas nomes e metadados, não os ficheiros.
       </p>
       <h2>Sem contas ou pagamentos</h2>
       <p>

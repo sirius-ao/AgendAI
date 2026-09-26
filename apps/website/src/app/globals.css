@@ -4875,6 +4875,20 @@ textarea {
     font-size: 30px;
   }
 }
+@media (max-width: 760px) {
+  .site-header input,
+  .newsletter input,
+  .access-card input,
+  .access-card select,
+  .access-card textarea {
+    font-size: 16px;
+  }
+  .mobile-toggle,
+  .search-toggle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

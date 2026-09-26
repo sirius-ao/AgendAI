@@ -1,4 +1,140 @@
 import type { Tone } from '@/types/dashboard';
-export function BarChart({values,labels,max=100,unit='%',secondary}:{values:number[];labels:string[];max?:number;unit?:string;secondary?:number[]}){return <div className="dash-bar-chart" role="img" aria-label={labels.map((l,i)=>`${l}: ${values[i]}${unit}`).join(', ')}><div className="dash-chart-axis">{[max,max*.75,max*.5,max*.25,0].map((n,i)=><span key={i}>{Number(n.toFixed(1))}{unit}</span>)}</div><div className="dash-bars">{values.map((value,i)=><div className="dash-bar-group" key={i}><div className="dash-bar-track"><span title={`${labels[i]}: ${value}${unit}`} style={{height:`${Math.max(1,value/max*100)}%`}}/><b>{value}{unit}</b>{secondary&&<i style={{height:`${secondary[i]/max*100}%`}}/>}</div><small>{labels[i]}</small></div>)}</div></div>;}
-export function Donut({segments,value,label}:{segments:{value:number;label:string;tone:Tone}[];value:string;label:string}){const total=segments.reduce((s,v)=>s+v.value,0)||1;let angle=0;const gradient=segments.map(s=>{const start=angle;angle+=s.value/total*360;return `var(--dash-${s.tone}) ${start}deg ${angle}deg`;}).join(',');return <div className="dash-donut-wrap"><div className="dash-donut" style={{background:`conic-gradient(${gradient})`}} role="img" aria-label={segments.map(s=>`${s.label}: ${s.value}`).join(', ')}><span><strong>{value}</strong><small>{label}</small></span></div><ul>{segments.map(s=><li key={s.label}><i style={{background:`var(--dash-${s.tone})`}}/><span>{s.label}</span><b>{s.value}</b></li>)}</ul></div>;}
-export function LineChart({values,labels,max=20}:{values:number[];labels:string[];max?:number}){const points=values.map((v,i)=>`${35+i*300/Math.max(1,values.length-1)},${145-v/max*120}`).join(' ');return <div className="dash-line-chart"><svg viewBox="0 0 365 185" role="img" aria-label={labels.map((l,i)=>`${l}: ${values[i]}`).join(', ')}>{[0,5,10,15,20].map(n=><g key={n}><line x1="35" y1={145-n/max*120} x2="335" y2={145-n/max*120}/><text x="10" y={149-n/max*120}>{n}</text></g>)}<polygon points={`35,145 ${points} 335,145`} fill="var(--dash-green-soft)"/><polyline points={points} fill="none" stroke="var(--dash-green)" strokeWidth="2"/>{values.map((v,i)=><g key={i}><circle cx={35+i*300/Math.max(1,values.length-1)} cy={145-v/max*120} r="4" fill="var(--dash-green)"/><text textAnchor="middle" x={35+i*300/Math.max(1,values.length-1)} y="174">{labels[i]}</text></g>)}</svg></div>;}
+export function BarChart({
+  values,
+  labels,
+  max = 100,
+  unit = '%',
+  secondary,
+}: {
+  values: number[];
+  labels: string[];
+  max?: number;
+  unit?: string;
+  secondary?: number[];
+}) {
+  return (
+    <div
+      className="dash-bar-chart"
+      role="img"
+      aria-label={labels.map((l, i) => `${l}: ${values[i]}${unit}`).join(', ')}
+    >
+      <div className="dash-chart-axis">
+        {[max, max * 0.75, max * 0.5, max * 0.25, 0].map((n, i) => (
+          <span key={i}>
+            {Number(n.toFixed(1))}
+            {unit}
+          </span>
+        ))}
+      </div>
+      <div className="dash-bars">
+        {values.map((value, i) => (
+          <div className="dash-bar-group" key={i}>
+            <div className="dash-bar-track">
+              <span
+                title={`${labels[i]}: ${value}${unit}`}
+                style={{ height: `${Math.max(1, (value / max) * 100)}%` }}
+              />
+              <b>
+                {value}
+                {unit}
+              </b>
+              {secondary && <i style={{ height: `${(secondary[i] / max) * 100}%` }} />}
+            </div>
+            <small>{labels[i]}</small>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+export function Donut({
+  segments,
+  value,
+  label,
+  formatValue = String,
+}: {
+  segments: { value: number; label: string; tone: Tone }[];
+  value: string;
+  label: string;
+  formatValue?: (value: number) => string;
+}) {
+  const total = segments.reduce((s, v) => s + v.value, 0) || 1;
+  const gradient = segments
+    .map((s, index) => {
+      const start =
+        (segments.slice(0, index).reduce((sum, segment) => sum + segment.value, 0) / total) * 360;
+      const angle = start + (s.value / total) * 360;
+      return `var(--dash-${s.tone}) ${start}deg ${angle}deg`;
+    })
+    .join(',');
+  return (
+    <div className="dash-donut-wrap">
+      <div
+        className="dash-donut"
+        style={{ background: `conic-gradient(${gradient})` }}
+        role="img"
+        aria-label={segments.map((s) => `${s.label}: ${formatValue(s.value)}`).join(', ')}
+      >
+        <span>
+          <strong>{value}</strong>
+          <small>{label}</small>
+        </span>
+      </div>
+      <ul>
+        {segments.map((s) => (
+          <li key={s.label}>
+            <i style={{ background: `var(--dash-${s.tone})` }} />
+            <span>{s.label}</span>
+            <b>{formatValue(s.value)}</b>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+export function LineChart({
+  values,
+  labels,
+  max = 20,
+}: {
+  values: number[];
+  labels: string[];
+  max?: number;
+}) {
+  const points = values
+    .map((v, i) => `${35 + (i * 300) / Math.max(1, values.length - 1)},${145 - (v / max) * 120}`)
+    .join(' ');
+  return (
+    <div className="dash-line-chart">
+      <svg
+        viewBox="0 0 365 185"
+        role="img"
+        aria-label={labels.map((l, i) => `${l}: ${values[i]}`).join(', ')}
+      >
+        {[0, 5, 10, 15, 20].map((n) => (
+          <g key={n}>
+            <line x1="35" y1={145 - (n / max) * 120} x2="335" y2={145 - (n / max) * 120} />
+            <text x="10" y={149 - (n / max) * 120}>
+              {n}
+            </text>
+          </g>
+        ))}
+        <polygon points={`35,145 ${points} 335,145`} fill="var(--dash-green-soft)" />
+        <polyline points={points} fill="none" stroke="var(--dash-green)" strokeWidth="2" />
+        {values.map((v, i) => (
+          <g key={i}>
+            <circle
+              cx={35 + (i * 300) / Math.max(1, values.length - 1)}
+              cy={145 - (v / max) * 120}
+              r="4"
+              fill="var(--dash-green)"
+            />
+            <text textAnchor="middle" x={35 + (i * 300) / Math.max(1, values.length - 1)} y="174">
+              {labels[i]}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}

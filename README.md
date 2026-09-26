@@ -1,6 +1,6 @@
 # AgendAI
 
-Website em português para professores e escolas, reconstruído em componentes React a partir das cinco referências fornecidas. Inclui homepage, mega menu, funcionalidades, planos, escolas, blog e páginas auxiliares.
+Website e dashboard em português para professores e escolas, reconstruídos em componentes React a partir das referências fornecidas. O website público foi preservado e o dashboard foi integrado no mesmo app e container.
 
 ## Executar
 
@@ -27,6 +27,16 @@ docker compose up --build -d
 ```
 
 No Coolify, usar build pack **Dockerfile**, contexto `/`, Dockerfile `/Dockerfile` e porta `3000`. Definir `NEXT_PUBLIC_SITE_URL` como variável de build e de runtime. Instruções completas em [docs/coolify.md](docs/coolify.md).
+
+## Dashboard
+
+Abrir **http://localhost:3000/dashboard**, ou usar a entrada de demonstração em `/entrar`.
+
+Inclui início, planos de aula, turmas e alunos, presenças, avaliações, calendário, recursos, relatórios, biblioteca, mensagens e configurações. Os três formulários principais criam e editam registos. Notas e presenças alimentam os relatórios; recursos podem ser associados aos planos; alterações persistem em `localStorage`.
+
+Os exemplos são partilhados entre módulos: 6 turmas, 186 alunos, 24 planos e 24 avaliações. Não existe autenticação, API, envio externo de mensagens, upload para servidor ou serviço real de IA. A interface assinala essas limitações e permite exportar/repor os dados locais em Configurações.
+
+Arquitetura, rotas, ficheiros, componentes e dependências futuras: [docs/dashboard.md](docs/dashboard.md). Capturas da revisão: `artifacts/dashboard/`. Testes: `tests/dashboard.spec.ts`. Para auditar a acessibilidade com um servidor ativo, executar `node scripts/check-dashboard-accessibility.mjs`.
 
 ## Estrutura
 

@@ -55,7 +55,7 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
         <div className="form-notice">
           {contact
             ? 'O canal de contacto ainda não está configurado.'
-            : 'O AgendAI está em preparação. O acesso a contas ainda não está disponível.'}{' '}
+            : 'Explore o dashboard com dados de exemplo. Não é criada uma conta nem iniciada uma sessão autenticada.'}{' '}
           Este formulário é demonstrativo; os dados não são enviados nem guardados.
         </div>
         <form
@@ -126,7 +126,11 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
             </p>
           )}
         </form>
-        {!contact && <Link className="button button-outline demo-access-link" href="/dashboard">Explorar dashboard de demonstração <ArrowRight size={16}/></Link>}
+        {!contact && (
+          <Link className="button button-outline demo-access-link" href="/dashboard">
+            Explorar dashboard de demonstração <ArrowRight size={16} />
+          </Link>
+        )}
         {!contact && (
           <p className="access-switch">
             {login ? 'Ainda não tem conta?' : 'Já tem uma conta?'}{' '}
