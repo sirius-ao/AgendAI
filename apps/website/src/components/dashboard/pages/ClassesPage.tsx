@@ -167,7 +167,6 @@ export function ClassesPage({ id, initialQuery = '' }: { id?: string; initialQue
         <PageHeader
           title="As minhas turmas"
           description="Acompanhe cada turma e ajude cada aluno a alcançar o seu potencial."
-          quote="Cada aluno tem um potencial. O nosso papel é ajudar a revelá-lo."
           actions={
             <button className="dash-btn" onClick={() => setDialog('class')}>
               <Plus />
@@ -221,7 +220,6 @@ export function ClassesPage({ id, initialQuery = '' }: { id?: string; initialQue
         eyebrow={<Link href="/dashboard/turmas">Turmas　›　{c.name}</Link>}
         title={c.name}
         description={`Ano letivo ${c.year}　•　${c.level}`}
-        quote="Cada aluno tem um potencial. O nosso papel é ajudar a revelá-lo."
         actions={
           <button className="dash-btn" onClick={() => setDialog('edit')}>
             Editar turma

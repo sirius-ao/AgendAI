@@ -128,7 +128,6 @@ export function MessagesPage({
       <PageHeader
         title="Mensagens"
         description="Converse com a sua comunidade escolar neste espaço de demonstração local."
-        quote="Uma boa comunicação constrói melhores resultados."
         actions={
           <button className="dash-btn" onClick={() => setDialog('new')}>
             <Plus />

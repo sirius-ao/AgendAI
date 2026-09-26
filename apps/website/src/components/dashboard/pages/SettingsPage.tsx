@@ -70,7 +70,6 @@ export function SettingsPage() {
       <PageHeader
         title="Configurações"
         description="Personalize o seu ambiente e ajuste as preferências da sua conta de demonstração."
-        quote="Um ambiente bem configurado torna o ensino mais simples."
       />
       <div className="dash-settings-layout">
         <nav className="dash-settings-nav" aria-label="Configurações">

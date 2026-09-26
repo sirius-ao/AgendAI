@@ -67,7 +67,6 @@ export function AssessmentsPage({ initialClass = '10a' }: { initialClass?: strin
       <PageHeader
         title="Avaliações"
         description="Registe, acompanhe e analise o desempenho dos seus alunos."
-        quote="Avaliar hoje para um amanhã com mais oportunidades."
         actions={
           <>
             <SelectField

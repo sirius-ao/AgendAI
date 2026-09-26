@@ -16,13 +16,11 @@ import type { Tone } from '@/types/dashboard';
 export function PageHeader({
   title,
   description,
-  quote,
   actions,
   eyebrow,
 }: {
   title: string;
   description?: string;
-  quote?: string;
   actions?: ReactNode;
   eyebrow?: ReactNode;
 }) {
@@ -33,11 +31,6 @@ export function PageHeader({
         <h1>{title}</h1>
         {description && <p>{description}</p>}
       </div>
-      {quote && (
-        <div className="dash-quote">
-          “{quote}”<span />
-        </div>
-      )}
       {actions && <div className="dash-header-actions">{actions}</div>}
     </div>
   );

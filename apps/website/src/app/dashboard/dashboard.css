@@ -361,26 +361,6 @@
   align-items: center;
   flex-shrink: 0;
 }
-.dash-quote {
-  font-family: 'Segoe Print', 'Comic Sans MS', cursive;
-  font-size: 18px;
-  font-style: italic;
-  line-height: 1.35;
-  transform: rotate(-7deg);
-  max-width: 235px;
-  text-align: center;
-  color: var(--dash-text);
-  padding: 6px 8px 18px;
-}
-.dash-quote span {
-  display: block;
-  width: 105px;
-  height: 2px;
-  background: #18d82d;
-  margin: 8px auto 0;
-  transform: rotate(-6deg);
-  box-shadow: 8px 5px 0 -0.4px #18d82d;
-}
 .dash-btn {
   display: inline-flex;
   align-items: center;
@@ -2524,10 +2504,6 @@
   .dash-home-stats .dash-stat {
     min-height: 100px;
   }
-  .dash-quote {
-    max-width: 185px;
-    font-size: 16px;
-  }
   .dash-messaging {
     grid-template-columns: 270px minmax(300px, 1fr);
   }
@@ -2650,9 +2626,6 @@
   }
   .dash-page-header p {
     font-size: 13px;
-  }
-  .dash-quote {
-    display: none;
   }
   .dash-content-sidebar {
     grid-template-columns: minmax(0, 1fr) 250px;

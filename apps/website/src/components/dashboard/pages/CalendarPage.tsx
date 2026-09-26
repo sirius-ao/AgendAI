@@ -84,7 +84,6 @@ export function CalendarPage({ initialClass = '' }: { initialClass?: string }) {
       <PageHeader
         title="Calendário"
         description="Organize as suas aulas, avaliações, reuniões e tarefas num só lugar."
-        quote="Tempo bem planeado, mais aprendizagem."
         actions={
           <button className="dash-btn" onClick={() => openModal({ kind: 'event', date, classId })}>
             <Plus />

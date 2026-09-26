@@ -38,7 +38,6 @@ export function HomePage() {
       <PageHeader
         title="Bom dia, Professor!"
         description="Hoje é um ótimo dia para continuar a fazer a diferença."
-        quote="Educação é a chave para um futuro melhor."
         actions={
           <div className="dash-weather">
             <small>Quinta-feira, 1 de Outubro de 2026 · demonstração</small>

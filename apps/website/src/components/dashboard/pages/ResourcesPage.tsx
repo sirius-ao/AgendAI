@@ -228,11 +228,6 @@ export function ResourcesPage({
             ? 'Guarde, organize e aceda a todos os seus materiais num só lugar.'
             : 'Materiais para usar como referência ou personalizar. Mais qualidade nas suas aulas.'
         }
-        quote={
-          library
-            ? 'Materiais certos, aulas mais dinâmicas.'
-            : 'Boas aulas são construídas com bons recursos.'
-        }
         actions={
           <button className="dash-btn" onClick={() => open('upload')}>
             <Upload size={19} />

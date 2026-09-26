@@ -53,7 +53,6 @@ export function PlansPage({ initialQuery = '' }: { initialQuery?: string }) {
       <PageHeader
         title="Planos de Aula"
         description="Crie, organize e gerencie os seus planos de aula de forma simples e eficiente."
-        quote="Boas aulas começam com bom planeamento."
         actions={
           <button className="dash-btn neon" onClick={() => openModal({ kind: 'plan' })}>
             <Plus />

@@ -66,7 +66,6 @@ export function AttendancePage({ initialClass = '10a', initialDate = DEMO_DATE }
       <PageHeader
         title="Registo de Presenças"
         description="Registe e acompanhe a presença dos seus alunos de forma rápida e simples."
-        quote="Disciplina hoje, mais oportunidades amanhã."
         actions={
           <div className="dash-filters">
             <SelectField

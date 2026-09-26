@@ -85,7 +85,6 @@ export function ReportsPage({ initialClass = '10a' }: { initialClass?: string })
       <PageHeader
         title="Relatórios"
         description="Acompanhe o progresso das suas turmas e tome decisões com base nos seus registos."
-        quote="Dados de hoje, melhores resultados amanhã."
         actions={
           <>
             <SelectField
