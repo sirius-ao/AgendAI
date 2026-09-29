@@ -1,5 +1,6 @@
 'use client';
 import { useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { FilePlus } from 'lucide-react';
 import { useDashboard } from '../state/DashboardProvider';
 import { Attachments, Field, Modal, Switch } from '../ui/Primitives';
@@ -41,6 +42,7 @@ export function PlanForm() {
     ...(modal?.example ? { ...planExamples[modal.example], subjectId: state.subjects.find((s) => s.name === (modal.example === 'math' ? 'Matemática' : 'Português'))?.id || '' } : {}),
     ...state.planDrafts?.[draftKey],
   }));
+  const [savedPlan, setSavedPlan] = useState<LessonPlan | null>(null);
   const [preview, setPreview] = useState(false);
   const [preferred, setPreferred] = useState(!old);
   const [error, setError] = useState('');
@@ -73,15 +75,22 @@ export function PlanForm() {
       planDrafts: Object.fromEntries(Object.entries(s.planDrafts || {}).filter(([key]) => key !== draftKey)),
       planPreferences: preferred ? { modelId: plan.modelId || 'simple', schoolFieldLabels: plan.modelId === 'school' ? (plan.schoolFields || []).map((field) => field.label.trim()) : s.planPreferences?.schoolFieldLabels || ['Unidade temática', 'Competências', 'Visto da coordenação'] } : s.planPreferences,
     }));
-    notify('Plano guardado no espaço local.'); close();
+    setSavedPlan(saved);
   }
   const area = (key: 'objectives' | 'content' | 'methodology' | 'resources' | 'evaluation' | 'prerequisites', label: string) => <Field label={label}><textarea value={plan[key] || ''} maxLength={6000} rows={3} onChange={(e) => patch({ [key]: e.target.value })} /></Field>;
+  if (savedPlan) return <Modal title="Plano e calendário atualizados" onClose={close} className="dash-dialog-small"><div className="dash-modal-simple">
+    <h3>{savedPlan.title}</h3><p role="status">{storageError ? 'Alterações disponíveis nesta sessão, mas não foi possível guardá-las no navegador. Mantenha esta página aberta.' : 'Plano guardado e aula atualizada no calendário deste dispositivo.'}</p>
+    <p>{savedPlan.date} · {savedPlan.startTime} · {savedPlan.duration} minutos</p>
+    <div className="dash-guide-actions"><Link className="dash-btn" onClick={close} href={`/dashboard/calendario?turma=${savedPlan.classId}&data=${savedPlan.date}&plano=${savedPlan.id}`}>Ver aula no calendário</Link><button className="dash-btn secondary" onClick={close}>Continuar nos planos</button></div>
+  </div></Modal>;
   return <Modal title={old ? 'Editar plano de aula' : 'Novo plano de aula'} icon={FilePlus} onClose={close} className="dash-dialog-plan">
     <form className="dash-creation-form" onSubmit={submit}>
-      <div className="dash-form-main">
-        <div className="dash-tip" role="status"><div>{storageError ? 'Não foi possível guardar no navegador. Mantenha esta página aberta.' : state.planDrafts?.[draftKey] ? 'Rascunho automático neste dispositivo. Pode fechar e retomar aqui.' : 'As alterações são guardadas automaticamente neste dispositivo.'}
+      <div className="dash-plan-savebar" role="status"><div>{storageError ? 'Não foi possível guardar no navegador. Mantenha esta página aberta.' : state.planDrafts?.[draftKey] ? 'Rascunho automático neste dispositivo. Pode fechar e retomar aqui.' : 'As alterações são guardadas automaticamente neste dispositivo.'}
         {source && <p>Escolha a turma e a nova data. O plano original não será alterado.</p>}
-        <p>Guardar o plano cria ou atualiza a aula correspondente no calendário.</p></div></div>
+        <p>Guardar o plano atualiza a aula correspondente no calendário.</p></div><button className="dash-btn secondary" type="button" onClick={close}>Continuar depois</button></div>
+      <div className="dash-form-main">
+        <nav className="dash-plan-section-nav" aria-label="Secções do plano"><a href="#plan-data">Dados da aula</a><a href="#plan-content">Conteúdo</a>{plan.modelId !== 'simple' && <a href="#plan-stages">Etapas</a>}<a href="#plan-document">Documento</a></nav>
+        <section id="plan-data" className="dash-plan-section"><h2>1. Dados da aula</h2>
         <Field label="Modelo de plano"><select value={plan.modelId} onChange={(e) => patch({ modelId: e.target.value as LessonPlan['modelId'] })}>{planModels.map((model) => <option value={model.id} key={model.id}>{model.name}</option>)}</select></Field>
         <p>{planModels.find((m) => m.id === plan.modelId)?.description} Mudar de modelo preserva os campos preenchidos; a pré-visualização mostra os campos do modelo escolhido.</p>
         <Field label="Título da aula" required><input required maxLength={160} value={plan.title} onChange={(e) => patch({ title: e.target.value })} placeholder="Ex.: Introdução às frações" /></Field>
@@ -104,13 +113,16 @@ export function PlanForm() {
           <Field label="Tipo de aula"><input value={plan.lessonType} onChange={(e) => patch({ lessonType: e.target.value })} /></Field>
           <Field label="Modalidade"><select value={plan.modality} onChange={(e) => patch({ modality: e.target.value })}>{['Presencial', 'Online', 'Híbrida'].map((v) => <option key={v}>{v}</option>)}</select></Field>
         </div>
+        </section>
+        <section id="plan-content" className="dash-plan-section"><h2>2. Conteúdo da aula</h2>
         {modal?.ai && <div className="dash-tip"><div><strong>Estrutura de exemplo, sem serviço de IA</strong><p>Insere sugestões apenas nos campos vazios.</p><button className="dash-btn secondary" type="button" onClick={() => patch({ objectives: plan.objectives || 'Identificar conceitos e explicar o raciocínio.', content: plan.content || 'Introdução ao tema e exemplos orientados.', methodology: plan.methodology || 'Discussão inicial, prática em pares e síntese.', ai: true })}>Inserir exemplo</button></div></div>}
         {area('objectives', 'Objetivos de aprendizagem')}
         {area('content', 'Conteúdos programáticos')}
         {area('methodology', 'Atividades / Estratégias de ensino')}
         {area('resources', 'Recursos necessários')}
         {area('evaluation', 'Avaliação da aprendizagem')}
-        {plan.modelId !== 'simple' && <>
+        </section>
+        {plan.modelId !== 'simple' && <section id="plan-stages" className="dash-plan-section"><h2>3. Etapas da aula</h2>
           {area('prerequisites', 'Pré-requisitos')}
           <h3>Etapas da aula</h3><p role="status">{totalMinutes} de {plan.duration} minutos distribuídos.</p>
           {stages.map((stage, index) => <fieldset className="dash-plan-stage" key={index}><legend>Etapa {index + 1}</legend>
@@ -121,7 +133,7 @@ export function PlanForm() {
             <button className="dash-btn secondary" type="button" onClick={() => patch({ stages: stages.filter((_, i) => i !== index) })}>Remover etapa {index + 1}</button>
           </fieldset>)}
           <button className="dash-btn secondary" type="button" onClick={() => patch({ stages: [...stages, { title: '', minutes: 10, teacher: '', students: '' }] })}>Adicionar etapa</button>
-        </>}
+        </section>}
         {plan.modelId === 'school' && <section><h3>Campos da escola</h3><p>Defina os nomes e a ordem. Marque a opção de reutilização para guardar esta estrutura.</p>
           {plan.schoolFields?.map((field, index) => <fieldset className="dash-plan-stage" key={index}><legend>Campo {index + 1}</legend>
             <Field label="Nome do campo"><input required maxLength={100} value={field.label} onChange={(e) => patch({ schoolFields: plan.schoolFields?.map((f, i) => i === index ? { ...f, label: e.target.value } : f) })} /></Field>
@@ -131,17 +143,19 @@ export function PlanForm() {
           <button className="dash-btn secondary" type="button" onClick={() => patch({ schoolFields: [...(plan.schoolFields || []), { label: '', value: '' }] })}>Adicionar campo</button>
         </section>}
       </div>
-      <aside className="dash-form-aside">
-        <h3>O seu documento</h3><p>Pré-visualize antes de guardar. Para PDF, escolha Guardar como PDF na impressão do navegador.</p>
+      <aside className="dash-form-aside" id="plan-document">
+        <h2>Documento</h2><p>Pré-visualize antes de guardar. Para PDF, escolha Guardar como PDF na impressão do navegador.</p>
         <button className="dash-btn secondary" type="button" aria-expanded={preview} onClick={() => setPreview(!preview)}>{preview ? 'Fechar pré-visualização' : 'Pré-visualizar plano'}</button>
         {preview && <div className="dash-plan-preview"><h3>{plan.title || 'Tema da aula'}</h3><dl>{planRows(plan, state).map(([label, text], i) => <div key={i}><dt>{label}</dt><dd>{text || 'Por preencher'}</dd></div>)}</dl></div>}
         <button className="dash-btn secondary" type="button" onClick={() => { if (!printLessonPlan(plan, state)) notify('Permita janelas para imprimir o plano.'); }}>Imprimir A4 / PDF</button>
         <Switch label="Guardar como rascunho" checked={plan.status === 'Rascunho'} onChange={(checked) => patch({ status: checked ? 'Rascunho' : old && old.status !== 'Rascunho' ? old.status : 'Planeado' })} hint="Pode completar os objetivos e atividades mais tarde." />
         <Switch label="Reutilizar este modelo nas próximas aulas" checked={preferred} onChange={setPreferred} hint="Guarda a estrutura e os nomes dos campos, sem copiar o conteúdo da aula." />
         <Switch label="Guardar como plano reutilizável" checked={plan.template} onChange={(template) => patch({ template })} hint="Permite encontrar e duplicar este conteúdo na lista Reutilizáveis." />
+        <details className="dash-plan-advanced"><summary>Mais opções: partilha, etiquetas e materiais</summary>
         <Field label="Visibilidade"><select value={plan.visibility} onChange={(e) => patch({ visibility: e.target.value })}>{['Apenas eu', 'Visível para os alunos', 'Visível para selecionados', 'Equipa pedagógica'].map((v) => <option key={v}>{v}</option>)}</select></Field>
         <Field label="Etiquetas"><input value={plan.tags} onChange={(e) => patch({ tags: e.target.value })} /></Field>
         <Attachments initialNames={plan.attachments} onChange={(attachments) => patch({ attachments })} />
+        </details>
         {error && <p role="alert" className="dash-error-text">{error}</p>}
         <div className="dash-form-actions"><button type="button" className="dash-btn secondary" onClick={close}>Fechar e continuar depois</button><button type="submit" className="dash-btn">{old ? 'Guardar alterações' : 'Criar plano de aula'}</button></div>
         {state.planDrafts?.[draftKey] && <button type="button" className="dash-btn secondary" onClick={() => {

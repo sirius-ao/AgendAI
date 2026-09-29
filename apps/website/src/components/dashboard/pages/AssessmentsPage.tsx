@@ -17,18 +17,21 @@ import {
 import { Donut } from '../ui/Charts';
 import { classStudents, formatDate, formatNumber, studentAverage } from '@/lib/dashboard/selectors';
 import { exportCSV, printDocument } from '@/lib/dashboard/export';
-export function AssessmentsPage({ initialClass = '10a' }: { initialClass?: string }) {
+export function AssessmentsPage({ initialClass = '10a', initialAssessment }: { initialClass?: string; initialAssessment?: string }) {
   const { state, update, notify, openModal } = useDashboard();
+  const target = state.assessments.find((a) => a.id === initialAssessment);
+  const [focused, setFocused] = useState(target?.id || '');
   const [classId, setClassId] = useState(
-      state.classes.some((c) => c.id === initialClass) ? initialClass : state.classes[0].id,
+      target?.classId || (state.classes.some((c) => c.id === initialClass) ? initialClass : state.classes[0].id),
     ),
-    [subject, setSubject] = useState('mat'),
-    [term, setTerm] = useState('1º Trimestre'),
+    [subject, setSubject] = useState(target?.subjectId || 'mat'),
+    [term, setTerm] = useState(target ? 'Todos' : '1º Trimestre'),
     [tab, setTab] = useState('Notas');
   const students = classStudents(state, classId);
   const assessments = state.assessments.filter(
     (a) =>
       a.classId === classId &&
+      (!focused || a.id === focused) &&
       a.subjectId === subject &&
       (term === 'Todos' ||
         (term === '1º Trimestre'
@@ -64,6 +67,7 @@ export function AssessmentsPage({ initialClass = '10a' }: { initialClass?: strin
   );
   return (
     <>
+      {focused && <div className="dash-connection">A lançar notas: {target?.title}. <button className="dash-text-link" onClick={() => setFocused('')}>Ver todas as avaliações</button></div>}
       <PageHeader
         title="Avaliações"
         description="Registe, acompanhe e analise o desempenho dos seus alunos."
@@ -72,7 +76,7 @@ export function AssessmentsPage({ initialClass = '10a' }: { initialClass?: strin
             <SelectField
               label="Turma"
               value={classId}
-              onChange={(e) => setClassId(e.target.value)}
+              onChange={(e) => { setClassId(e.target.value); setFocused(''); }}
               options={state.classes.map((c) => ({ value: c.id, label: c.name }))}
             />
             <button className="dash-btn" onClick={() => openModal({ kind: 'assessment', classId })}>
@@ -86,13 +90,13 @@ export function AssessmentsPage({ initialClass = '10a' }: { initialClass?: strin
         <SelectField
           label="Disciplina"
           value={subject}
-          onChange={(e) => setSubject(e.target.value)}
+          onChange={(e) => { setSubject(e.target.value); setFocused(''); }}
           options={state.subjects.map((s) => ({ value: s.id, label: s.name }))}
         />
         <SelectField
           label="Período"
           value={term}
-          onChange={(e) => setTerm(e.target.value)}
+          onChange={(e) => { setTerm(e.target.value); setFocused(''); }}
           options={['1º Trimestre', '2º Trimestre', '3º Trimestre', 'Todos']}
         />
       </div>

@@ -73,6 +73,10 @@ Os planos guardam uma cópia do cabeçalho e dos campos, sem alterar retroativam
 
 ### Início guiado e rotina diária
 
+O Início foi reorganizado em torno da próxima aula e das pendências calculadas. Abre na data atual do fuso configurado (Africa/Luanda como alternativa), atualizada a cada minuto; os exemplos de outubro de 2026 são selecionados explicitamente. A saudação usa o primeiro nome e o período do dia. Meteorologia ilustrativa, assistente destacado, tarefas estáticas e gráfico semanal fixo foram retirados deste ecrã.
+
+A próxima aula privilegia preparação do plano, chamada ou conclusão, com as restantes ações secundárias. As pendências incluem rascunhos automáticos, planos em rascunho, chamadas incompletas por turma/data e avaliações realizadas com notas em falta para alunos ativos. Os atalhos abrem o plano, a chamada ou a avaliação específica. A agenda inclui também eventos não letivos. Indicadores compactos, turmas e recursos ficam abaixo. O início guiado concluído fica recolhido; no telemóvel, a rotina aparece na ordem próxima aula, pendências e restante agenda. Alteração revista no código, sem execução de testes, builds ou Docker.
+
 O início inclui três passos: criar turma com disciplina, colar nomes de alunos (um por linha) e guardar a primeira aula como rascunho. O progresso fica no mesmo armazenamento local do dashboard. A aula é acrescentada ao calendário; a turma recebe uma conversa local. Os dados de demonstração existentes são preservados.
 
 As aulas do dia permitem selecionar uma data, abrir/preparar o plano, marcar presenças com turma e data preenchidas, criar avaliação com disciplina e concluir um plano após confirmar a chamada. A data inicial continua a ser a de demonstração; o botão Hoje usa a data local.

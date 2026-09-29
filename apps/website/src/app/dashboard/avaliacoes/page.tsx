@@ -5,5 +5,5 @@ export default async function Page({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const query = await searchParams;
-  return <AssessmentsPage initialClass={query.turma} />;
+  return <AssessmentsPage key={`${query.turma}-${query.avaliacao}`} initialClass={query.turma} initialAssessment={query.avaliacao} />;
 }

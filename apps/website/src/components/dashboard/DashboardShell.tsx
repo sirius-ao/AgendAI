@@ -1,16 +1,23 @@
 'use client';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, BookOpen, Crown, Menu, Search, X } from 'lucide-react';
+import { Bell, BookOpen, Crown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search, X } from 'lucide-react';
 import { dashboardNavigation } from '@/data/dashboard/navigation';
 import { useDashboard } from './state/DashboardProvider';
 import { Avatar, Modal, SearchInput } from './ui/Primitives';
 import { CreationModals } from './forms/CreationModals';
 import { ConnectionStatus } from './ConnectionStatus';
 import { normalize } from '@/lib/dashboard/selectors';
+const subscribeCompact = (callback: () => void) => {
+  const media = window.matchMedia('(max-width: 950px)');
+  media.addEventListener('change', callback);
+  return () => media.removeEventListener('change', callback);
+};
 export function DashboardShell({ children }: { children: ReactNode }) {
-  const { state, ready, error, clearError } = useDashboard();
+  const { state, ready, error, clearError, update } = useDashboard();
+  const compact = useSyncExternalStore(subscribeCompact, () => window.matchMedia('(max-width: 950px)').matches, () => false);
+  const collapsed = state.settings.sidebarCollapsed ?? compact;
   const pathname = usePathname();
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useState(false);
@@ -45,9 +52,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     .filter((r) => normalize(r.title).includes(normalize(query)))
     .slice(0, 12);
   return (
-    <div className={`dash-app dash-theme-${state.settings.theme}`}>
-      <aside className={`dash-sidebar ${menu ? 'is-open' : ''}`}>
-        <Link href="/dashboard" className="dash-logo">
+    <div className={`dash-app dash-theme-${state.settings.theme} ${collapsed ? 'sidebar-collapsed' : 'sidebar-expanded'}`}>
+      <aside id="dashboard-sidebar" className={`dash-sidebar ${menu ? 'is-open' : ''}`}>
+        <Link href="/dashboard" className="dash-logo" aria-label="AgendAI — Início">
           <BookOpen />
           <span>
             Agend<span>AI</span>
@@ -67,6 +74,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               onClick={() => setMenu(false)}
               key={href}
               href={href}
+              title={label}
+              aria-label={label}
               aria-current={
                 (href === '/dashboard' ? pathname === href : pathname.startsWith(href))
                   ? 'page'
@@ -77,6 +86,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               <span>{label}</span>
             </Link>
           ))}
+          <Link href="/entrar" onClick={() => setMenu(false)} className="dash-sidebar-exit" aria-label="Sair" title="Sair da demonstração. Os dados locais ficam guardados.">
+            <LogOut size={21} />
+            <span>Sair</span>
+          </Link>
         </nav>
         <div className="dash-pro">
           <strong>
@@ -98,8 +111,21 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       <div className="dash-workspace">
         <header className="dash-topbar">
           <button
+            type="button"
+            className="dash-sidebar-toggle dash-icon-button"
+            aria-label={collapsed ? 'Expandir menu lateral' : 'Comprimir menu lateral'}
+            title={collapsed ? 'Expandir menu lateral' : 'Comprimir menu lateral'}
+            aria-expanded={!collapsed}
+            aria-controls="dashboard-sidebar"
+            onClick={() => update((s) => ({ ...s, settings: { ...s.settings, sidebarCollapsed: !collapsed } }))}
+          >
+            {collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+          </button>
+          <button
             className="dash-menu-button"
             aria-label="Abrir navegação"
+            aria-expanded={menu}
+            aria-controls="dashboard-sidebar"
             onClick={() => setMenu(true)}
           >
             <Menu />
@@ -147,6 +173,15 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               <strong>{state.user.name}</strong>
               <small>{state.user.role}</small>
             </span>
+          </Link>
+          <Link
+            href="/entrar"
+            className="dash-exit"
+            aria-label="Sair do dashboard"
+            title="Sair da demonstração. Os dados locais ficam guardados."
+          >
+            <LogOut size={19} />
+            <span>Sair</span>
           </Link>
         </header>
         <main id="main" className="dash-main">

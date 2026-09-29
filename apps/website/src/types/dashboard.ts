@@ -183,6 +183,7 @@ export interface Conversation {
   messages: Message[];
 }
 export interface DashboardSettings {
+  sidebarCollapsed?: boolean;
   theme: 'light' | 'dark' | 'system';
   language: string;
   timezone: string;
