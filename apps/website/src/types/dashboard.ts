@@ -33,6 +33,14 @@ export interface SchoolClass {
 }
 export type PlanStatus = 'Em utilização' | 'Planeado' | 'Concluído' | 'Rascunho';
 export interface LessonPlan {
+  startTime?: string;
+  modelId?: 'simple' | 'detailed' | 'school';
+  schoolName?: string;
+  teacherName?: string;
+  schoolYear?: string;
+  prerequisites?: string;
+  stages?: { title: string; minutes: number; teacher: string; students: string }[];
+  schoolFields?: { label: string; value: string }[];
   id: Id;
   teacherId: Id;
   title: string;
@@ -185,6 +193,8 @@ export interface DashboardSettings {
   twoFactor: boolean;
 }
 export interface DashboardState {
+  planDrafts?: Record<string, LessonPlan>;
+  planPreferences?: { modelId: 'simple' | 'detailed' | 'school'; schoolFieldLabels: string[] };
   onboarding?: { classId?: Id; step: number; name: string; year: string; subjectId: string; names: string; title: string; date: string; objectives: string; time: string };
   attendanceDrafts?: Record<string, Record<Id, { status: AttendanceStatus | ''; note: string }>>;
   user: User;

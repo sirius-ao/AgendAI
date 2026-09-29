@@ -102,7 +102,7 @@ export function HomePage() {
                 {isLesson ? <>
                   <p>{plan?.status === 'Concluído' ? 'Aula concluída' : !plan || plan.status === 'Rascunho' ? 'Próximo passo: preparar o plano' : !attendance ? 'Próximo passo: marcar presenças' : 'Chamada confirmada · pode concluir a aula'}</p>
                   <div className="dash-guide-actions">
-                    <button className="dash-btn secondary" onClick={() => openModal({ kind: 'plan', id: plan?.id, classId: event.classId, subjectId: event.subjectId, date: event.date })}>{plan ? 'Abrir plano' : 'Preparar plano'}</button>
+                    <button className="dash-btn secondary" onClick={() => openModal({ kind: 'plan', id: plan?.id, eventId: event.id, classId: event.classId, subjectId: event.subjectId, date: event.date })}>{plan ? 'Abrir plano' : 'Preparar plano'}</button>
                     <Link className="dash-btn" href={`/dashboard/presencas?turma=${event.classId}&data=${event.date}`}>Presenças</Link>
                     <button className="dash-btn secondary" onClick={() => openModal({ kind: 'assessment', classId: event.classId, subjectId: event.subjectId, date: event.date })}>Criar avaliação</button>
                     {plan && attendance && plan.status !== 'Concluído' && <button className="dash-btn secondary" onClick={() => update((s) => ({ ...s, plans: s.plans.map((p) => p.id === plan.id ? { ...p, status: 'Concluído' } : p) }))}>Concluir aula</button>}

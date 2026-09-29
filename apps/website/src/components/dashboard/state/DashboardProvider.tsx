@@ -15,6 +15,10 @@ type ModalRequest = {
   kind: 'plan' | 'assessment' | 'event';
   classId?: string;
   subjectId?: string;
+  modelId?: 'simple' | 'detailed' | 'school';
+  copyFrom?: string;
+  eventId?: string;
+  example?: 'math' | 'portuguese';
   id?: string;
   ai?: boolean;
   date?: string;

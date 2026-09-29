@@ -16,9 +16,12 @@ import {
   StatusBadge,
   Tabs,
 } from '../ui/Primitives';
-import { formatDate, localId, normalize } from '@/lib/dashboard/selectors';
-import { exportCSV, printDocument } from '@/lib/dashboard/export';
+import { formatDate, normalize } from '@/lib/dashboard/selectors';
+import { exportCSV } from '@/lib/dashboard/export';
+import { printLessonPlan } from '@/lib/dashboard/print-lesson-plan';
 import type { LessonPlan } from '@/types/dashboard';
+import { PlanModels } from '../PlanModels';
+import { planRows } from '@/lib/dashboard/plan-models';
 export function PlansPage({ initialQuery = '' }: { initialQuery?: string }) {
   const { state, update, openModal, notify } = useDashboard();
   const [query, setQuery] = useState(initialQuery),
@@ -35,7 +38,7 @@ export function PlansPage({ initialQuery = '' }: { initialQuery?: string }) {
       (!classId || p.classId === classId) &&
       (tab === 'Todos' ||
         (tab === 'Meus planos' && p.teacherId === state.user.id) ||
-        (tab === 'Modelos' && p.template) ||
+        (tab === 'Reutilizáveis' && p.template) ||
         (tab === 'Partilhados' && p.shared) ||
         (tab === 'Favoritos' && p.favorite)),
   );
@@ -54,10 +57,13 @@ export function PlansPage({ initialQuery = '' }: { initialQuery?: string }) {
         title="Planos de Aula"
         description="Crie, organize e gerencie os seus planos de aula de forma simples e eficiente."
         actions={
+          <>
+          <button className="dash-btn secondary" onClick={() => setTab('Modelos')}>Escolher modelo</button>
           <button className="dash-btn neon" onClick={() => openModal({ kind: 'plan' })}>
             <Plus />
             Novo plano de aula
           </button>
+          </>
         }
       />
       <div className="dash-stats">
@@ -71,7 +77,7 @@ export function PlansPage({ initialQuery = '' }: { initialQuery?: string }) {
         <StatCard
           icon={FileText}
           value={state.plans.filter((p) => p.template).length}
-          label="Modelos guardados"
+          label="Planos reutilizáveis"
           tone="blue"
         />
         <StatCard
@@ -81,17 +87,20 @@ export function PlansPage({ initialQuery = '' }: { initialQuery?: string }) {
           tone="amber"
         />
       </div>
+      {Object.keys(state.planDrafts || {}).length > 0 && <Panel title="Continuar a preparar">
+        <div className="dash-guide-actions">{Object.entries(state.planDrafts || {}).map(([key, draft]) => <button className="dash-btn secondary" key={key} onClick={() => openModal({ kind: 'plan', ...(key === 'new' ? {} : key.startsWith('copy-') ? { copyFrom: key.slice(5) } : key.startsWith('example-') ? { example: key.slice(8) as 'math' | 'portuguese' } : { id: key }) })}>{draft.title || 'Plano sem título'} · Retomar rascunho</button>)}</div>
+      </Panel>}
       <Panel className="dash-table-panel">
         <div className="dash-toolbar">
           <Tabs
-            items={['Todos', 'Meus planos', 'Modelos', 'Partilhados', 'Favoritos']}
+            items={['Todos', 'Meus planos', 'Modelos', 'Reutilizáveis', 'Partilhados', 'Favoritos']}
             value={tab}
             onChange={(v) => {
               setTab(v);
               setPage(1);
             }}
           />
-          <div className="dash-filters">
+          {tab !== 'Modelos' && <div className="dash-filters">
             <SelectField
               label="Disciplina"
               value={subject}
@@ -129,8 +138,9 @@ export function PlansPage({ initialQuery = '' }: { initialQuery?: string }) {
             >
               Exportar
             </button>
-          </div>
+          </div>}
         </div>
+        {tab === 'Modelos' ? <PlanModels /> : <>
         <div className="dash-table-scroll">
           <table className="dash-table">
             <thead>
@@ -186,6 +196,7 @@ export function PlansPage({ initialQuery = '' }: { initialQuery?: string }) {
                       items={[
                         { label: 'Ver plano', action: () => setSelected(p) },
                         { label: 'Editar', action: () => openModal({ kind: 'plan', id: p.id }) },
+                        { label: 'Usar noutra turma', action: () => openModal({ kind: 'plan', copyFrom: p.id }) },
                         {
                           label: p.favorite ? 'Remover favorito' : 'Favoritar',
                           action: () =>
@@ -197,37 +208,14 @@ export function PlansPage({ initialQuery = '' }: { initialQuery?: string }) {
                             })),
                         },
                         {
-                          label: 'Duplicar',
-                          action: () => {
-                            update((s) => ({
-                              ...s,
-                              plans: [
-                                {
-                                  ...p,
-                                  id: localId('plan'),
-                                  title: `${p.title} (cópia)`,
-                                  status: 'Rascunho',
-                                },
-                                ...s.plans,
-                              ],
-                            }));
-                            notify('Plano duplicado.');
-                          },
+                          label: 'Duplicar e rever',
+                          action: () => openModal({ kind: 'plan', copyFrom: p.id }),
                         },
                         {
                           label: 'Exportar PDF / imprimir',
                           action: () => {
                             if (
-                              !printDocument(
-                                p.title,
-                                ['Campo', 'Conteúdo'],
-                                [
-                                  ['Objetivos', p.objectives],
-                                  ['Conteúdos', p.content],
-                                  ['Metodologia', p.methodology],
-                                  ['Recursos', p.resources],
-                                ],
-                              )
+                              !printLessonPlan(p, state)
                             )
                               notify('Permita janelas para imprimir o plano.');
                           },
@@ -243,27 +231,16 @@ export function PlansPage({ initialQuery = '' }: { initialQuery?: string }) {
         </div>
         {!plans.length && <EmptyState />}
         <Pagination page={current} total={plans.length} pageSize={8} onChange={setPage} />
+        </>}
       </Panel>
       {selected && (
         <Modal title={selected.title} onClose={() => setSelected(null)}>
           <div className="dash-modal-simple">
             <StatusBadge>{selected.status}</StatusBadge>
-            {[
-              ['Objetivos', selected.objectives],
-              ['Conteúdos', selected.content],
-              ['Metodologia', selected.methodology],
-              ['Recursos', selected.resources],
-              ['Avaliação', selected.evaluation],
-              [
-                'Materiais associados',
-                selected.resourceIds
-                  .map((id) => state.resources.find((r) => r.id === id)?.title)
-                  .join(', ') || 'Nenhum',
-              ],
-            ].map(([label, text]) => (
-              <section key={label}>
+            {planRows(selected, state).map(([label, text], index) => (
+              <section key={index}>
                 <h3>{label}</h3>
-                <p>{text}</p>
+                <p style={{ whiteSpace: 'pre-wrap' }}>{text || 'Por preencher'}</p>
               </section>
             ))}
             <button
@@ -281,10 +258,10 @@ export function PlansPage({ initialQuery = '' }: { initialQuery?: string }) {
       {deleting && (
         <ConfirmDialog
           title="Eliminar plano?"
-          description="Esta ação remove o plano dos dados locais desta demonstração."
+          description="Remove o plano, o seu rascunho automático e a aula ligada no calendário."
           onClose={() => setDeleting(null)}
           onConfirm={() =>
-            update((s) => ({ ...s, plans: s.plans.filter((p) => p.id !== deleting) }))
+            update((s) => ({ ...s, plans: s.plans.filter((p) => p.id !== deleting), events: s.events.filter((e) => e.sourceId !== deleting), planDrafts: Object.fromEntries(Object.entries(s.planDrafts || {}).filter(([key]) => key !== deleting)) }))
           }
         />
       )}

@@ -6,8 +6,10 @@ import { Attachments, Field, Modal, Switch } from '../ui/Primitives';
 import { DEMO_DATE } from '@/data/dashboard/seed';
 import { localId } from '@/lib/dashboard/selectors';
 import type { Assessment, CalendarEvent, LessonPlan, Tone } from '@/types/dashboard';
+import { PlanForm } from './PlanForm';
 export function CreationModals() {
   const { modal } = useDashboard();
+  if (modal?.kind === 'plan') return <PlanForm key={`${modal.id || modal.copyFrom || modal.example || 'new'}-${modal.modelId || 'default'}`} />;
   return modal ? <CreationForm key={`${modal.kind}-${modal.id || 'new'}`} /> : null;
 }
 function CreationForm() {

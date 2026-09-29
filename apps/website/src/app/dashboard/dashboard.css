@@ -3437,6 +3437,32 @@
   .dash-attendance-choices button[aria-pressed='true'] { background: var(--dash-green); color: white; border-color: var(--dash-green); font-weight: 700; }
   .dash-attendance-actions { position: sticky; bottom: 0; z-index: 5; background: var(--dash-surface); padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--dash-border); }
 }
+.dash-model-gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 18px; }
+.dash-model-gallery .dash-panel { min-width: 0; }
+.dash-model-gallery .dash-guide-actions { margin-top: 16px; }
+.dash-model-paper { padding: 20px; margin-bottom: 18px; border: 1px solid var(--dash-border); border-radius: 6px; background: var(--dash-bg); font-size: 11px; }
+.dash-model-paper > strong, .dash-model-paper > span { display: block; text-align: center; margin-bottom: 12px; }
+.dash-model-paper > div { margin-top: 10px; }
+.dash-model-paper i { display: block; border-bottom: 1px solid var(--dash-border); height: 18px; }
+.dash-model-preview-field, .dash-plan-stage { border: 1px solid var(--dash-border); padding: 14px; margin: 14px 0; border-radius: 8px; min-width: 0; }
+.dash-plan-stage legend { font-weight: 600; padding: 0 6px; }
+.dash-plan-identification { padding: 12px 0; }
+.dash-plan-identification summary { cursor: pointer; padding-bottom: 12px; }
+.dash-plan-preview { border: 1px solid var(--dash-border); border-radius: 8px; padding: 14px; margin: 15px 0; overflow-wrap: anywhere; }
+.dash-plan-preview dt { font-weight: 600; margin-top: 14px; }
+.dash-plan-preview dd { margin: 4px 0 0; white-space: pre-wrap; color: var(--dash-muted); font-size: 12px; }
+@media (max-width: 1000px) {
+  .dash-model-gallery { grid-template-columns: minmax(0, 1fr); }
+}
+.dash-example-plans { padding: 18px; }
+.dash-dialog-plan .dash-form-actions { flex-wrap: wrap; }
+.dash-dialog-plan .dash-form-actions .dash-btn { white-space: normal; }
+@media (max-width: 700px) {
+  .dash-dialog-plan .dash-plan-stage { padding: 12px; }
+  .dash-dialog-plan .dash-guide-actions > button { min-height: 44px; }
+  .dash-dialog-plan .dash-form-aside > .dash-form-actions { position: sticky; bottom: 0; padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); background: var(--dash-surface); z-index: 2; }
+  .dash-dialog-plan .dash-form-actions > .dash-btn { flex: 1 1 100%; min-height: 44px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .dash-app * {
     scroll-behavior: auto !important;

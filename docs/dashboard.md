@@ -59,6 +59,18 @@ A seed contém 6 turmas, 186 alunos (28 na 10ª A), 7 disciplinas, 24 planos, 24
 
 ## Persistência e backend futuro
 
+### Modelos de planos de aula
+
+Incrementos: o editor conserva rascunhos automáticos locais por plano, por cópia e por exemplo; a lista apresenta atalhos para retomar. Fechar preserva o rascunho; descartar exige confirmação. Confirmar o plano limpa o rascunho e cria/atualiza um único evento ligado por `sourceId`, incluindo turma, disciplina, data, hora e duração. A edição dessa aula pelo calendário abre o editor do plano. Eliminar um plano remove também o evento ligado; a chamada histórica não é eliminada.
+
+“Usar noutra turma” e “Duplicar e rever” abrem uma cópia independente, pedindo nova turma e data. Os exemplos ilustrativos de Matemática e Português incluem objetivos, conteúdos, recursos, avaliação e quatro etapas de 50 minutos no total; precisam de revisão pelo professor antes de uso. Estão disponíveis na galeria de modelos.
+
+A impressão dedicada de planos abre um documento A4, com cabeçalho, secções, tabela de etapas e assinaturas. A numeração usa margens de página CSS quando suportadas; os cabeçalhos/rodapés do diálogo de impressão são a alternativa do navegador. A persistência mantém-se local e não inclui sincronização entre dispositivos. Os controlos móveis foram revistos no CSS; não houve validação visual no navegador nem execução de testes ou builds nesta alteração.
+
+Em Planos de Aula, a secção Modelos apresenta Simplificado, Detalhado e Da escola, com pré-visualização antes da escolha. O editor inclui identificação preenchida com os dados locais, objetivos, conteúdos, atividades, recursos e avaliação. O Detalhado acrescenta pré-requisitos e etapas com minutos e ações do professor/alunos. O Da escola acrescenta campos com nomes, conteúdo e ordem editáveis. A preferência de modelo e os nomes dos campos podem ser reutilizados em novas aulas; o conteúdo de cada aula é independente.
+
+Os planos guardam uma cópia do cabeçalho e dos campos, sem alterar retroativamente os existentes. Mudar de modelo no editor preserva os dados adicionais, mostrando na pré-visualização apenas os campos relevantes. A secção Reutilizáveis reúne planos marcados para duplicação, distinguindo conteúdo reutilizável de estrutura de modelo. A duplicação preserva todos os campos e cria um rascunho independente. Pré-visualização e impressão/PDF usam os mesmos dados, incluindo identificação, etapas e campos da escola. A impressão continua a usar o navegador. Rascunhos permitem completar objetivos e atividades mais tarde; planos prontos exigem esses dados e duração coerente com as etapas. Funcionalidade apenas frontend, sem testes ou builds executados nesta alteração.
+
 ### Início guiado e rotina diária
 
 O início inclui três passos: criar turma com disciplina, colar nomes de alunos (um por linha) e guardar a primeira aula como rascunho. O progresso fica no mesmo armazenamento local do dashboard. A aula é acrescentada ao calendário; a turma recebe uma conversa local. Os dados de demonstração existentes são preservados.

@@ -284,6 +284,10 @@ export function CalendarPage({ initialClass = '' }: { initialClass?: string }) {
               <button
                 className="dash-btn secondary"
                 onClick={() => {
+                  if (selected.sourceId && state.plans.some((p) => p.id === selected.sourceId)) {
+                    notify('Esta aula está ligada a um plano. Para a remover, elimine o plano em Planos de Aula.');
+                    return;
+                  }
                   if (window.confirm('Eliminar este evento local?')) {
                     update((s) => ({ ...s, events: s.events.filter((e) => e.id !== selected.id) }));
                     setSelected(null);
@@ -297,7 +301,9 @@ export function CalendarPage({ initialClass = '' }: { initialClass?: string }) {
                 className="dash-btn"
                 onClick={() => {
                   openModal(
-                    selected.sourceId && state.assessments.some((a) => a.id === selected.sourceId)
+                    selected.sourceId && state.plans.some((p) => p.id === selected.sourceId)
+                      ? { kind: 'plan', id: selected.sourceId }
+                      : selected.sourceId && state.assessments.some((a) => a.id === selected.sourceId)
                       ? { kind: 'assessment', id: selected.sourceId }
                       : { kind: 'event', id: selected.id },
                   );
