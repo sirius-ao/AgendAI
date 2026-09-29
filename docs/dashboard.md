@@ -59,7 +59,25 @@ A seed contém 6 turmas, 186 alunos (28 na 10ª A), 7 disciplinas, 24 planos, 24
 
 ## Persistência e backend futuro
 
+### Chamada e histórico de presenças
+
+Presenças separa Fazer chamada de Consultar histórico. A unidade continua a ser turma/data; as aulas e disciplinas no cabeçalho são contexto, não registos independentes por aula. A chamada dispõe de pesquisa, filtros com contagens, alunos por marcar primeiro, marcação coletiva e desfazer da última edição nesta página. Os totais e a confirmação consideram a lista inteira, independentemente do filtro. Transferidos com registos anteriores permanecem visíveis nas chamadas históricas; novas chamadas incluem alunos ativos.
+
+Antes da confirmação, um resumo mostra faltas, justificações e observações. Correções a uma chamada confirmada preservam a versão anterior em versions, com a data de confirmação quando disponível. As versões são consultáveis sem edição; não são apresentadas como auditoria de servidor. O histórico permite filtrar datas, exportar CSV e imprimir apenas as chamadas confirmadas atuais. Rascunhos continuam separados dos relatórios. Implementação local, sem testes ou builds executados.
+
+### Gestão de turmas e alunos
+
+A lista de turmas distingue Ativas, Arquivadas e Todas, com pesquisa e filtro de ano letivo. Os cartões mostram disciplinas e alunos ativos, com edição, arquivo reversível e preparação do próximo ano no menu. O detalhe tem Resumo, Alunos, Aulas e Resultados. O resumo deriva a próxima aula, planos por terminar, chamadas incompletas e avaliações com notas em falta dos registos da turma. Cada pendência abre o módulo correspondente.
+
+A adição por lista aceita um nome por linha, apresenta revisão com seleção individual e sinaliza nomes iguais aos existentes ou repetidos na própria lista. Homónimos são permitidos após confirmação explícita; nenhum nome é eliminado automaticamente. A ficha do aluno permite editar nome/contacto, consultar o histórico de chamadas com observações e resultados por avaliação. No telemóvel, os alunos aparecem em cartões.
+
+Preparar outro ano cria uma turma independente com disciplinas selecionadas e, opcionalmente, novas inscrições dos alunos ativos. Não copia notas, presenças, planos ou mensagens. As referências previousClassId e previousStudentId permitem consultar a turma/inscrição anterior; o original não é alterado nem arquivado automaticamente. Arquivar é uma classificação reversível, não uma barreira de permissões nos restantes módulos. Dados locais, sem execução de testes, builds ou Docker nesta alteração.
+
 ### Modelos de planos de aula
+
+A área Planos de Aula apresenta agora uma lista única com filtros Todos, Por terminar, Preparados e Concluídos. Os rascunhos automáticos substituem a versão guardada na listagem enquanto estão pendentes, evitando duplicação; trabalhos ainda sem plano confirmado também aparecem em Por terminar. Favoritos, reutilizáveis e partilhados passam para o filtro Coleção. A galeria abre pelo botão Criar com modelo e tem regresso à lista. No computador usa tabela; no telemóvel, cartões com Continuar/Abrir e menu de opções.
+
+O editor está dividido em Dados da aula, Conteúdo, Etapas e Documento, com atalhos internos e opções menos frequentes recolhidas. O estado de gravação local e Continuar depois permanecem numa barra fixa durante a deslocação. Após guardar, uma confirmação permite abrir diretamente o evento na data e turma correspondentes no calendário. Alterações revistas por leitura do código, sem testes, builds ou Docker.
 
 Incrementos: o editor conserva rascunhos automáticos locais por plano, por cópia e por exemplo; a lista apresenta atalhos para retomar. Fechar preserva o rascunho; descartar exige confirmação. Confirmar o plano limpa o rascunho e cria/atualiza um único evento ligado por `sourceId`, incluindo turma, disciplina, data, hora e duração. A edição dessa aula pelo calendário abre o editor do plano. Eliminar um plano remove também o evento ligado; a chamada histórica não é eliminada.
 

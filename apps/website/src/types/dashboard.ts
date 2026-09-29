@@ -14,6 +14,7 @@ export interface Subject {
   tone: Tone;
 }
 export interface Student {
+  previousStudentId?: Id;
   id: Id;
   name: string;
   classId: Id;
@@ -22,6 +23,8 @@ export interface Student {
   status: 'Ativo' | 'Transferido';
 }
 export interface SchoolClass {
+  archived?: boolean;
+  previousClassId?: Id;
   id: Id;
   name: string;
   year: string;
@@ -68,6 +71,8 @@ export interface LessonPlan {
 }
 export type AttendanceStatus = 'Presente' | 'Falta' | 'Justificada';
 export interface Attendance {
+  confirmedAt?: string;
+  versions?: { confirmedAt?: string; records: Attendance['records'] }[];
   classId: Id;
   date: string;
   records: Record<Id, { status: AttendanceStatus; note: string }>;
