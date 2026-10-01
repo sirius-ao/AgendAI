@@ -1,4 +1,5 @@
 'use client';
+import { gradePending } from '@/lib/dashboard/assessment-grades';
 import { useState } from 'react';
 import { Users, Check, ChartColumn, Trophy, FileText, Download, TriangleAlert } from 'lucide-react';
 import { useDashboard } from '../state/DashboardProvider';
@@ -52,7 +53,7 @@ export function ReportsPage({ initialClass = '10a' }: { initialClass?: string })
     ? Math.round((entries.filter((r) => r.status === 'Presente').length / entries.length) * 100)
     : 0;
   const excellent = numbers.filter((a) => a.mean! >= 18);
-  const risk = numbers.filter((a) => a.mean! < 10);
+  const risk = numbers.filter((a) => a.mean! < 10 && assessments.every((item) => !gradePending(item, a.student.id)));
   const dates = attendance.slice(-5);
   const frequency = dates.map((a) => {
     const records = Object.values(a.records);

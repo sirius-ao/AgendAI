@@ -14,6 +14,7 @@ export interface Subject {
   tone: Tone;
 }
 export interface Student {
+  previousStudentId?: Id;
   id: Id;
   name: string;
   classId: Id;
@@ -22,6 +23,8 @@ export interface Student {
   status: 'Ativo' | 'Transferido';
 }
 export interface SchoolClass {
+  archived?: boolean;
+  previousClassId?: Id;
   id: Id;
   name: string;
   year: string;
@@ -33,6 +36,14 @@ export interface SchoolClass {
 }
 export type PlanStatus = 'Em utilização' | 'Planeado' | 'Concluído' | 'Rascunho';
 export interface LessonPlan {
+  startTime?: string;
+  modelId?: 'simple' | 'detailed' | 'school';
+  schoolName?: string;
+  teacherName?: string;
+  schoolYear?: string;
+  prerequisites?: string;
+  stages?: { title: string; minutes: number; teacher: string; students: string }[];
+  schoolFields?: { label: string; value: string }[];
   id: Id;
   teacherId: Id;
   title: string;
@@ -60,13 +71,24 @@ export interface LessonPlan {
 }
 export type AttendanceStatus = 'Presente' | 'Falta' | 'Justificada';
 export interface Attendance {
+  confirmedAt?: string;
+  versions?: { confirmedAt?: string; records: Attendance['records'] }[];
   classId: Id;
   date: string;
   records: Record<Id, { status: AttendanceStatus; note: string }>;
 }
 export type AssessmentType =
   'Prova/Teste' | 'Trabalho' | 'Projeto' | 'Apresentação' | 'Quiz' | 'Exame' | 'Competências';
+export interface GradeDetail {
+  status: 'Sem nota' | 'Avaliado' | 'Faltou' | 'Dispensado';
+  value: string;
+  feedback: string;
+  difficulties: string[];
+}
 export interface Assessment {
+  gradeDetails?: Record<Id, GradeDetail>;
+  gradeVersions?: { confirmedAt?: string; grades: Assessment['grades']; details: Record<Id, GradeDetail> }[];
+  gradesConfirmedAt?: string;
   id: Id;
   title: string;
   subjectId: Id;
@@ -123,6 +145,9 @@ export type ResourceCategory =
   | 'Áudios'
   | 'Outros';
 export interface Resource {
+  objectives?: string;
+  author?: string;
+  editable?: boolean;
   id: Id;
   title: string;
   category: ResourceCategory;
@@ -175,6 +200,7 @@ export interface Conversation {
   messages: Message[];
 }
 export interface DashboardSettings {
+  sidebarCollapsed?: boolean;
   theme: 'light' | 'dark' | 'system';
   language: string;
   timezone: string;
@@ -185,6 +211,9 @@ export interface DashboardSettings {
   twoFactor: boolean;
 }
 export interface DashboardState {
+  assessmentDrafts?: Record<Id, Record<Id, GradeDetail>>;
+  planDrafts?: Record<string, LessonPlan>;
+  planPreferences?: { modelId: 'simple' | 'detailed' | 'school'; schoolFieldLabels: string[] };
   onboarding?: { classId?: Id; step: number; name: string; year: string; subjectId: string; names: string; title: string; date: string; objectives: string; time: string };
   attendanceDrafts?: Record<string, Record<Id, { status: AttendanceStatus | ''; note: string }>>;
   user: User;

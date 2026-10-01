@@ -34,12 +34,12 @@ function layoutDay(events: CalendarEvent[], firstHour: number) {
   });
   return { positioned, columns: Math.max(1, lanes.length) };
 }
-export function CalendarPage({ initialClass = '' }: { initialClass?: string }) {
+export function CalendarPage({ initialClass = '', initialDate = DEMO_DATE, initialPlan }: { initialClass?: string; initialDate?: string; initialPlan?: string }) {
   const { state, openModal, update, notify } = useDashboard();
-  const [date, setDate] = useState(DEMO_DATE),
+  const [date, setDate] = useState(/^\d{4}-\d{2}-\d{2}$/.test(initialDate) && !Number.isNaN(Date.parse(initialDate)) ? initialDate : DEMO_DATE),
     [mode, setMode] = useState('Semana'),
     [classId, setClassId] = useState(initialClass),
-    [selected, setSelected] = useState<CalendarEvent | null>(null);
+    [selected, setSelected] = useState<CalendarEvent | null>(() => state.events.find((event) => initialPlan && event.sourceId === initialPlan) || null);
   const weekday = (new Date(date + 'T12:00:00').getDay() + 6) % 7;
   const start = add(date, -weekday);
   const days = Array.from({ length: 7 }, (_, i) => add(start, i));
@@ -284,6 +284,10 @@ export function CalendarPage({ initialClass = '' }: { initialClass?: string }) {
               <button
                 className="dash-btn secondary"
                 onClick={() => {
+                  if (selected.sourceId && state.plans.some((p) => p.id === selected.sourceId)) {
+                    notify('Esta aula está ligada a um plano. Para a remover, elimine o plano em Planos de Aula.');
+                    return;
+                  }
                   if (window.confirm('Eliminar este evento local?')) {
                     update((s) => ({ ...s, events: s.events.filter((e) => e.id !== selected.id) }));
                     setSelected(null);
@@ -297,7 +301,9 @@ export function CalendarPage({ initialClass = '' }: { initialClass?: string }) {
                 className="dash-btn"
                 onClick={() => {
                   openModal(
-                    selected.sourceId && state.assessments.some((a) => a.id === selected.sourceId)
+                    selected.sourceId && state.plans.some((p) => p.id === selected.sourceId)
+                      ? { kind: 'plan', id: selected.sourceId }
+                      : selected.sourceId && state.assessments.some((a) => a.id === selected.sourceId)
                       ? { kind: 'assessment', id: selected.sourceId }
                       : { kind: 'event', id: selected.id },
                   );

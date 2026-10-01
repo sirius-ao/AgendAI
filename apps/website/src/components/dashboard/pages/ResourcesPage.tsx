@@ -1,12 +1,12 @@
 'use client';
 import { useState, type FormEvent } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   BookOpen,
   Bookmark,
   FileText,
   Folder,
-  ImageIcon,
   Upload,
   Video,
   Trash2,
@@ -31,7 +31,6 @@ import {
 import { Donut } from '../ui/Charts';
 import { fileSize, formatDate, localId, normalize } from '@/lib/dashboard/selectors';
 import { downloadText } from '@/lib/dashboard/export';
-import { DEMO_DATE } from '@/data/dashboard/seed';
 import type { Resource, ResourceCategory } from '@/types/dashboard';
 const categories = [
   'Todos',
@@ -51,7 +50,7 @@ export function ResourcesPage({
   library?: boolean;
   initialQuery?: string;
 }) {
-  const { state, update, notify } = useDashboard();
+  const { state, update, notify, openModal } = useDashboard();
   const [query, setQuery] = useState(initialQuery),
     [category, setCategory] = useState('Todos'),
     [tab, setTab] = useState('Todos'),
@@ -62,6 +61,8 @@ export function ResourcesPage({
     [dialog, setDialog] = useState(''),
     [selected, setSelected] = useState<Resource | null>(null),
     [error, setError] = useState('');
+  const [destination, setDestination] = useState<{ href: string; label: string } | null>(null);
+  const clearFilters = () => { setQuery(''); setCategory('Todos'); setSubject(''); setLevel(''); setFolder(''); setTab('Todos'); setSort('Mais recentes'); };
   const personal = state.resources.filter((r) =>
     state.library.some(
       (l) => l.resourceId === r.id && (tab === 'Lixeira' ? l.deleted : !l.deleted),
@@ -71,7 +72,7 @@ export function ResourcesPage({
   const resources = base
     .filter(
       (r) =>
-        normalize(r.title).includes(normalize(query)) &&
+        normalize(`${r.title} ${r.description} ${state.subjects.find((s) => s.id === r.subjectId)?.name || ""}`).includes(normalize(query)) &&
         (category === 'Todos' || r.category === category) &&
         (!subject || r.subjectId === subject) &&
         (!level || r.level === level) &&
@@ -83,11 +84,12 @@ export function ResourcesPage({
         (tab !== 'Os meus recursos' || r.ownerId === state.user.id),
     )
     .sort((a, b) =>
-      sort === 'Mais populares' ? b.downloads - a.downloads : b.date.localeCompare(a.date),
+      sort === 'Título A–Z' ? a.title.localeCompare(b.title, 'pt') : b.date.localeCompare(a.date),
     );
   const bytes = personal.reduce((n, r) => n + r.bytes, 0);
   const filters = (
     <>
+      <SelectField label="Tipo de material" value={category} onChange={(e) => setCategory(e.target.value)} options={categories} />
       <SelectField
         label="Disciplina"
         value={subject}
@@ -98,16 +100,16 @@ export function ResourcesPage({
         ]}
       />
       <SelectField
-        label="Nível de ensino"
+        label="Classe"
         value={level}
         onChange={(e) => setLevel(e.target.value)}
-        options={[{ value: '', label: 'Todos' }, '9ª Classe', '10ª Classe', '11ª Classe']}
+        options={[{ value: '', label: 'Todas' }, ...Array.from(new Set(state.resources.map((r) => r.level))).filter(Boolean)]}
       />
       <SelectField
         label="Ordenar por"
         value={sort}
         onChange={(e) => setSort(e.target.value)}
-        options={['Mais recentes', 'Mais populares']}
+        options={['Mais recentes', 'Título A–Z']}
       />
     </>
   );
@@ -144,6 +146,7 @@ export function ResourcesPage({
             },
           ],
     }));
+    setDestination({ href: '/dashboard/biblioteca', label: 'Abrir Biblioteca' });
     notify('Material guardado na biblioteca.');
   };
   function submit(e: FormEvent<HTMLFormElement>) {
@@ -172,11 +175,12 @@ export function ResourcesPage({
         subjectId: get('subject'),
         level: get('level'),
         format: file.name.split('.').pop()!.toUpperCase(),
-        date: DEMO_DATE,
+        date: new Date().toLocaleDateString('en-CA'),
         bytes: file.size,
         downloads: 0,
         ownerId: state.user.id,
-        description: `Referência local: ${file.name}. O conteúdo do ficheiro não é armazenado nesta demonstração.`,
+        description: get('description') || `Referência local: ${file.name}.`,
+        objectives: get('objectives'), author: state.user.name, editable: f.get('editable') === 'on',
         favorite: false,
       };
       update((s) => ({
@@ -195,8 +199,11 @@ export function ResourcesPage({
         ],
       }));
     } else if (dialog === 'attach' && selected) {
+      if (!state.plans.some((p) => p.id === get('plan'))) { setError('Escolha um plano existente ou crie um novo.'); return; }
+      setDestination({ href: `/dashboard/planos-de-aula?plano=${encodeURIComponent(get('plan'))}`, label: 'Abrir plano de aula' });
       update((s) => ({
         ...s,
+        planDrafts: Object.fromEntries(Object.entries(s.planDrafts || {}).map(([key, p]) => [key, p.id === get('plan') || key === get('plan') ? { ...p, resourceIds: [...new Set([...p.resourceIds, selected.id])] } : p])),
         plans: s.plans.map((p) =>
           p.id === get('plan')
             ? { ...p, resourceIds: [...new Set([...p.resourceIds, selected.id])] }
@@ -225,8 +232,8 @@ export function ResourcesPage({
         title={library ? 'Biblioteca' : 'Recursos Didáticos'}
         description={
           library
-            ? 'Guarde, organize e aceda a todos os seus materiais num só lugar.'
-            : 'Materiais para usar como referência ou personalizar. Mais qualidade nas suas aulas.'
+            ? 'O seu espaço pessoal: organize os materiais guardados e use-os nas suas aulas.'
+            : 'Explore materiais, conheça o conteúdo e escolha o que usar na próxima aula.'
         }
         actions={
           <button className="dash-btn" onClick={() => open('upload')}>
@@ -235,28 +242,15 @@ export function ResourcesPage({
           </button>
         }
       />
-      <div className="dash-categories">
-        {categories.map((name, i) => {
-          const Icon = i === 0 ? Folder : i === 4 ? Video : i === 8 ? ImageIcon : FileText;
-          return (
-            <button
-              key={name}
-              className={category === name ? 'active' : ''}
-              onClick={() => setCategory(name)}
-            >
-              <span
-                className={`dash-icon ${['green', 'green', 'purple', 'red', 'blue', 'amber', 'purple', 'blue', 'green'][i]}`}
-              >
-                <Icon />
-              </span>
-              <strong>{name}</strong>
-              <small>
-                {name === 'Todos' ? base.length : base.filter((r) => r.category === name).length}{' '}
-                {library ? 'itens' : 'recursos'}
-              </small>
-            </button>
-          );
-        })}
+      <p><Link className="dash-text-link" href={library ? '/dashboard/recursos' : '/dashboard/biblioteca'}>{library ? 'Explorar Recursos →' : 'Ver os meus materiais na Biblioteca →'}</Link></p>
+      {destination && <div className="dash-resource-confirmation" role="status">Material preparado. <Link href={destination.href}>{destination.label} →</Link><button onClick={() => setDestination(null)} aria-label="Fechar confirmação">×</button></div>}
+      <div className="dash-resource-discovery">
+        <SearchInput value={query} onChange={setQuery} placeholder="Pesquisar título, descrição ou disciplina..." />
+        <details className="dash-resource-filters"><summary>Filtrar materiais</summary><div className="dash-library-filters">{filters}</div></details>
+        <div className="dash-resource-active-filters" aria-label="Filtros selecionados">
+          {[[query && `Pesquisa: ${query}`, () => setQuery('')], [category !== 'Todos' && category, () => setCategory('Todos')], [subject && state.subjects.find((s) => s.id === subject)?.name, () => setSubject('')], [level, () => setLevel('')], [folder && `Pasta: ${folder}`, () => setFolder('')]].map(([label, clear], index) => label ? <button key={index} onClick={clear as () => void}>{label as string} ×</button> : null)}
+          <button onClick={clearFilters}>Limpar tudo</button><span>{resources.length} materiais</span>
+        </div>
       </div>
       <div className={`dash-content-sidebar ${library ? 'dash-library' : ''}`}>
         <div>
@@ -265,16 +259,15 @@ export function ResourcesPage({
               items={
                 library
                   ? ['Todos', 'Favoritos', 'Lixeira']
-                  : ['Todos', 'Mais recentes', 'Mais populares', 'Os meus recursos', 'Favoritos']
+                  : ['Todos', 'Os meus recursos', 'Favoritos']
               }
               value={tab}
               onChange={(v) => {
                 setTab(v);
-                if (v === 'Mais populares') setSort(v);
                 if (v === 'Mais recentes') setSort(v);
               }}
             />
-            <SearchInput value={query} onChange={setQuery} placeholder="Pesquisar recursos..." />
+
           </div>
           {folder && (
             <div className="dash-folder-filter">
@@ -282,7 +275,7 @@ export function ResourcesPage({
               <button onClick={() => setFolder('')}>Limpar ×</button>
             </div>
           )}
-          {library && <div className="dash-library-filters">{filters}</div>}
+
           <div className="dash-resource-grid">
             {resources.map((r) => {
               const item = state.library.find((l) => l.resourceId === r.id);
@@ -301,7 +294,7 @@ export function ResourcesPage({
                         src={`/images/dashboard/resources/${r.image}.webp`}
                         alt=""
                         fill
-                        sizes="(max-width: 700px) 50vw, 20vw"
+                        sizes="(max-width: 700px) 100vw, 25vw"
                       />
                     ) : (
                       <div className="dash-document-preview">
@@ -311,7 +304,7 @@ export function ResourcesPage({
                             ? 'FICHA DE EXERCÍCIOS'
                             : r.format === 'XLS'
                               ? 'GRELHA DE AVALIAÇÃO'
-                              : 'PLANO DE AULA'}
+                              : r.category.toUpperCase()}
                         </strong>
                         <span>Disciplina: _______________________</span>
                         <span>Tema: __________________________</span>
@@ -345,10 +338,13 @@ export function ResourcesPage({
                     <p>
                       {state.subjects.find((s) => s.id === r.subjectId)?.name} · {r.level}
                     </p>
+                    <p className="dash-resource-description">{r.description}</p>
+                    <small>{r.editable === undefined ? 'Editabilidade não indicada' : r.editable ? 'Material editável' : 'Material de consulta'}</small>
+                    <div className="dash-resource-actions"><button className="dash-btn secondary" onClick={() => { setSelected(r); open('attach'); }}>Usar numa aula</button>{!library && <button className="dash-text-link" onClick={() => save(r)}>{item && !item.deleted ? 'Guardado na Biblioteca' : 'Guardar na Biblioteca'}</button>}</div>
                     <footer>
                       <small>
                         {formatDate(r.date, { day: '2-digit', month: 'short' })} ·{' '}
-                        {library ? fileSize(r.bytes) : `${r.downloads} consultas demo`}
+                        {fileSize(r.bytes)}
                       </small>
                       <button
                         className="dash-icon-button"
@@ -424,7 +420,7 @@ export function ResourcesPage({
             })}
           </div>
           {!resources.length && (
-            <EmptyState description="Experimente outros filtros ou carregue uma referência de material." />
+            <EmptyState title={base.length ? "Nenhum material corresponde à pesquisa" : library ? "A sua Biblioteca está vazia" : "Ainda não existem recursos"} description="Explore os recursos disponíveis ou carregue um material pessoal." action={<button className="dash-btn secondary" onClick={clearFilters}>Limpar filtros</button>} />
           )}
         </div>
         <aside>
@@ -440,26 +436,6 @@ export function ResourcesPage({
                 ]}
               />
               <small>Apenas referências locais; ficheiros não são enviados.</small>
-            </Panel>
-          )}
-          {!library && (
-            <Panel
-              title="Filtros"
-              action={
-                <button
-                  onClick={() => {
-                    setSubject('');
-                    setLevel('');
-                    setFolder('');
-                    setCategory('Todos');
-                    setQuery('');
-                  }}
-                >
-                  Limpar
-                </button>
-              }
-            >
-              {filters}
             </Panel>
           )}
           {library ? (
@@ -531,7 +507,11 @@ export function ResourcesPage({
         >
           {dialog === 'preview' && selected ? (
             <div className="dash-modal-simple">
-              <p>{selected.description}</p>
+              {selected.image && <Image src={`/images/dashboard/resources/${selected.image}.webp`} alt={`Imagem ilustrativa: ${selected.title}`} width={640} height={360} style={{ width: '100%', height: 'auto', borderRadius: 10 }} />}
+              {destination && <p role="status"><Link href={destination.href}>{destination.label} →</Link></p>}
+              <p>{selected.description}</p><h3>Objetivos</h3><p>{selected.objectives || 'Objetivos não indicados. Consulte a descrição antes de utilizar.'}</p>
+              <p>Autoria: {selected.author || (selected.ownerId === state.user.id ? state.user.name : 'Não indicada — material de demonstração')}</p>
+              <p>Disciplina: {state.subjects.find((s) => s.id === selected.subjectId)?.name || 'Geral'}</p>
               <p>
                 <strong>{selected.format}</strong> · {fileSize(selected.bytes)} · {selected.level}
               </p>
@@ -552,7 +532,8 @@ export function ResourcesPage({
                   <Download size={17} />
                   Ficha descritiva
                 </button>
-                <button className="dash-btn" onClick={() => save(selected)}>
+                <button className="dash-btn" onClick={() => open('attach')}>Usar numa aula</button>
+                <button className="dash-btn secondary" onClick={() => save(selected)}>
                   Guardar na biblioteca
                 </button>
               </div>
@@ -564,22 +545,19 @@ export function ResourcesPage({
                   <input name="name" required maxLength={60} />
                 </Field>
               ) : dialog === 'attach' ? (
-                <Field label="Plano de aula" required>
-                  <select name="plan" required>
+                <><button className="dash-btn secondary" type="button" onClick={() => { if (!selected) return; setDialog(''); openModal({ kind: 'plan', resourceId: selected.id, subjectId: selected.subjectId, date: new Date().toLocaleDateString('en-CA') }); }}>Preparar uma nova aula com este recurso</button><Field label="Plano de aula" required>
+                  <select name="plan" required defaultValue=""><option value="" disabled>Selecionar plano existente</option>
                     {state.plans.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.title}
+                        {p.title} · {state.classes.find((c) => c.id === p.classId)?.name || 'Sem turma'}
                       </option>
                     ))}
                   </select>
-                </Field>
+                </Field></>
               ) : (
                 <>
                   {dialog === 'upload' && (
                     <>
-                      <Field label="Título do material" required>
-                        <input name="title" required />
-                      </Field>
                       <Field
                         label="Ficheiro (até 10 MB)"
                         hint="Guardamos apenas o nome e os metadados. O conteúdo não é enviado nem conservado."
@@ -592,6 +570,10 @@ export function ResourcesPage({
                           accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.png,.jpg,.webp,.mp4,.mp3"
                         />
                       </Field>
+                      <Field label="Título do material" required>
+                        <input name="title" required />
+                      </Field>
+                      <p className="dash-connection">Visibilidade: pessoal, neste dispositivo. Não será publicado para outros professores.</p>
                       <Field label="Categoria">
                         <select name="category">
                           {categories.slice(1).map((c) => (
@@ -599,6 +581,7 @@ export function ResourcesPage({
                           ))}
                         </select>
                       </Field>
+                      <details><summary>Descrição, objetivos e edição (opcional)</summary><Field label="Descrição"><textarea name="description" maxLength={2000} /></Field><Field label="Objetivos"><textarea name="objectives" maxLength={2000} /></Field><label className="dash-check"><input type="checkbox" name="editable" />O material pode ser editado</label></details>
                       <Field label="Disciplina">
                         <select name="subject">
                           {state.subjects.map((s) => (
@@ -608,7 +591,7 @@ export function ResourcesPage({
                           ))}
                         </select>
                       </Field>
-                      <Field label="Nível de ensino">
+                      <Field label="Classe">
                         <select name="level">
                           <option>9ª Classe</option>
                           <option>10ª Classe</option>
@@ -631,7 +614,7 @@ export function ResourcesPage({
                 <button className="dash-btn secondary" type="button" onClick={() => setDialog('')}>
                   Cancelar
                 </button>
-                <button className="dash-btn">Guardar</button>
+                <button className="dash-btn" disabled={dialog === 'attach' && !state.plans.length}>{dialog === 'attach' ? 'Associar ao plano' : 'Guardar'}</button>
               </div>
             </form>
           )}

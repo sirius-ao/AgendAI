@@ -1,3 +1,4 @@
+import { gradePending } from '@/lib/dashboard/assessment-grades';
 import type { Assessment, DashboardState } from '@/types/dashboard';
 export const formatDate = (date: string, options?: Intl.DateTimeFormatOptions) =>
   new Date(`${date}T12:00:00`).toLocaleDateString(
@@ -37,7 +38,7 @@ export function classSummary(state: DashboardState, classId: string) {
       ? (100 * records.filter((r) => r.status === 'Presente').length) / records.length
       : 0,
     excellent: averages.filter((a) => (a.average || 0) >= 18),
-    atRisk: averages.filter((a) => a.average !== null && a.average < 10),
+    atRisk: averages.filter((a) => a.average !== null && a.average < 10 && assessments.every((item) => !gradePending(item, a.student.id))),
   };
 }
 export const formatNumber = (n: number) => n.toLocaleString('pt-PT', { maximumFractionDigits: 1 });
