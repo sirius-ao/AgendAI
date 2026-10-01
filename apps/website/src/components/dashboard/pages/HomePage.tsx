@@ -1,4 +1,5 @@
 'use client';
+import { gradePending } from '@/lib/dashboard/assessment-grades';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ArrowRight, BookOpen, CalendarDays, Check, FileText, Plus } from 'lucide-react';
@@ -47,7 +48,7 @@ export function HomePage() {
   const drafts = Object.entries(state.planDrafts || {});
   const unfinished = state.plans.filter((plan) => plan.status === 'Rascunho' && !state.planDrafts?.[plan.id]);
   const calls = [...new Map(state.events.filter((event) => event.type === 'Aula' && event.classId && studentsFor(event.classId).length && (event.date < day || (event.date === day && (day !== clock.date || examples || event.start <= clock.time))) && !called(event)).map((event) => [`${event.classId}:${event.date}`, event])).values()].sort((a, b) => a.date.localeCompare(b.date));
-  const assessments = state.assessments.filter((assessment) => assessment.date <= day && studentsFor(assessment.classId).some((student) => assessment.grades[student.id] == null)).sort((a, b) => a.date.localeCompare(b.date));
+  const assessments = state.assessments.filter((assessment) => assessment.date <= day && studentsFor(assessment.classId).some((student) => gradePending(assessment, student.id))).sort((a, b) => a.date.localeCompare(b.date));
   const pendingCount = drafts.length + unfinished.length + calls.length + assessments.length;
   const resume = (key: string) => openModal({ kind: 'plan', ...(key === 'new' ? {} : key.startsWith('copy-') ? { copyFrom: key.slice(5) } : key.startsWith('example-') ? { example: key.slice(8) as 'math' | 'portuguese' } : { id: key }) });
   const className = (id: string) => state.classes.find((c) => c.id === id)?.name || 'Turma';
@@ -86,7 +87,7 @@ export function HomePage() {
           {drafts.map(([key, plan]) => <button key={`draft-${key}`} onClick={() => resume(key)}><span className="dash-pending-dot" /><span><strong>{plan.title || 'Plano sem título'}</strong><small>Rascunho automático · continuar a escrever</small></span><ArrowRight size={16} /></button>)}
           {unfinished.map((plan) => <button key={plan.id} onClick={() => openModal({ kind: 'plan', id: plan.id })}><span className="dash-pending-dot" /><span><strong>{plan.title}</strong><small>{className(plan.classId)} · completar plano</small></span><ArrowRight size={16} /></button>)}
           {calls.map((event) => <Link key={`${event.classId}:${event.date}`} href={attendanceHref(event)}><span className="dash-pending-dot amber" /><span><strong>Confirmar chamada · {className(event.classId)}</strong><small>{formatDate(event.date)} · presenças por confirmar</small></span><ArrowRight size={16} /></Link>)}
-          {assessments.map((assessment) => <Link key={assessment.id} href={`/dashboard/avaliacoes?turma=${assessment.classId}&avaliacao=${assessment.id}`}><span className="dash-pending-dot blue" /><span><strong>{assessment.title}</strong><small>{className(assessment.classId)} · {studentsFor(assessment.classId).filter((s) => assessment.grades[s.id] == null).length} notas por lançar</small></span><ArrowRight size={16} /></Link>)}
+          {assessments.map((assessment) => <Link key={assessment.id} href={`/dashboard/avaliacoes?turma=${assessment.classId}&avaliacao=${assessment.id}`}><span className="dash-pending-dot blue" /><span><strong>{assessment.title}</strong><small>{className(assessment.classId)} · {studentsFor(assessment.classId).filter((s) => gradePending(assessment, s.id)).length} notas por lançar</small></span><ArrowRight size={16} /></Link>)}
         </div>
       </Panel>
       <section className="dash-home-agenda" aria-labelledby="day-agenda-title">

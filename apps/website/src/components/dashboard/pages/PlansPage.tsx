@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useDashboard } from '../state/DashboardProvider';
 import { ActionMenu, ConfirmDialog, EmptyState, Modal, PageHeader, Pagination, Panel, SearchInput, SelectField, StatusBadge, Tabs } from '../ui/Primitives';
@@ -11,8 +11,14 @@ import { PlanModels } from '../PlanModels';
 import { planModels, planRows } from '@/lib/dashboard/plan-models';
 
 type Entry = { key: string; plan: LessonPlan; saved: boolean; unfinished: boolean };
-export function PlansPage({ initialQuery = '' }: { initialQuery?: string }) {
-  const { state, update, openModal, notify } = useDashboard();
+export function PlansPage({ initialQuery = '', initialPlan = '' }: { initialQuery?: string; initialPlan?: string }) {
+  const { state, update, openModal, notify, ready } = useDashboard();
+  const [openedInitial, setOpenedInitial] = useState(false);
+  useEffect(() => {
+    if (!ready || openedInitial || !initialPlan) return;
+    if (state.plans.some((p) => p.id === initialPlan)) openModal({ kind: 'plan', id: initialPlan });
+    setOpenedInitial(true);
+  }, [ready, openedInitial, initialPlan, state.plans, openModal]);
   const [query, setQuery] = useState(initialQuery);
   const [tab, setTab] = useState('Todos');
   const [subject, setSubject] = useState('');
@@ -32,7 +38,7 @@ export function PlansPage({ initialQuery = '' }: { initialQuery?: string }) {
   const subjectName = (plan: LessonPlan) => state.subjects.find((s) => s.id === plan.subjectId)?.name || 'Disciplina por escolher';
   const modelName = (plan: LessonPlan) => planModels.find((model) => model.id === (plan.modelId || 'simple'))?.name || 'Simplificado';
   const dateLabel = (plan: LessonPlan) => plan.date ? formatDate(plan.date) : 'Data por escolher';
-  const resume = (entry: Entry) => openModal({ kind: 'plan', ...(entry.saved ? { id: entry.key } : entry.key === 'new' ? {} : entry.key.startsWith('copy-') ? { copyFrom: entry.key.slice(5) } : entry.key.startsWith('example-') ? { example: entry.key.slice(8) as 'math' | 'portuguese' } : { id: entry.key }) });
+  const resume = (entry: Entry) => openModal({ kind: 'plan', ...(entry.saved ? { id: entry.key } : entry.key === 'new' ? {} : entry.key.startsWith('resource-') ? { resourceId: entry.key.slice(9) } : entry.key.startsWith('copy-') ? { copyFrom: entry.key.slice(5) } : entry.key.startsWith('example-') ? { example: entry.key.slice(8) as 'math' | 'portuguese' } : { id: entry.key }) });
   const filtered = entries.filter((entry) => {
     const p = entry.plan;
     return normalize(`${p.title} ${className(p)} ${subjectName(p)}`).includes(normalize(query)) && (!subject || p.subjectId === subject) && (!classId || p.classId === classId) && (tab === 'Todos' || status(entry) === tab) && (collection === 'Todos' || (collection === 'Favoritos' && p.favorite) || (collection === 'Reutilizáveis' && p.template) || (collection === 'Partilhados' && p.shared));

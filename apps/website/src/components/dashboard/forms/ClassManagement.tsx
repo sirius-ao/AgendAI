@@ -1,4 +1,5 @@
 'use client';
+import { gradeDetail } from '@/lib/dashboard/assessment-grades';
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useDashboard } from '../state/DashboardProvider';
@@ -86,6 +87,6 @@ export function StudentProfile({ studentId, onClose }: { studentId: string; onCl
     {calls.slice(page * 10, page * 10 + 10).map((call) => <div className="dash-list-row" key={call.date}><Link onClick={onClose} href={`/dashboard/presencas?turma=${student.classId}&data=${call.date}`}>{formatDate(call.date)}</Link><span>{call.records[student.id].status}<small>{call.records[student.id].note}</small></span></div>)}
     {calls.length > 10 && <div className="dash-guide-actions"><button disabled={page === 0} onClick={() => setPage(page - 1)}>Anterior</button><span>Página {page + 1}</span><button disabled={(page + 1) * 10 >= calls.length} onClick={() => setPage(page + 1)}>Seguinte</button></div>}
     <h3>Resultados por avaliação</h3>{!assessments.length && <p>Sem avaliações nesta turma.</p>}
-    {assessments.map((assessment) => <div className="dash-list-row" key={assessment.id}><Link onClick={onClose} href={`/dashboard/avaliacoes?turma=${student.classId}&avaliacao=${assessment.id}`}>{assessment.title}<small>{state.subjects.find((subject) => subject.id === assessment.subjectId)?.name} · {formatDate(assessment.date)}</small></Link><strong>{assessment.grades[student.id] == null ? 'Por lançar' : `${assessment.grades[student.id]} / 20`}</strong></div>)}
+    {assessments.map((assessment) => <div className="dash-list-row" key={assessment.id}><Link onClick={onClose} href={`/dashboard/avaliacoes?turma=${student.classId}&avaliacao=${assessment.id}`}>{assessment.title}<small>{state.subjects.find((subject) => subject.id === assessment.subjectId)?.name} · {formatDate(assessment.date)}</small></Link><strong>{assessment.grades[student.id] == null ? gradeDetail(assessment, student.id).status : `${assessment.grades[student.id]} / 20`}</strong></div>)}
   </div></Modal>;
 }

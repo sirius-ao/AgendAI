@@ -1,4 +1,5 @@
 'use client';
+import { gradePending } from '@/lib/dashboard/assessment-grades';
 import { useState } from 'react';
 import Link from 'next/link';
 import { Users, Plus, BookOpen, ClipboardCheck, FileText, MessagesSquare } from 'lucide-react';
@@ -35,7 +36,7 @@ export function ClassesPage({ id, initialQuery = '' }: { id?: string; initialQue
   const drafts = Object.entries(state.planDrafts || {}).filter(([, plan]) => plan.classId === id);
   const unfinished = plans.filter((plan) => plan.status === 'Rascunho' && !state.planDrafts?.[plan.id]);
   const assessments = state.assessments.filter((assessment) => assessment.classId === id);
-  const missingGrades = assessments.filter((assessment) => assessment.date <= today && active.some((student) => assessment.grades[student.id] == null));
+  const missingGrades = assessments.filter((assessment) => assessment.date <= today && active.some((student) => gradePending(assessment, student.id)));
   const missingCalls = [...new Map(events.filter((event) => event.type === 'Aula' && active.length && (event.date < today || (event.date === today && event.start <= time)) && (!state.attendance.some((call) => call.classId === id && call.date === event.date && active.every((student) => call.records[student.id]?.status)) || Boolean(state.attendanceDrafts?.[`${id}:${event.date}`]))).map((event) => [event.date, event])).values()];
   const resume = (key: string) => openModal({ kind: 'plan', ...(key === 'new' ? {} : key.startsWith('copy-') ? { copyFrom: key.slice(5) } : key.startsWith('example-') ? { example: key.slice(8) as 'math' | 'portuguese' } : { id: key }) });
   const classMenu = (schoolClass: SchoolClass) => <ActionMenu label={`Opções: ${schoolClass.name}`} items={[
@@ -73,7 +74,7 @@ export function ClassesPage({ id, initialQuery = '' }: { id?: string; initialQue
           {unfinished.map((plan) => <button className="dash-list-row" key={plan.id} onClick={() => openModal({ kind: 'plan', id: plan.id })}><span>{plan.title}<small>Plano por terminar</small></span><span>Continuar →</span></button>)}
           {drafts.map(([key, plan]) => <button className="dash-list-row" key={key} onClick={() => resume(key)}><span>{plan.title || 'Plano sem título'}<small>Continuar preparação</small></span><span>Abrir →</span></button>)}
           {missingCalls.map((event) => <Link className="dash-list-row" key={event.date} href={`/dashboard/presencas?turma=${c.id}&data=${event.date}`}>Chamada por confirmar · {formatDate(event.date)} →</Link>)}
-          {missingGrades.map((assessment) => <Link className="dash-list-row" key={assessment.id} href={`/dashboard/avaliacoes?turma=${c.id}&avaliacao=${assessment.id}`}>{assessment.title}<small>{active.filter((student) => assessment.grades[student.id] == null).length} notas por lançar →</small></Link>)}
+          {missingGrades.map((assessment) => <Link className="dash-list-row" key={assessment.id} href={`/dashboard/avaliacoes?turma=${c.id}&avaliacao=${assessment.id}`}>{assessment.title}<small>{active.filter((student) => gradePending(assessment, student.id)).length} notas por lançar →</small></Link>)}
           {!unfinished.length && !drafts.length && !missingCalls.length && !missingGrades.length && <p>Sem pendências identificadas nesta turma.</p>}
         </div></Panel>
         <Panel title="Disciplinas">{state.subjects.filter((subject) => c.subjectIds.includes(subject.id)).map((subject) => <div className="dash-list-row" key={subject.id}><BookOpen size={18} /><strong>{subject.name}</strong></div>)}</Panel>

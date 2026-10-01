@@ -16,7 +16,7 @@ export function PlanForm() {
   const { state, modal, update, openModal, notify, error: storageError } = useDashboard();
   const old = state.plans.find((p) => p.id === modal?.id);
   const source = state.plans.find((p) => p.id === modal?.copyFrom);
-  const draftKey = modal?.id || (modal?.copyFrom ? `copy-${modal.copyFrom}` : modal?.example ? `example-${modal.example}` : 'new');
+  const draftKey = modal?.id || (modal?.resourceId ? `resource-${modal.resourceId}` : modal?.copyFrom ? `copy-${modal.copyFrom}` : modal?.example ? `example-${modal.example}` : 'new');
   const initialClass = state.classes.find((c) => c.id === (old?.classId || modal?.classId));
   const [plan, setPlan] = useState<LessonPlan>(() => ({
     id: '', teacherId: state.user.id, title: '', description: '',
@@ -24,7 +24,7 @@ export function PlanForm() {
     classId: initialClass?.id || '', date: modal?.date || DEMO_DATE, duration: 50,
     status: 'Rascunho', favorite: false, shared: false, template: false, ai: false,
     lessonType: 'Aula teórica', modality: 'Presencial', objectives: '', content: '',
-    methodology: '', resources: '', evaluation: '', tags: '', visibility: 'Apenas eu', attachments: [], resourceIds: [],
+    methodology: '', resources: '', evaluation: '', tags: '', visibility: 'Apenas eu', attachments: [], resourceIds: modal?.resourceId ? [modal.resourceId] : [],
     ...old,
     startTime: old?.startTime || state.events.find((e) => (old && e.sourceId === old.id) || e.id === modal?.eventId)?.start || '08:00',
     modelId: old?.modelId || modal?.modelId || state.planPreferences?.modelId || 'simple',

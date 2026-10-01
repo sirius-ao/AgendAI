@@ -17,6 +17,7 @@ type ModalRequest = {
   subjectId?: string;
   modelId?: 'simple' | 'detailed' | 'school';
   copyFrom?: string;
+  resourceId?: string;
   eventId?: string;
   example?: 'math' | 'portuguese';
   id?: string;

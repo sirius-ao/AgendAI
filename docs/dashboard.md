@@ -133,3 +133,20 @@ docker build -t agendai-website:dashboard .
 Testes de navegador verificam rotas, ausência de overflow, imagens, teclado, modais, persistência e relações entre módulos. Capturas em `artifacts/dashboard/` e resultados axe em `artifacts/dashboard-accessibility.json`. A auditoria automática não constitui certificação de acessibilidade.
 
 O Dockerfile multi-stage da raiz inclui o dashboard no output standalone. Porta interna `3000`, utilizador `nextjs`, endpoint `/health`. Não precisa de volumes porque os dados desta versão ficam no navegador. Para o Coolify, seguir [coolify.md](coolify.md); não configurar uma aplicação separada para o dashboard.
+
+
+### Avaliações: preparação, correção e resultados
+
+A lista distingue avaliações agendadas, por corrigir e concluídas, com filtros e progresso por aluno. Cada avaliação abre Detalhes, Lançar notas e Resultados. O lançamento usa tabela no computador (Enter e setas para navegar) e cartões no telemóvel.
+
+Sem nota, Avaliado, Faltou e Dispensado são situações distintas. Zero é uma nota válida; as outras situações não introduzem zeros na média. As notas aceitam 0–20, até duas casas decimais. Os pesos positivos definidos pelo professor são normalizados sobre as avaliações com nota; o resumo de disciplina abrange a turma e o ano civil da avaliação, sem fórmula institucional ou regra trimestral configurada.
+
+Alterações ficam em rascunho local até revisão e confirmação, inclusive correções parciais. Cada confirmação preserva os valores anteriores para consulta. Os resultados e exportações CSV/impressão usam apenas valores confirmados. Editar detalhes mantém notas e versões; avaliações com correções não podem mudar de turma. Feedback e dificuldades por critério são assinalados pelo professor, sem diagnóstico automático. As pendências do Início e Turmas respeitam as situações de falta e dispensa; médias incompletas não originam classificação de risco.
+
+Persistência apenas neste navegador/dispositivo, sem sincronização com servidor. Nesta alteração não foram executados testes, builds ou Docker, conforme solicitado.
+
+
+### Recursos e Biblioteca
+Recursos permite explorar materiais; Biblioteca organiza os materiais pessoais. A pesquisa abrange título, descrição e disciplina. Os filtros recolhíveis incluem categoria, disciplina e classe, com etiquetas removíveis e limpeza conjunta. Popularidade demonstrativa foi retirada. A pré-visualização apresenta descrição, objetivos e autoria disponível, mantendo os filtros ao fechar. As imagens são ilustrativas e os ficheiros originais não são conservados; a exportação disponível é uma ficha descritiva.
+
+“Usar numa aula” associa o recurso a um plano existente (também ao seu rascunho) ou inicia um novo plano com o recurso associado. A confirmação permite abrir o destino. Rascunhos iniciados por recurso podem ser retomados na lista de planos. Carregar material guarda metadados pessoais locais, sem publicação nem transferência do ficheiro. Cartões móveis apresentam ações grandes. Não foram executados testes, builds ou Docker.

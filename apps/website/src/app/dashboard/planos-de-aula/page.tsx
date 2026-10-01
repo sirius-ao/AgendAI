@@ -5,5 +5,5 @@ export default async function Page({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const query = await searchParams;
-  return <PlansPage key={query.q || ''} initialQuery={query.q} />;
+  return <PlansPage key={`${query.q || ''}-${query.plano || ''}`} initialQuery={query.q} initialPlan={query.plano} />;
 }

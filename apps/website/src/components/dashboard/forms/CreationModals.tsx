@@ -85,15 +85,28 @@ function CreationForm() {
         plans: old ? s.plans.map((p) => (p.id === id ? plan : p)) : [plan, ...s.plans],
       }));
     } else if (kind === 'assessment') {
+      const previous = old && 'grades' in old ? old : undefined;
+      if (previous && previous.classId !== classId && (Object.values(previous.grades).some((grade) => grade != null) || Object.keys(previous.gradeDetails || {}).length || state.assessmentDrafts?.[previous.id] || previous.gradeVersions?.length)) {
+        setError('Esta avaliação já tem correções. Crie outra avaliação para uma turma diferente, preservando o histórico.');
+        return;
+      }
+      const weight = Number(get('weight', '20'));
+      if (!Number.isFinite(weight) || weight <= 0 || weight > 100) {
+        setError('Indique um peso superior a 0 e até 100.');
+        return;
+      }
       const assessment: Assessment = {
         ...common,
         type: get('type') as Assessment['type'],
         duration: Number(get('duration', '50')),
-        weight: Number(get('weight', '20')),
+        weight,
         criteria: get('criteria'),
         published: publish,
         reminder,
-        grades: old && 'grades' in old && old.classId === classId ? old.grades : {},
+        grades: previous?.classId === classId ? previous.grades : {},
+        gradeDetails: previous?.classId === classId ? previous.gradeDetails : undefined,
+        gradeVersions: previous?.gradeVersions,
+        gradesConfirmedAt: previous?.gradesConfirmedAt,
       };
       update((s) => ({
         ...s,
