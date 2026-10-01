@@ -1,0 +1,62 @@
+[
+  {
+    "name": "inicio",
+    "violations": []
+  },
+  {
+    "name": "planos-de-aula",
+    "violations": []
+  },
+  {
+    "name": "turmas/10a",
+    "violations": []
+  },
+  {
+    "name": "presencas",
+    "violations": []
+  },
+  {
+    "name": "avaliacoes",
+    "violations": []
+  },
+  {
+    "name": "calendario",
+    "violations": []
+  },
+  {
+    "name": "recursos",
+    "violations": []
+  },
+  {
+    "name": "relatorios",
+    "violations": []
+  },
+  {
+    "name": "biblioteca",
+    "violations": []
+  },
+  {
+    "name": "mensagens",
+    "violations": []
+  },
+  {
+    "name": "configuracoes",
+    "violations": []
+  },
+  {
+    "name": "modal-planos-de-aula",
+    "violations": []
+  },
+  {
+    "name": "modal-avaliacoes",
+    "violations": []
+  },
+  {
+    "name": "modal-calendario",
+    "violations": []
+  },
+  {
+    "name": "inicio-mobile",
+    "violations": []
+  }
+]

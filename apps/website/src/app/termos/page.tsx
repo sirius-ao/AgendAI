@@ -6,8 +6,9 @@ export default function Terms() {
       <p className="eyebrow">Website de demonstração</p>
       <h1>Sobre esta versão</h1>
       <p>
-        O website apresenta a proposta visual e funcional do AgendAI. Não disponibiliza ainda o
-        serviço de gestão de planos, presenças e avaliações.
+        O website apresenta a proposta visual e funcional do AgendAI. O dashboard permite
+        experimentar planos, presenças e avaliações com dados guardados neste navegador. Não existe
+        ainda um serviço autenticado com armazenamento ou sincronização no servidor.
       </p>
       <h2>Planos e condições</h2>
       <p>

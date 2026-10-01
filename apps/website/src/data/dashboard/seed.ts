@@ -1,22 +1,487 @@
-import type { DashboardState, LessonPlan, Resource, SchoolClass, Student, Tone } from '@/types/dashboard';
+import type {
+  DashboardState,
+  LessonPlan,
+  Resource,
+  SchoolClass,
+  Student,
+  Tone,
+} from '@/types/dashboard';
 export const DEMO_DATE = '2026-10-01';
-export const avatar = (index: number) => `/images/dashboard/avatars/${['teacher','student-male','student-female','student-male-2','student-female-2'][index % 5]}.webp`;
-const subjects = [{id:'mat',name:'Matemática',tone:'purple'},{id:'por',name:'Português',tone:'amber'},{id:'bio',name:'Biologia',tone:'green'},{id:'fis',name:'Física',tone:'blue'},{id:'qui',name:'Química',tone:'teal'},{id:'his',name:'História',tone:'red'},{id:'cid',name:'Cidadania',tone:'purple'}] satisfies DashboardState['subjects'];
-const classes: SchoolClass[] = ['10a','10b','9a','11a','9b','11b'].map((id,i)=>({id,name:['10ª Classe A','10ª Classe B','9ª Classe A','11ª Classe A','9ª Classe B','11ª Classe B'][i],year:'2026',level:'Ensino Secundário',room:`Sala ${i%4+1}`,shift:'Manhã',director:'Ana Silva',subjectIds:['mat','por','bio','fis','qui']}));
-const names=['André Manuel','Beatriz Almeida','Carlos Balde','Daniela Costa','Emílio Tchivala','Filomena Santos','Gabriel Lopes','Helena Manuel','Igor Mendes','Joana Pedro','Kelson António','Lídia Fernandes','Manuel Silva','Nádia Correia','Óscar João','Paula Afonso','Rafael Dias','Sara Neto','Tiago Gomes','Ursula Lopes','Victor Almeida','Wanda Matias','Xavier Costa','Yara Manuel','Zeca Paulo','Alice Domingos','Bruno Santos','Célia Mendes','David Cardoso','Eva Miguel','Fábio Silva','Graça Pedro','Hugo Reis','Inês Lopes','Joel Gomes','Lara Santos','Mário Dias','Nélia Costa','Paulo Reis','Rita Cruz'];
-const students:Student[]=classes.flatMap((c,ci)=>Array.from({length:[28,26,24,32,36,40][ci]},(_,i)=>({id:`${c.id}-s${i+1}`,name:names[(i+ci*3)%names.length],classId:c.id,avatar:avatar(i+1),contact:'—',status:'Ativo' as const})));
-const titles=['Funções do 2º grau','Revolução Industrial','Sistema Respiratório','Texto Argumentativo','Equações Exponenciais','Geometria Espacial','Cidadania e Direitos Humanos','Reações Químicas'];
-const descriptions=['Introdução e resolução de exercícios','Contexto histórico e impactos','Estrutura e funcionamento','Produção e revisão de texto','Conceitos e exercícios','Prismas e pirâmides','Valores e participação','Tipos e balanceamento'];
-const plans:LessonPlan[]=Array.from({length:24},(_,i)=>({id:`plan-${i+1}`,teacherId:'teacher',title:titles[i%8]+(i>=8?` — Aula ${Math.floor(i/8)+1}`:''),description:descriptions[i%8],subjectId:['mat','his','bio','por','mat','mat','cid','qui'][i%8],classId:classes[i%6].id,date:`2026-10-${String(1+i%24).padStart(2,'0')}`,duration:45,status:['Em utilização','Planeado','Concluído','Planeado','Rascunho','Planeado','Em utilização','Concluído'][i%8] as LessonPlan['status'],favorite:i%5===0,shared:i%4===0,template:i<6,ai:i<3,lessonType:'Aula teórica',modality:'Presencial',objectives:'Identificar os conceitos fundamentais e aplicá-los na resolução de exercícios.',content:titles[i%8],methodology:'Exposição dialogada, trabalho em pares e síntese final.',resources:'Quadro, manual e ficha de exercícios.',evaluation:'Observação e exercícios',tags:'revisão, atividades',visibility:'Apenas eu',attachments:[],resourceIds:[]}));
-const resourceNames=['Plano de aula — Funções do 2º grau','Apresentação — Revolução Industrial','Ficha de exercícios — Sistema Respiratório','Aula explicativa — O Corpo Humano','Projeto Escolar — Meio Ambiente','Modelo de Grelha de Avaliação','Apresentação — Equações Exponenciais','Estratégias de Estudo','Roteiro de Experiência — Química','Guia de Avaliação Contínua','Mapa Mundi (alta resolução)','Introdução à Robótica Educacional'];
-const resources:Resource[]=resourceNames.map((title,i)=>({id:`res-${i+1}`,title,category:([ 'Planos de Aula','Apresentações','Fichas e Exercícios','Vídeos','Projetos','Avaliações','Apresentações','Vídeos','Documentos','Avaliações','Imagens','Vídeos'] as Resource['category'][])[i],subjectId:['mat','his','bio','bio','cid','mat','mat','por','qui','fis','his','fis'][i],level:i%3===0?'10ª Classe':i%3===1?'9ª Classe':'11ª Classe',format:['PDF','PPT','DOC','VÍDEO','PDF','XLS','PPT','VÍDEO','DOC','PDF','IMG','VÍDEO'][i],image:[undefined,'industry',undefined,'anatomy','plant',undefined,'equations','books','chemistry','anatomy','map','robotics'][i],date:`2026-09-${String(22-i).padStart(2,'0')}`,bytes:[1200000,8400000,560000,320000000,2100000,140000,6800000,280000000,420000,1100000,3200000,450000000][i],downloads:420+i*73,ownerId:i%3===0?'teacher':'community',description:'Material didático de demonstração para apoiar o planeamento e a aprendizagem. Adapte os objetivos e as atividades ao contexto da sua turma.',favorite:i===0||i===4}));
-const eventData=[['08:00','08:45','Matemática','10a','mat',0,'green'],['10:00','10:45','Matemática','10b','mat',0,'blue'],['13:00','13:45','Apoio pedagógico','10a','mat',0,'purple'],['15:00','15:45','Reunião','10a','',0,'amber'],['08:00','08:45','História','9a','his',1,'red'],['11:00','11:45','Português','10a','por',1,'amber'],['14:00','14:45','Avaliação','10a','mat',1,'teal'],['08:00','08:45','Biologia','11a','bio',2,'blue'],['10:00','10:45','Química','11a','qui',2,'green'],['14:00','14:45','Atendimento aos encarregados','','',2,'red'],['16:00','17:00','Formação interna','','',2,'purple'],['08:00','08:45','Matemática','10a','mat',3,'green'],['10:00','10:45','Matemática','10b','mat',3,'blue'],['13:00','13:45','Projeto Escolar','10a','cid',3,'amber'],['15:00','15:45','Física','11a','fis',3,'green'],['08:00','08:45','Português','9a','por',4,'red'],['11:00','11:45','Geometria','10b','mat',4,'purple'],['14:00','14:45','Educação Moral','9a','cid',4,'blue'],['09:00','12:00','Preparação de materiais','','',5,'gray']] as const;
-export function createDashboardSeed():DashboardState {
- const assessments:DashboardState['assessments']=classes.flatMap(c=>['Teste 1','Trabalho','Teste 2','Participação'].map((title,i)=>({id:`assessment-${c.id}-${i}`,title,subjectId:'mat',classId:c.id,type:i===1?'Trabalho':i===3?'Competências':'Prova/Teste',date:['2026-09-12','2026-09-26','2026-10-01','2026-10-01'][i],duration:50,weight:[30,20,30,20][i],description:'Avaliação demonstrativa dos conteúdos trabalhados em aula.',criteria:'Compreensão, aplicação e clareza do raciocínio.',visibility:'Visível para os alunos',published:true,reminder:false,tags:'1º trimestre',attachments:[],grades:Object.fromEntries(students.filter(s=>s.classId===c.id).map((s,j)=>[s.id,[[16,18,17,19],[14,15,16,18],[10,12,11,14],[19,20,18,20],[13,14,15,16],[11,13,12,15],[18,17,19,18],[15,16,14,17]][j%8][i]]))})));
- return {user:{id:'teacher',name:'Adilson Futa',email:'professor@example.test',role:'Professor',avatar:avatar(0),phone:''},subjects,classes,students,plans,assessments,
- attendance:classes.flatMap(c=>['2026-09-24','2026-09-25','2026-09-28','2026-09-29','2026-09-30',DEMO_DATE].map((date,di)=>({classId:c.id,date,records:Object.fromEntries(students.filter(s=>s.classId===c.id).map((s,i)=>[s.id,{status:(di===5?[2,5,9].includes(i):i%(di+7)===2)?'Falta':'Presente',note:i===5&&di===5?'A aguardar justificação':''}]))}))),
- events:eventData.map(([start,end,title,classId,subjectId,day,color],i)=>{const date=new Date(Date.UTC(2026,8,28+day)).toISOString().slice(0,10);return {id:`event-${i}`,title,description:'Evento de demonstração.',type:subjectId?'Aula':title==='Reunião'?'Reunião':'Atividade',category:'Escolar',classId,subjectId,date,endDate:date,start,end,allDay:false,location:classId?classes.find(c=>c.id===classId)!.room:'Online',participants:classId,owner:'teacher',color,attachments:[],emailReminder:false,emailDelay:'1 dia antes',notification:true,notificationDelay:'1 hora antes',repetition:'Não se repete',visibility:'Visível para selecionados',tags:''};}),
- resources,library:resources.map((r,i)=>({id:`lib-${i}`,resourceId:r.id,folder:subjects.find(s=>s.id===r.subjectId)!.name,favorite:r.favorite,deleted:false,shared:i===0})),folders:['Matemática','Biologia','História','Física','Química','Projetos','Avaliações','Materiais Pessoais'],reports:[{id:'report-1',name:'Relatório de Avaliações',classId:'10a',type:'Avaliações',period:'1º Trimestre 2026',date:DEMO_DATE},{id:'report-2',name:'Relatório de Presenças',classId:'10a',type:'Presenças',period:'Setembro 2026',date:DEMO_DATE},{id:'report-3',name:'Desempenho por Disciplina',classId:'10a',type:'Desempenho',period:'Setembro 2026',date:'2026-09-30'}],
- conversations:[...classes.map((c,i)=>({id:`chat-${c.id}`,title:c.name,subtitle:`Turma · Ano letivo ${c.year}`,classId:c.id,tone:'green' as Tone,memberIds:['teacher',...students.filter(s=>s.classId===c.id).map(s=>s.id)],unread:i===0?2:0,favorite:false,archived:false,notifications:true,messages:i===0?[{id:'msg-1',senderId:'teacher',text:'Bom dia, turma!\nLembrando que amanhã teremos a avaliação de Matemática. Revejam os conteúdos dos capítulos 3 e 4.\nQualquer dúvida, estou à disposição.',time:'08:12',attachments:[]},{id:'msg-2',senderId:'10a-s3',text:'Obrigado, professor!\nJá estou a revisar.',time:'08:15',attachments:[]},{id:'msg-3',senderId:'10a-s2',text:'Professor, o trabalho em grupo ainda é para entregar esta semana?',time:'08:20',attachments:[]},{id:'msg-4',senderId:'teacher',text:'Sim, Beatriz. A entrega é até sexta-feira.\nQualquer dificuldade, avisem.',time:'08:21',attachments:[]},{id:'msg-5',senderId:'10a-s1',text:'Entendido, professor.\nVamos organizar o grupo.',time:'08:25',attachments:[]}]:[]})),{id:'chat-direct',title:'Helena Manuel',subtitle:'Encarregada de Educação',avatar:avatar(2),tone:'purple',memberIds:['teacher','10a-s8'],unread:1,favorite:false,archived:false,notifications:true,messages:[{id:'direct-1',senderId:'10a-s8',text:'Boa tarde, professor. Podemos conversar sobre a próxima reunião?',time:'09:18',attachments:[]}]}],
- tasks:[{id:'task-1',title:'Corrigir testes de Matemática (10ª A)',due:'Hoje',done:true},{id:'task-2',title:'Registar presenças da 9ª B',due:'Hoje',done:true},{id:'task-3',title:'Preparar plano de aula (11ª Classe)',due:'Amanhã',done:false},{id:'task-4',title:'Revisar relatório mensal',due:'Esta semana',done:false},{id:'task-5',title:'Responder mensagem da coordenação',due:'Esta semana',done:false}],settings:{theme:'light',language:'Português (PT)',timezone:'Africa/Luanda',school:'Escola Secundária Demonstração',address:'Luanda, Angola',year:'2026 / 2027',notifications:{'Novas mensagens':true,'Lembretes de aulas':true,'Avisos da escola':true,'Relatórios semanais':false,'Novas avaliações':true},twoFactor:false}};
+export const avatar = (index: number) =>
+  `/images/dashboard/avatars/${['teacher', 'student-male', 'student-female', 'student-male-2', 'student-female-2'][index % 5]}.webp`;
+const subjects = [
+  { id: 'mat', name: 'Matemática', tone: 'purple' },
+  { id: 'por', name: 'Português', tone: 'amber' },
+  { id: 'bio', name: 'Biologia', tone: 'green' },
+  { id: 'fis', name: 'Física', tone: 'blue' },
+  { id: 'qui', name: 'Química', tone: 'teal' },
+  { id: 'his', name: 'História', tone: 'red' },
+  { id: 'cid', name: 'Cidadania', tone: 'purple' },
+] satisfies DashboardState['subjects'];
+const classes: SchoolClass[] = ['10a', '10b', '9a', '11a', '9b', '11b'].map((id, i) => ({
+  id,
+  name: [
+    '10ª Classe A',
+    '10ª Classe B',
+    '9ª Classe A',
+    '11ª Classe A',
+    '9ª Classe B',
+    '11ª Classe B',
+  ][i],
+  year: '2026',
+  level: 'Ensino Secundário',
+  room: `Sala ${(i % 4) + 1}`,
+  shift: 'Manhã',
+  director: 'Ana Silva',
+  subjectIds: ['mat', 'por', 'bio', 'fis', 'qui'],
+}));
+const names = [
+  'André Manuel',
+  'Beatriz Almeida',
+  'Carlos Balde',
+  'Daniela Costa',
+  'Emílio Tchivala',
+  'Filomena Santos',
+  'Gabriel Lopes',
+  'Helena Manuel',
+  'Igor Mendes',
+  'Joana Pedro',
+  'Kelson António',
+  'Lídia Fernandes',
+  'Manuel Silva',
+  'Nádia Correia',
+  'Óscar João',
+  'Paula Afonso',
+  'Rafael Dias',
+  'Sara Neto',
+  'Tiago Gomes',
+  'Ursula Lopes',
+  'Victor Almeida',
+  'Wanda Matias',
+  'Xavier Costa',
+  'Yara Manuel',
+  'Zeca Paulo',
+  'Alice Domingos',
+  'Bruno Santos',
+  'Célia Mendes',
+  'David Cardoso',
+  'Eva Miguel',
+  'Fábio Silva',
+  'Graça Pedro',
+  'Hugo Reis',
+  'Inês Lopes',
+  'Joel Gomes',
+  'Lara Santos',
+  'Mário Dias',
+  'Nélia Costa',
+  'Paulo Reis',
+  'Rita Cruz',
+];
+const students: Student[] = classes.flatMap((c, ci) =>
+  Array.from({ length: [28, 26, 24, 32, 36, 40][ci] }, (_, i) => ({
+    id: `${c.id}-s${i + 1}`,
+    name: names[(i + ci * 3) % names.length],
+    classId: c.id,
+    avatar: avatar(i + 1),
+    contact: '—',
+    status: 'Ativo' as const,
+  })),
+);
+const titles = [
+  'Funções do 2º grau',
+  'Revolução Industrial',
+  'Sistema Respiratório',
+  'Texto Argumentativo',
+  'Equações Exponenciais',
+  'Geometria Espacial',
+  'Cidadania e Direitos Humanos',
+  'Reações Químicas',
+];
+const descriptions = [
+  'Introdução e resolução de exercícios',
+  'Contexto histórico e impactos',
+  'Estrutura e funcionamento',
+  'Produção e revisão de texto',
+  'Conceitos e exercícios',
+  'Prismas e pirâmides',
+  'Valores e participação',
+  'Tipos e balanceamento',
+];
+const plans: LessonPlan[] = Array.from({ length: 24 }, (_, i) => ({
+  id: `plan-${i + 1}`,
+  teacherId: 'teacher',
+  title: titles[i % 8] + (i >= 8 ? ` — Aula ${Math.floor(i / 8) + 1}` : ''),
+  description: descriptions[i % 8],
+  subjectId: ['mat', 'his', 'bio', 'por', 'mat', 'mat', 'cid', 'qui'][i % 8],
+  classId: classes[i % 6].id,
+  date: `2026-10-${String(1 + (i % 24)).padStart(2, '0')}`,
+  duration: 45,
+  status: [
+    'Em utilização',
+    'Planeado',
+    'Concluído',
+    'Planeado',
+    'Rascunho',
+    'Planeado',
+    'Em utilização',
+    'Concluído',
+  ][i % 8] as LessonPlan['status'],
+  favorite: i % 5 === 0,
+  shared: i % 4 === 0,
+  template: i < 6,
+  ai: i < 3,
+  lessonType: 'Aula teórica',
+  modality: 'Presencial',
+  objectives: 'Identificar os conceitos fundamentais e aplicá-los na resolução de exercícios.',
+  content: titles[i % 8],
+  methodology: 'Exposição dialogada, trabalho em pares e síntese final.',
+  resources: 'Quadro, manual e ficha de exercícios.',
+  evaluation: 'Observação e exercícios',
+  tags: 'revisão, atividades',
+  visibility: 'Apenas eu',
+  attachments: [],
+  resourceIds: [],
+}));
+const resourceNames = [
+  'Plano de aula — Funções do 2º grau',
+  'Apresentação — Revolução Industrial',
+  'Ficha de exercícios — Sistema Respiratório',
+  'Aula explicativa — O Corpo Humano',
+  'Projeto Escolar — Meio Ambiente',
+  'Modelo de Grelha de Avaliação',
+  'Apresentação — Equações Exponenciais',
+  'Estratégias de Estudo',
+  'Roteiro de Experiência — Química',
+  'Guia de Avaliação Contínua',
+  'Mapa Mundi (alta resolução)',
+  'Introdução à Robótica Educacional',
+];
+const resources: Resource[] = resourceNames.map((title, i) => ({
+  id: `res-${i + 1}`,
+  title,
+  category: (
+    [
+      'Planos de Aula',
+      'Apresentações',
+      'Fichas e Exercícios',
+      'Vídeos',
+      'Projetos',
+      'Avaliações',
+      'Apresentações',
+      'Vídeos',
+      'Documentos',
+      'Avaliações',
+      'Imagens',
+      'Vídeos',
+    ] as Resource['category'][]
+  )[i],
+  subjectId: ['mat', 'his', 'bio', 'bio', 'cid', 'mat', 'mat', 'por', 'qui', 'fis', 'his', 'fis'][
+    i
+  ],
+  level: i % 3 === 0 ? '10ª Classe' : i % 3 === 1 ? '9ª Classe' : '11ª Classe',
+  format: [
+    'PDF',
+    'PPT',
+    'DOC',
+    'VÍDEO',
+    'PDF',
+    'XLS',
+    'PPT',
+    'VÍDEO',
+    'DOC',
+    'PDF',
+    'IMG',
+    'VÍDEO',
+  ][i],
+  image: [
+    undefined,
+    'industry',
+    undefined,
+    'anatomy',
+    'plant',
+    undefined,
+    'equations',
+    'books',
+    'chemistry',
+    'anatomy',
+    'map',
+    'robotics',
+  ][i],
+  date: `2026-09-${String(22 - i).padStart(2, '0')}`,
+  bytes: [
+    1200000, 8400000, 560000, 320000000, 2100000, 140000, 6800000, 280000000, 420000, 1100000,
+    3200000, 450000000,
+  ][i],
+  downloads: 420 + i * 73,
+  ownerId: i % 3 === 0 ? 'teacher' : 'community',
+  description:
+    'Material didático de demonstração para apoiar o planeamento e a aprendizagem. Adapte os objetivos e as atividades ao contexto da sua turma.',
+  favorite: i === 0 || i === 4,
+}));
+const eventData = [
+  ['08:00', '08:45', 'Matemática', '10a', 'mat', 0, 'green'],
+  ['10:00', '10:45', 'Matemática', '10b', 'mat', 0, 'blue'],
+  ['13:00', '13:45', 'Apoio pedagógico', '10a', 'mat', 0, 'purple'],
+  ['15:00', '15:45', 'Reunião', '10a', '', 0, 'amber'],
+  ['08:00', '08:45', 'História', '9a', 'his', 1, 'red'],
+  ['11:00', '11:45', 'Português', '10a', 'por', 1, 'amber'],
+  ['14:00', '14:45', 'Avaliação', '10a', 'mat', 1, 'teal'],
+  ['08:00', '08:45', 'Biologia', '11a', 'bio', 2, 'blue'],
+  ['10:00', '10:45', 'Química', '11a', 'qui', 2, 'green'],
+  ['14:00', '14:45', 'Atendimento aos encarregados', '', '', 2, 'red'],
+  ['16:00', '17:00', 'Formação interna', '', '', 2, 'purple'],
+  ['08:00', '08:45', 'Matemática', '10a', 'mat', 3, 'green'],
+  ['10:00', '10:45', 'Matemática', '10b', 'mat', 3, 'blue'],
+  ['13:00', '13:45', 'Projeto Escolar', '10a', 'cid', 3, 'amber'],
+  ['15:00', '15:45', 'Física', '11a', 'fis', 3, 'green'],
+  ['08:00', '08:45', 'Português', '9a', 'por', 4, 'red'],
+  ['11:00', '11:45', 'Geometria', '10b', 'mat', 4, 'purple'],
+  ['14:00', '14:45', 'Educação Moral', '9a', 'cid', 4, 'blue'],
+  ['09:00', '12:00', 'Preparação de materiais', '', '', 5, 'gray'],
+] as const;
+export function createDashboardSeed(): DashboardState {
+  const assessments: DashboardState['assessments'] = classes.flatMap((c) =>
+    ['Teste 1', 'Trabalho', 'Teste 2', 'Participação'].map((title, i) => ({
+      id: `assessment-${c.id}-${i}`,
+      title,
+      subjectId: 'mat',
+      classId: c.id,
+      type: i === 1 ? 'Trabalho' : i === 3 ? 'Competências' : 'Prova/Teste',
+      date: ['2026-09-12', '2026-09-26', '2026-10-01', '2026-10-01'][i],
+      duration: 50,
+      weight: [30, 20, 30, 20][i],
+      description: 'Avaliação demonstrativa dos conteúdos trabalhados em aula.',
+      criteria: 'Compreensão, aplicação e clareza do raciocínio.',
+      visibility: 'Visível para os alunos',
+      published: true,
+      reminder: false,
+      tags: '1º trimestre',
+      attachments: [],
+      grades: Object.fromEntries(
+        students
+          .filter((s) => s.classId === c.id)
+          .map((s, j) => [
+            s.id,
+            [
+              [16, 18, 17, 19],
+              [14, 15, 16, 18],
+              [10, 12, 11, 14],
+              [19, 20, 18, 20],
+              [13, 14, 15, 16],
+              [11, 13, 12, 15],
+              [18, 17, 19, 18],
+              [15, 16, 14, 17],
+            ][j % 8][i],
+          ]),
+      ),
+    })),
+  );
+  return {
+    user: {
+      id: 'teacher',
+      name: 'Adilson Futa',
+      email: 'professor@example.test',
+      role: 'Professor',
+      avatar: avatar(0),
+      phone: '',
+    },
+    subjects,
+    classes,
+    students,
+    plans,
+    assessments,
+    attendance: classes.flatMap((c) =>
+      ['2026-09-24', '2026-09-25', '2026-09-28', '2026-09-29', '2026-09-30', DEMO_DATE].map(
+        (date, di) => ({
+          classId: c.id,
+          date,
+          records: Object.fromEntries(
+            students
+              .filter((s) => s.classId === c.id)
+              .map((s, i) => [
+                s.id,
+                {
+                  status: (di === 5 ? [2, 5, 9].includes(i) : i % (di + 7) === 2)
+                    ? 'Falta'
+                    : 'Presente',
+                  note: i === 5 && di === 5 ? 'A aguardar justificação' : '',
+                },
+              ]),
+          ),
+        }),
+      ),
+    ),
+    events: eventData.map(([start, end, title, classId, subjectId, day, color], i) => {
+      const date = new Date(Date.UTC(2026, 8, 28 + day)).toISOString().slice(0, 10);
+      return {
+        id: `event-${i}`,
+        title,
+        description: 'Evento de demonstração.',
+        type: subjectId ? 'Aula' : title === 'Reunião' ? 'Reunião' : 'Atividade',
+        category: 'Escolar',
+        classId,
+        subjectId,
+        date,
+        endDate: date,
+        start,
+        end,
+        allDay: false,
+        location: classId ? classes.find((c) => c.id === classId)!.room : 'Online',
+        participants: classId,
+        owner: 'teacher',
+        color,
+        attachments: [],
+        emailReminder: false,
+        emailDelay: '1 dia antes',
+        notification: true,
+        notificationDelay: '1 hora antes',
+        repetition: 'Não se repete',
+        visibility: 'Visível para selecionados',
+        tags: '',
+      };
+    }),
+    resources,
+    library: resources.map((r, i) => ({
+      id: `lib-${i}`,
+      resourceId: r.id,
+      folder: subjects.find((s) => s.id === r.subjectId)!.name,
+      favorite: r.favorite,
+      deleted: false,
+      shared: i === 0,
+    })),
+    folders: [
+      'Matemática',
+      'Biologia',
+      'História',
+      'Física',
+      'Química',
+      'Projetos',
+      'Avaliações',
+      'Materiais Pessoais',
+    ],
+    reports: [
+      {
+        id: 'report-1',
+        name: 'Relatório de Avaliações',
+        classId: '10a',
+        type: 'Avaliações',
+        period: '1º Trimestre 2026',
+        date: DEMO_DATE,
+      },
+      {
+        id: 'report-2',
+        name: 'Relatório de Presenças',
+        classId: '10a',
+        type: 'Presenças',
+        period: 'Setembro 2026',
+        date: DEMO_DATE,
+      },
+      {
+        id: 'report-3',
+        name: 'Desempenho por Disciplina',
+        classId: '10a',
+        type: 'Desempenho',
+        period: 'Setembro 2026',
+        date: '2026-09-30',
+      },
+    ],
+    conversations: [
+      ...classes.map((c, i) => ({
+        id: `chat-${c.id}`,
+        title: c.name,
+        subtitle: `Turma · Ano letivo ${c.year}`,
+        classId: c.id,
+        tone: 'green' as Tone,
+        memberIds: ['teacher', ...students.filter((s) => s.classId === c.id).map((s) => s.id)],
+        unread: i === 0 ? 2 : 0,
+        favorite: false,
+        archived: false,
+        notifications: true,
+        messages:
+          i === 0
+            ? [
+                {
+                  id: 'msg-1',
+                  senderId: 'teacher',
+                  text: 'Bom dia, turma!\nLembrando que amanhã teremos a avaliação de Matemática. Revejam os conteúdos dos capítulos 3 e 4.\nQualquer dúvida, estou à disposição.',
+                  time: '08:12',
+                  attachments: [],
+                },
+                {
+                  id: 'msg-2',
+                  senderId: '10a-s3',
+                  text: 'Obrigado, professor!\nJá estou a revisar.',
+                  time: '08:15',
+                  attachments: [],
+                },
+                {
+                  id: 'msg-3',
+                  senderId: '10a-s2',
+                  text: 'Professor, o trabalho em grupo ainda é para entregar esta semana?',
+                  time: '08:20',
+                  attachments: [],
+                },
+                {
+                  id: 'msg-4',
+                  senderId: 'teacher',
+                  text: 'Sim, Beatriz. A entrega é até sexta-feira.\nQualquer dificuldade, avisem.',
+                  time: '08:21',
+                  attachments: [],
+                },
+                {
+                  id: 'msg-5',
+                  senderId: '10a-s1',
+                  text: 'Entendido, professor.\nVamos organizar o grupo.',
+                  time: '08:25',
+                  attachments: [],
+                },
+              ]
+            : [],
+      })),
+      {
+        id: 'chat-direct',
+        title: 'Helena Manuel',
+        subtitle: 'Encarregada de Educação',
+        avatar: avatar(2),
+        tone: 'purple',
+        memberIds: ['teacher', '10a-s8'],
+        unread: 1,
+        favorite: false,
+        archived: false,
+        notifications: true,
+        messages: [
+          {
+            id: 'direct-1',
+            senderId: '10a-s8',
+            text: 'Boa tarde, professor. Podemos conversar sobre a próxima reunião?',
+            time: '09:18',
+            attachments: [],
+          },
+        ],
+      },
+    ],
+    tasks: [
+      { id: 'task-1', title: 'Corrigir testes de Matemática (10ª A)', due: 'Hoje', done: true },
+      { id: 'task-2', title: 'Registar presenças da 9ª B', due: 'Hoje', done: true },
+      { id: 'task-3', title: 'Preparar plano de aula (11ª Classe)', due: 'Amanhã', done: false },
+      { id: 'task-4', title: 'Revisar relatório mensal', due: 'Esta semana', done: false },
+      { id: 'task-5', title: 'Responder mensagem da coordenação', due: 'Esta semana', done: false },
+    ],
+    settings: {
+      theme: 'light',
+      language: 'Português (PT)',
+      timezone: 'Africa/Luanda',
+      school: 'Escola Secundária Demonstração',
+      address: 'Luanda, Angola',
+      year: '2026 / 2027',
+      notifications: {
+        'Novas mensagens': true,
+        'Lembretes de aulas': true,
+        'Avisos da escola': true,
+        'Relatórios semanais': false,
+        'Novas avaliações': true,
+      },
+      twoFactor: false,
+    },
+  };
 }

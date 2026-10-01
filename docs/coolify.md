@@ -38,7 +38,9 @@ Depois do deploy:
 4. Confirmar o domínio em `/sitemap.xml`, `/robots.txt` e na canonical das páginas.
 5. Confirmar HTTPS no proxy do Coolify.
 
-O cache de imagens é gravável pelo utilizador do container e pode ser descartado num novo deploy. Não são guardados dados de utilizadores. A interface continua demonstrativa após publicação: não existe autenticação, envio de formulários ou faturação.
+O cache de imagens é gravável pelo utilizador do container e pode ser descartado num novo deploy. O servidor não guarda dados de utilizadores. O dashboard guarda alterações em `localStorage`, no navegador de cada visitante; não requer volumes nem base de dados. A interface continua demonstrativa após publicação: não existe autenticação, envio externo de mensagens ou faturação.
+
+O mesmo container serve o website público e todas as rotas `/dashboard`. Depois do deploy, abrir `/entrar` e escolher **Explorar dashboard de demonstração**, criar um plano e recarregar para verificar a persistência local. Usar HTTPS: a criação dos identificadores utiliza `crypto.randomUUID()`, disponível em contextos seguros (HTTPS ou localhost).
 
 ## Testar Docker localmente
 

@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Search, Menu, X, ChevronDown } from 'lucide-react';
+import { ArrowRight, Globe, Menu, X, ChevronDown, Check } from 'lucide-react';
 import { buttonClass, Container } from '@agendai/ui';
 import { Logo } from '../common/Logo';
 import { FeaturesMegaMenu } from '../navigation/FeaturesMegaMenu';
@@ -16,7 +16,9 @@ export function Header() {
   const pathname = usePathname();
   const [mega, setMega] = useState(false);
   const [mobile, setMobile] = useState(false);
-  const [search, setSearch] = useState(false);
+  const [languageOpen, setLanguageOpen] = useState(false);
+  const [language, setLanguage] = useState('pt');
+  const languageButton = useRef<HTMLButtonElement>(null);
   const featureButton = useRef<HTMLButtonElement>(null);
   const mobileButton = useRef<HTMLButtonElement>(null);
   const header = useRef<HTMLElement>(null);
@@ -24,7 +26,7 @@ export function Header() {
   const close = () => {
     setMega(false);
     setMobile(false);
-    setSearch(false);
+    setLanguageOpen(false);
   };
   useEffect(() => {
     function outside(e: PointerEvent) {
@@ -32,7 +34,8 @@ export function Header() {
     }
     function key(e: KeyboardEvent) {
       if (e.key === 'Escape') {
-        if (mega) featureButton.current?.focus();
+        if (languageOpen) languageButton.current?.focus();
+        else if (mega) featureButton.current?.focus();
         else if (mobile) mobileButton.current?.focus();
         close();
       }
@@ -43,7 +46,7 @@ export function Header() {
       document.removeEventListener('pointerdown', outside);
       document.removeEventListener('keydown', key);
     };
-  }, [mega, mobile]);
+  }, [mega, mobile, languageOpen]);
   const enter = () => {
     if (timer.current) clearTimeout(timer.current);
     setMega(true);
@@ -106,17 +109,38 @@ export function Header() {
           ))}
         </nav>
         <div className="header-actions">
+          <div className="header-language" onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) setLanguageOpen(false);
+          }}>
           <button
-            className="icon-button search-toggle"
-            aria-label="Abrir pesquisa"
-            aria-expanded={search}
+            ref={languageButton}
+            className="icon-button language-toggle"
+            aria-label={`Escolher idioma: ${language === 'pt' ? 'Português' : 'English (exemplo)'}`}
+            aria-expanded={languageOpen}
+            aria-controls="header-language-options"
             onClick={() => {
-              setSearch(!search);
+              setLanguageOpen(!languageOpen);
               setMega(false);
+              setMobile(false);
             }}
           >
-            <Search size={21} />
+            <Globe size={21} />
           </button>
+          {languageOpen && <div className="header-language-options" id="header-language-options" role="group" aria-label="Idioma">
+            {[
+              { code: 'pt', label: 'Português', caption: 'PT' },
+              { code: 'en', label: 'English', caption: 'ENG · exemplo' },
+            ].map((option) => <button key={option.code} type="button" aria-pressed={language === option.code} onClick={() => {
+              setLanguage(option.code);
+              setLanguageOpen(false);
+              languageButton.current?.focus();
+            }}>
+              <span>{option.label}<small>{option.caption}</small></span>
+              {language === option.code && <Check size={17} aria-hidden="true" />}
+            </button>)}
+            <p>English é apenas um exemplo. O conteúdo permanece em português.</p>
+          </div>}
+          </div>
           <Link className={buttonClass('ghost', 'login-link')} href="/entrar" onClick={close}>
             Entrar
           </Link>
@@ -136,21 +160,6 @@ export function Header() {
           </button>
         </div>
       </Container>
-      {search && (
-        <form action="/blog" className="header-search container">
-          <label htmlFor="site-search">Pesquisar no blog</label>
-          <input
-            autoFocus
-            id="site-search"
-            name="q"
-            placeholder="Pesquisar artigos..."
-            type="search"
-          />
-          <button className={buttonClass()} type="submit">
-            Pesquisar
-          </button>
-        </form>
-      )}
       {mobile && (
         <nav className="mobile-nav" id="mobile-navigation" aria-label="Navegação móvel">
           {[
