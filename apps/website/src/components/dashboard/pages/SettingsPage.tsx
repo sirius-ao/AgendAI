@@ -1,413 +1,279 @@
 'use client';
-import { useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import {
-  User,
-  ShieldCheck,
-  Palette,
-  Bell,
-  School,
-  Link2,
-  CreditCard,
-  Settings,
-  Sun,
-  Moon,
-  Monitor,
-  Crown,
-  Download,
-  LockKeyhole,
+  Bell, CreditCard, Download, Link2, LockKeyhole, Monitor, Moon, Palette, School,
+  Settings, ShieldCheck, Sun, User,
 } from 'lucide-react';
 import { useDashboard } from '../state/DashboardProvider';
-import { Avatar, ConfirmDialog, Field, Modal, PageHeader, Panel, Switch } from '../ui/Primitives';
+import { Avatar, ConfirmDialog, Field, PageHeader, Panel, Switch } from '../ui/Primitives';
 import { downloadText } from '@/lib/dashboard/export';
+import { localId } from '@/lib/dashboard/selectors';
+import { apiRequest } from '@/lib/api/client';
+
 const sections = [
-  ['profile', 'Perfil', 'Informações pessoais', User],
-  ['account', 'Conta', 'Segurança e acesso', LockKeyhole],
+  ['profile', 'Perfil', 'Os seus dados pessoais', User],
   ['school', 'Escola', 'Dados da instituição', School],
-  ['notifications', 'Notificações', 'Alertas e comunicações', Bell],
-  ['appearance', 'Aparência', 'Tema e idioma', Palette],
-  ['integrations', 'Integrações', 'Apps e serviços', Link2],
-  ['privacy', 'Privacidade', 'Dados e privacidade', ShieldCheck],
-  ['billing', 'Plano e Faturação', 'Gestão do plano', CreditCard],
-  ['other', 'Outros', 'Opções avançadas', Settings],
+  ['schools', 'As minhas escolas', 'Vínculos e espaços de trabalho', School],
+  ['activity', 'Atividade', 'Alterações na escola', ShieldCheck],
+  ['preferences', 'Preferências', 'Aparência e alertas', Palette],
+  ['privacy', 'Dados e privacidade', 'Exportar ou repor dados', ShieldCheck],
 ] as const;
+
 export function SettingsPage() {
-  const { state, update, notify, reset } = useDashboard();
-  const [active, setActive] = useState('profile'),
-    [info, setInfo] = useState(''),
-    [confirm, setConfirm] = useState(false);
+  const { state, update, notify, reset, apiMode, selectSchool } = useDashboard();
+  const [active, setActive] = useState('profile');
+  const [confirm, setConfirm] = useState(false);
+  const [members, setMembers] = useState<{ id: string; user: { name: string; email: string }; role: string }[]>([]);
+  const [inviteUrl, setInviteUrl] = useState('');
+  const [memberError, setMemberError] = useState('');
+  const [audit, setAudit] = useState<{ id: string; action: string; entity: string; recordId?: string | null; createdAt: string; actor: { name: string } }[]>([]);
+
+  const loadMembers = useCallback(() => {
+    if (!apiMode || !state.activeSchoolId || state.user.role === 'Professor') return;
+    void apiRequest<typeof members>(`/schools/${encodeURIComponent(state.activeSchoolId)}/members`)
+      .then((result) => { setMembers(result); setMemberError(''); }).catch((error) => setMemberError(error instanceof Error ? error.message : 'Não foi possível carregar os membros.'));
+  }, [apiMode, state.activeSchoolId, state.user.role]);
+  useEffect(() => { loadMembers(); }, [loadMembers]);
+  const canManageSchool = !apiMode || state.user.role !== 'Professor';
+  const canManageMembers = !apiMode || state.user.role !== 'Professor';
+  useEffect(() => {
+    if (!apiMode || !state.activeSchoolId || state.user.role === 'Professor') return;
+    void apiRequest<typeof audit>(`/schools/${encodeURIComponent(state.activeSchoolId)}/audit?limit=50`).then(setAudit).catch(() => setAudit([]));
+  }, [apiMode, state.activeSchoolId, state.user.role]);
+
   function saveProfile(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    update((s) => ({
-      ...s,
-      user: {
-        ...s.user,
-        name: String(f.get('name')).trim(),
-        email: String(f.get('email')),
-        phone: String(f.get('phone')),
-        role: String(f.get('role')),
-      },
-    }));
-    notify('Perfil de demonstração atualizado.');
+    update((s) => ({ ...s, user: { ...s.user, name: String(f.get('name')).trim(), email: String(f.get('email')), phone: String(f.get('phone')), ...(apiMode ? {} : { role: String(f.get('role')) }) }));
+    notify(apiMode ? 'Perfil atualizado.' : 'Perfil de demonstração atualizado.');
   }
+
   function saveSchool(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
+    const name = String(f.get('school'));
+    const address = String(f.get('address'));
+    const year = String(f.get('year'));
+    const role = apiMode ? state.schools?.find((school) => school.id === state.activeSchoolId)?.role || state.user.role : String(f.get('schoolRole'));
     update((s) => ({
       ...s,
-      settings: {
-        ...s.settings,
-        school: String(f.get('school')),
-        address: String(f.get('address')),
-        year: String(f.get('year')),
-      },
+      settings: { ...s.settings, school: name, address, year },
+      schools: (s.schools || []).map((school) => school.id === s.activeSchoolId ? { ...school, name, address, year, role } : school),
     }));
     notify('Dados da escola guardados.');
   }
+
+  async function addSchool(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formElement = e.currentTarget;
+    const f = new FormData(formElement);
+    const school = {
+      id: localId('school'),
+      name: String(f.get('schoolName')).trim(),
+      address: String(f.get('schoolAddress')).trim(),
+      year: String(f.get('schoolYear')),
+      role: String(f.get('schoolRole')),
+    };
+    if (apiMode) {
+      try {
+        const created = await apiRequest<{ id: string; name: string; address: string; academicYear: string; role: string }>('/schools', { method: 'POST', body: JSON.stringify({ name: school.name, address: school.address, academicYear: school.year }) });
+        update((s) => ({ ...s, schools: [...(s.schools || []), { id: created.id, name: created.name, address: created.address, year: created.academicYear, role: created.role }], activeSchoolId: created.id }));
+        selectSchool(created.id);
+        formElement.reset();
+        notify('Escola criada na sua conta.');
+      } catch (error) { setMemberError(error instanceof Error ? error.message : 'Não foi possível criar a escola.'); }
+      return;
+    }
+    update((s) => ({ ...s, schools: [...(s.schools || []), school], activeSchoolId: school.id }));
+    e.currentTarget.reset();
+    notify('Escola adicionada. O novo espaço começa sem turmas.');
+  }
+
+  async function inviteMember(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!state.activeSchoolId) return;
+    const formElement = e.currentTarget;
+    const form = new FormData(formElement);
+    try {
+      const invite = await apiRequest<{ invitationToken: string }>('/schools/' + encodeURIComponent(state.activeSchoolId) + '/invitations', { method: 'POST', body: JSON.stringify({ email: form.get('email'), role: form.get('role') }) });
+      setInviteUrl(`${window.location.origin}/convites/aceitar?token=${encodeURIComponent(invite.invitationToken)}`);
+      formElement.reset();
+      setMemberError('');
+      loadMembers();
+    } catch (error) { setMemberError(error instanceof Error ? error.message : 'Não foi possível criar o convite.'); }
+  }
+
+  async function updateMemberRole(memberId: string, role: string) {
+    if (!state.activeSchoolId) return;
+    try { await apiRequest(`/schools/${encodeURIComponent(state.activeSchoolId)}/members/${encodeURIComponent(memberId)}`, { method: 'PATCH', body: JSON.stringify({ role }) }); loadMembers(); }
+    catch (error) { setMemberError(error instanceof Error ? error.message : 'Não foi possível alterar a função.'); }
+  }
+  async function removeMember(memberId: string) {
+    if (!state.activeSchoolId || !window.confirm('Remover este membro da escola?')) return;
+    try { await apiRequest(`/schools/${encodeURIComponent(state.activeSchoolId)}/members/${encodeURIComponent(memberId)}`, { method: 'DELETE' }); loadMembers(); }
+    catch (error) { setMemberError(error instanceof Error ? error.message : 'Não foi possível remover o membro.'); }
+  }
+  function addSubject(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const name = String(form.get('subjectName') || '').trim();
+    if (!name) return;
+    update((s) => ({ ...s, subjects: [...s.subjects, { id: localId('subject'), name, tone: String(form.get('tone')) as 'green' | 'blue' | 'purple' | 'red' | 'amber' | 'teal' | 'gray' }] }));
+    e.currentTarget.reset();
+    notify('Disciplina adicionada à escola.');
+  }
+
   return (
     <>
-      <PageHeader
-        title="Configurações"
-        description="Personalize o seu ambiente e ajuste as preferências da sua conta de demonstração."
-      />
+      <PageHeader title="Configurações" description="Ajuste o seu perfil, os dados da escola e as preferências do AgendAI." />
       <div className="dash-settings-layout">
-        <nav className="dash-settings-nav" aria-label="Configurações">
+        <nav className="dash-settings-nav" aria-label="Secções das configurações">
           {sections.map(([id, title, description, Icon]) => (
-            <a
-              href={`#settings-${id}`}
-              key={id}
-              className={active === id ? 'active' : ''}
-              onClick={() => setActive(id)}
-            >
+            <a href={`#settings-${id}`} key={id} className={active === id ? 'active' : ''} onClick={() => setActive(id)}>
               <Icon size={20} />
-              <span>
-                <strong>{title}</strong>
-                <small>{description}</small>
-              </span>
+              <span><strong>{title}</strong><small>{description}</small></span>
             </a>
           ))}
-          <Link href="/dashboard/turmas">
-            <School size={20} />
-            <span>Turmas e disciplinas</span>
-          </Link>
         </nav>
-        <div className="dash-settings-grid">
-          <div id="settings-profile">
-            <Panel
-              title={
-                <>
-                  <User /> Informações do Perfil
-                </>
-              }
-            >
-              <Avatar src={state.user.avatar} name={state.user.name} size={86} />
-              <form key={JSON.stringify(state.user)} onSubmit={saveProfile}>
-                <div className="dash-fields-row">
-                  <Field label="Nome completo">
-                    <input name="name" required defaultValue={state.user.name} />
-                  </Field>
-                  <Field label="Cargo">
-                    <input name="role" required defaultValue={state.user.role} />
-                  </Field>
+
+        <div className="dash-settings-content">
+          <div className="dash-settings-grid">
+            <div id="settings-profile">
+              <Panel title={<><User /> Perfil</>}>
+                <p className="dash-settings-intro">Informações usadas no seu espaço de trabalho.</p>
+                <Avatar src={state.user.avatar} name={state.user.name} size={72} />
+                <form key={JSON.stringify(state.user)} onSubmit={saveProfile}>
+                  <div className="dash-fields-row">
+                    <Field label="Nome completo"><input name="name" required defaultValue={state.user.name} /></Field>
+                    {!apiMode && <Field label="Cargo"><input name="role" required defaultValue={state.user.role} /></Field>}
+                  </div>
+                  <Field label="E-mail"><input name="email" type="email" required defaultValue={state.user.email} readOnly={apiMode} /></Field>
+                  <Field label="Telefone"><input name="phone" type="tel" defaultValue={state.user.phone} placeholder="+244" /></Field>
+                  <button className="dash-btn secondary">Guardar perfil</button>
+                </form>
+              </Panel>
+            </div>
+
+            <div id="settings-school">
+              <Panel title={<><School /> Escola</>}>
+                <p className="dash-settings-intro">Dados da escola ativa. O seletor no topo permite alternar entre instituições.</p>
+                <form key={`${state.settings.school}-${state.settings.address}-${state.settings.year}-${state.schools?.find((school) => school.id === state.activeSchoolId)?.role}`} onSubmit={saveSchool}>
+                  <Field label="Nome da instituição"><input name="school" required defaultValue={state.settings.school} readOnly={!canManageSchool} /></Field>
+                  <Field label="Endereço"><input name="address" defaultValue={state.settings.address} readOnly={!canManageSchool} /></Field>
+                  <Field label="Ano letivo atual"><select name="year" defaultValue={state.settings.year} disabled={!canManageSchool}><option>2026 / 2027</option><option>2027 / 2028</option></select></Field>
+                  {!apiMode && <Field label="A sua função nesta escola"><select name="schoolRole" defaultValue={state.schools?.find((school) => school.id === state.activeSchoolId)?.role || state.user.role}><option>Professor</option><option>Coordenador</option><option>Diretor</option></select></Field>}
+                  <button className="dash-btn secondary" disabled={!canManageSchool}>Guardar dados da escola</button>
+                </form>
+                <Link className="dash-list-row dash-settings-link" href="/dashboard/turmas"><School size={18} /> Gerir turmas e disciplinas <span aria-hidden="true">→</span></Link>
+                <h3>Disciplinas</h3>
+                <div className="dash-school-memberships">{state.subjects.map((subject) => <div className="dash-school-membership" key={subject.id}><span className={`dash-icon ${subject.tone}`}><School size={18} /></span><strong>{subject.name}</strong></div>)}</div>
+                {canManageSchool && <form className="dash-fields-row" onSubmit={addSubject}><Field label="Nova disciplina"><input name="subjectName" required maxLength={100} /></Field><Field label="Cor"><select name="tone" defaultValue="green">{['green', 'blue', 'purple', 'red', 'amber', 'teal', 'gray'].map((tone) => <option value={tone} key={tone}>{tone}</option>)}</select></Field><button className="dash-btn secondary">Adicionar disciplina</button></form>}
+              </Panel>
+            </div>
+
+            <div id="settings-schools">
+              <Panel title={<><School /> As minhas escolas <span className="dash-settings-count">{state.schools?.length || 0}</span></>}>
+                <p className="dash-settings-intro">Cada escola tem o seu próprio conjunto de dados e membros. {apiMode ? 'Os convites criam links que pode partilhar com a pessoa convidada.' : 'Os espaços desta demonstração são locais ao navegador.'}</p>
+                <div className="dash-school-memberships">
+                  {(state.schools || []).map((school) => (
+                    <div className={`dash-school-membership ${school.id === state.activeSchoolId ? 'active' : ''}`} key={school.id}>
+                      <span className="dash-icon green"><School size={18} /></span>
+                      <span><strong>{school.name}</strong><small>{school.role} · Ano letivo {school.year}</small></span>
+                      {school.id === state.activeSchoolId && <small className="dash-school-current">Ativa</small>}
+                    </div>
+                  ))}
                 </div>
-                <Field label="E-mail">
-                  <input name="email" type="email" required defaultValue={state.user.email} />
-                </Field>
-                <Field label="Telefone">
-                  <input
-                    name="phone"
-                    type="tel"
-                    defaultValue={state.user.phone}
-                    placeholder="+244"
-                  />
-                </Field>
-                <button className="dash-btn secondary">Guardar perfil</button>
-              </form>
-            </Panel>
-          </div>
-          <div id="settings-account">
-            <Panel
-              title={
-                <>
-                  <ShieldCheck /> Segurança da Conta
-                </>
-              }
-            >
-              <div className="dash-security-row">
-                <LockKeyhole />
-                <span>
-                  <strong>Palavra-passe</strong>
-                  <small>Não existe autenticação nesta demonstração.</small>
-                </span>
-                <button
-                  className="dash-btn secondary"
-                  onClick={() =>
-                    setInfo(
-                      'As contas, palavras-passe e autenticação em duas etapas dependem de um serviço de autenticação. Esta demonstração não cria contas nem guarda palavras-passe.',
-                    )
-                  }
-                >
-                  Saber mais
-                </button>
-              </div>
-              <div className="dash-tip">
-                <ShieldCheck />
-                <p>
-                  Dados guardados apenas neste navegador. Esta área é pública e demonstrativa;
-                  utilize dados fictícios.
-                </p>
-              </div>
-              <button
-                className="dash-btn secondary"
-                onClick={() =>
-                  setInfo(
-                    'Sessão local neste navegador. Não existem sessões remotas, controlo de dispositivos ou permissões de acesso nesta versão.',
-                  )
-                }
-              >
-                Ver sessão local
-              </button>
-            </Panel>
-          </div>
-          <div id="settings-appearance">
-            <Panel
-              title={
-                <>
-                  <Palette /> Aparência e Idioma
-                </>
-              }
-            >
-              <p>Tema</p>
-              <div className="dash-theme-picker">
-                {(
-                  [
-                    ['light', 'Claro', Sun],
-                    ['dark', 'Escuro', Moon],
-                    ['system', 'Sistema', Monitor],
-                  ] as const
-                ).map(([value, label, Icon]) => (
-                  <button
-                    key={value}
-                    aria-pressed={state.settings.theme === value}
-                    onClick={() =>
-                      update((s) => ({ ...s, settings: { ...s.settings, theme: value } }))
-                    }
-                  >
-                    <Icon />
-                    {label}
-                  </button>
+                  {apiMode && canManageMembers && <>
+                  <h3>Membros da escola</h3>
+                  {members.map((member) => <div className="dash-list-row" key={member.id}><span><strong>{member.user.name}</strong><small>{member.user.email}</small></span>{state.user.role === 'Diretor' ? <select aria-label={`Função de ${member.user.name}`} value={member.role} onChange={(event) => void updateMemberRole(member.user.id, event.target.value)}><option value="OWNER" disabled>Proprietário</option><option value="ADMIN">Administrador</option><option value="COORDINATOR">Coordenador</option><option value="TEACHER">Professor</option></select> : <small>{member.role}</small>}{member.role !== 'OWNER' && member.user.id !== state.user.id && <button type="button" className="dash-btn secondary" onClick={() => void removeMember(member.user.id)}>Remover</button>}</div>)}
+                  <form onSubmit={inviteMember} className="dash-modal-simple"><h3>Convidar membro</h3><Field label="Email"><input name="email" type="email" required /></Field><Field label="Função"><select name="role" defaultValue="TEACHER"><option value="TEACHER">Professor</option><option value="COORDINATOR">Coordenador</option><option value="ADMIN">Administrador</option></select></Field><button className="dash-btn secondary">Criar convite</button></form>
+                  {inviteUrl && <div className="dash-list-row"><label>Partilhe este link com o convidado<input readOnly value={inviteUrl} onFocus={(event) => event.currentTarget.select()} /></label></div>}
+                  {memberError && <p role="alert">{memberError}</p>}
+                </>}
+                <details className="dash-add-school">
+                  <summary>Adicionar outra escola</summary>
+                  <form onSubmit={addSchool}>
+                    <Field label="Nome da escola"><input name="schoolName" required maxLength={100} placeholder="Ex.: Escola Horizonte" /></Field>
+                    <Field label="Localização"><input name="schoolAddress" maxLength={140} placeholder="Município, província" /></Field>
+                    <div className="dash-fields-row">
+                      <Field label="Ano letivo"><select name="schoolYear" defaultValue="2026 / 2027"><option>2026 / 2027</option><option>2027 / 2028</option></select></Field>
+                      <Field label="A sua função"><select name="schoolRole" defaultValue="Professor"><option>Professor</option><option>Coordenador</option><option>Diretor</option></select></Field>
+                    </div>
+                    <button className="dash-btn secondary">Adicionar escola</button>
+                    <small>{apiMode ? 'A escola fica associada à sua conta com função de proprietário.' : 'Este espaço é local e demonstrativo; ainda não partilha dados entre contas.'}</small>
+                  </form>
+                </details>
+              </Panel>
+            </div>
+
+            <div id="settings-activity" className="dash-settings-span">
+              <Panel title={<><ShieldCheck /> Atividade da escola</>}>
+                {apiMode ? state.user.role === 'Professor' ? <p>O registo de atividade está disponível para a administração da escola.</p> : audit.length ? audit.map((event) => <div className="dash-list-row" key={event.id}><span><strong>{event.actor.name}</strong><small>{event.action} · {event.entity}{event.recordId ? ` · ${event.recordId}` : ''}</small></span><time>{new Date(event.createdAt).toLocaleString('pt-AO', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Africa/Luanda' })}</time></div>) : <p>Não há alterações administrativas registadas ainda.</p> : <p>O registo de atividade fica disponível na conta ligada ao backend.</p>}
+              </Panel>
+            </div>
+
+            <div id="settings-preferences">
+              <Panel title={<><Palette /> Preferências</>}>
+                <p className="dash-settings-subtitle">Aparência</p>
+                <div className="dash-theme-picker">
+                  {([['light', 'Claro', Sun], ['dark', 'Escuro', Moon], ['system', 'Sistema', Monitor]] as const).map(([value, label, Icon]) => (
+                    <button key={value} aria-pressed={state.settings.theme === value} onClick={() => update((s) => ({ ...s, settings: { ...s.settings, theme: value } }))}><Icon />{label}</button>
+                  ))}
+                </div>
+                <div className="dash-settings-language"><span>Idioma da interface</span><strong>{state.settings.language}</strong><small>Outros idiomas serão disponibilizados numa versão futura.</small></div>
+                <Field label="Fuso horário"><select value={state.settings.timezone} onChange={(e) => update((s) => ({ ...s, settings: { ...s.settings, timezone: e.target.value } }))}><option value="Africa/Luanda">Luanda (GMT+1)</option><option value="Europe/Lisbon">Lisboa</option><option value="UTC">UTC</option></select></Field>
+                <small>O fuso horário é usado nos horários das mensagens e atividades.</small>
+              </Panel>
+            </div>
+
+            <div id="settings-notifications">
+              <Panel title={<><Bell /> Notificações</>}>
+                <p className="dash-settings-intro">Escolha os alertas que pretende ver neste navegador.</p>
+                {Object.entries(state.settings.notifications).map(([label, value]) => (
+                  <Switch key={label} label={label} checked={value} onChange={(checked) => update((s) => ({ ...s, settings: { ...s.settings, notifications: { ...s.settings.notifications, [label]: checked } } }))} />
                 ))}
-              </div>
-              <Field label="Idioma">
-                <select
-                  value={state.settings.language}
-                  onChange={(e) =>
-                    update((s) => ({ ...s, settings: { ...s.settings, language: e.target.value } }))
-                  }
-                >
-                  <option>Português (PT)</option>
-                </select>
-              </Field>
-              <Field label="Fuso horário">
-                <select
-                  value={state.settings.timezone}
-                  onChange={(e) =>
-                    update((s) => ({ ...s, settings: { ...s.settings, timezone: e.target.value } }))
-                  }
-                >
-                  <option value="Africa/Luanda">(GMT+1) Luanda</option>
-                  <option value="Europe/Lisbon">Lisboa</option>
-                  <option value="UTC">UTC</option>
-                </select>
-              </Field>
-              <small>Usado nos horários das novas mensagens.</small>
-            </Panel>
-          </div>
-          <div id="settings-notifications">
-            <Panel
-              title={
-                <>
-                  <Bell /> Notificações
-                </>
-              }
-            >
-              <p>Preferências locais para atividades importantes.</p>
-              {Object.entries(state.settings.notifications).map(([label, value]) => (
-                <Switch
-                  key={label}
-                  label={label}
-                  checked={value}
-                  onChange={(checked) =>
-                    update((s) => ({
-                      ...s,
-                      settings: {
-                        ...s.settings,
-                        notifications: { ...s.settings.notifications, [label]: checked },
-                      },
-                    }))
-                  }
-                />
-              ))}
-              <small>Não são enviados e-mails ou notificações push.</small>
-            </Panel>
-          </div>
-          <div id="settings-school">
-            <Panel
-              title={
-                <>
-                  <School /> Dados da Escola
-                </>
-              }
-            >
-              <form
-                key={`${state.settings.school}-${state.settings.address}-${state.settings.year}`}
-                onSubmit={saveSchool}
-              >
-                <Field label="Nome da instituição">
-                  <input name="school" required defaultValue={state.settings.school} />
-                </Field>
-                <Field label="Endereço">
-                  <input name="address" defaultValue={state.settings.address} />
-                </Field>
-                <Field label="Ano letivo atual">
-                  <select name="year" defaultValue={state.settings.year}>
-                    <option>2026 / 2027</option>
-                    <option>2027 / 2028</option>
-                  </select>
-                </Field>
-                <button className="dash-btn secondary">Guardar escola</button>
-              </form>
-            </Panel>
-          </div>
-          <div id="settings-integrations">
-            <Panel
-              title={
-                <>
-                  <Link2 /> Integrações
-                </>
-              }
-            >
-              <p>Serviços previstos para ligação ao AgendAI.</p>
-              {['Google Drive', 'Microsoft Teams', 'Zoom', 'Google Classroom'].map((name, i) => (
-                <div className="dash-list-row" key={name}>
-                  <span className={`dash-icon ${i % 2 ? 'purple' : 'blue'}`}>
-                    <Link2 />
-                  </span>
-                  <span>
-                    <strong>{name}</strong>
-                    <small>Não ligado</small>
-                  </span>
-                  <button
-                    className="dash-btn secondary"
-                    onClick={() =>
-                      setInfo(
-                        `${name}: a integração necessita de OAuth, credenciais do serviço e backend. Nenhuma ligação é iniciada nesta demonstração.`,
-                      )
-                    }
-                  >
-                    Detalhes
-                  </button>
+                <small>As notificações por e-mail e push ainda não estão disponíveis.</small>
+              </Panel>
+            </div>
+
+            <div id="settings-privacy" className="dash-settings-span">
+              <Panel title={<><ShieldCheck /> Dados e privacidade</>}>
+                <p className="dash-settings-intro">{apiMode ? 'Os dados estão guardados na base de dados da escola ativa. Pode exportar uma cópia ou remover os registos desta escola.' : 'Esta demonstração guarda os dados neste navegador. Pode exportá-los ou repor os exemplos iniciais.'}</p>
+                <div className="dash-settings-actions">
+                  <Link className="dash-list-row" href="/privacidade">Política de privacidade <span aria-hidden="true">→</span></Link>
+                  <button className="dash-list-row" onClick={() => downloadText('agendai-dados-locais.json', JSON.stringify(state, null, 2), 'application/json')}><Download size={18} /> Exportar os meus dados</button>
+                  <button className="dash-list-row danger" onClick={() => setConfirm(true)}>{apiMode ? 'Apagar os dados desta escola' : 'Repor dados de demonstração'}</button>
                 </div>
-              ))}
-            </Panel>
+              </Panel>
+            </div>
           </div>
-          <div id="settings-billing">
-            <Panel
-              title={
-                <>
-                  <CreditCard /> Plano e Faturação
-                </>
-              }
-            >
-              <div className="dash-tip">
-                <Crown />
-                <div>
-                  <strong>Explore o AgendAI Pro</strong>
-                  <p>Conheça os planos para professores e instituições.</p>
-                  <Link className="dash-btn secondary" href="/planos">
-                    Ver planos
-                  </Link>
-                </div>
-              </div>
-              <small>Sem subscrição ou cobrança nesta demonstração.</small>
-            </Panel>
-          </div>
-          <div id="settings-privacy">
-            <Panel
-              title={
-                <>
-                  <ShieldCheck /> Privacidade e Dados
-                </>
-              }
-            >
-              <Link className="dash-list-row" href="/privacidade">
-                Política de privacidade →
-              </Link>
-              <button
-                className="dash-list-row"
-                onClick={() =>
-                  downloadText(
-                    'agendai-dados-locais.json',
-                    JSON.stringify(state, null, 2),
-                    'application/json',
-                  )
-                }
-              >
-                <Download size={18} />
-                Exportar os meus dados locais
-              </button>
-              <button className="dash-list-row danger" onClick={() => setConfirm(true)}>
-                Repor dados de demonstração
-              </button>
-            </Panel>
-          </div>
-          <div id="settings-other">
-            <Panel
-              title={
-                <>
-                  <Settings /> Outras Configurações
-                </>
-              }
-            >
-              <Link className="dash-list-row" href="/dashboard/planos-de-aula">
-                Modelos e planos de aula →
-              </Link>
-              <Link className="dash-list-row" href="/dashboard/turmas">
-                Gestão de turmas e alunos →
-              </Link>
-              <Link className="dash-list-row" href="/">
-                Voltar ao website →
-              </Link>
-              <Link className="dash-list-row" href="/entrar">
-                Sair da demonstração →
-              </Link>
-            </Panel>
-          </div>
+
+          <details className="dash-settings-advanced">
+            <summary><Settings size={18} /> Opções avançadas e funcionalidades em desenvolvimento</summary>
+            <div className="dash-settings-advanced-grid">
+              <Panel title={<><LockKeyhole /> Segurança e acesso</>}>
+                <p>{apiMode ? 'A conta usa sessão autenticada com renovação de sessão por cookie HttpOnly. Use uma palavra-passe exclusiva.' : 'A demonstração não tem autenticação. Os dados ficam acessíveis neste navegador; use apenas informação fictícia.'}</p>
+              </Panel>
+              <Panel title={<><Link2 /> Integrações</>}>
+                <p>As ligações a serviços externos ainda não estão disponíveis.</p>
+                {['Google Drive', 'Microsoft Teams', 'Zoom', 'Google Classroom'].map((name) => <div className="dash-list-row" key={name}><span>{name}</span><small>Em desenvolvimento</small></div>)}
+              </Panel>
+              <Panel title={<><CreditCard /> Plano e faturação</>}>
+                <p>Não existe subscrição ou cobrança nesta demonstração.</p>
+                <Link className="dash-btn secondary" href="/dashboard/planos">Consultar planos</Link>
+              </Panel>
+              <Panel title="Atalhos">
+                <Link className="dash-list-row" href="/dashboard/planos-de-aula">Modelos e planos de aula →</Link>
+                <Link className="dash-list-row" href="/">Voltar ao website →</Link>
+                <Link className="dash-list-row" href="/entrar">Sair da demonstração →</Link>
+              </Panel>
+            </div>
+          </details>
         </div>
       </div>
-      {info && (
-        <Modal
-          title="Sobre esta funcionalidade"
-          onClose={() => setInfo('')}
-          className="dash-dialog-small"
-        >
-          <div className="dash-modal-simple">
-            <p>{info}</p>
-            <button className="dash-btn" onClick={() => setInfo('')}>
-              Entendido
-            </button>
-          </div>
-        </Modal>
-      )}
-      {confirm && (
-        <ConfirmDialog
-          title="Repor a demonstração?"
-          description="Os planos, mensagens, notas e outras alterações deste navegador serão substituídos pelos exemplos iniciais. Exporte os dados antes se precisar de os conservar."
-          onClose={() => setConfirm(false)}
-          onConfirm={reset}
-        />
-      )}
+
+      {confirm && <ConfirmDialog title="Repor a demonstração?" description="Os planos, mensagens, notas e outras alterações deste navegador serão substituídos pelos exemplos iniciais. Exporte os dados antes se precisar de os conservar." onClose={() => setConfirm(false)} onConfirm={reset} />}
     </>
   );
 }

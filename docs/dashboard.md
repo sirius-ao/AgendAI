@@ -2,7 +2,7 @@
 
 ## Integração no projeto existente
 
-O dashboard foi acrescentado ao app Next.js `apps/website` do monorepo. Não foi criado outro app, backend ou sistema de autenticação. O website público, os packages partilhados e o Dockerfile continuam a ser utilizados.
+O dashboard foi acrescentado ao app Next.js `apps/website` do monorepo. A demonstração continua local; registo, login e sessões autenticadas usam o backend NestJS em `apps/api`. O website público, os packages partilhados e o Dockerfile continuam a ser utilizados.
 
 `SiteFrame` escolhe o enquadramento público ou o dashboard. O layout `/dashboard` instala `DashboardProvider` e `DashboardShell`: sidebar, topbar, pesquisa global (`Ctrl/Cmd+K`), notificações locais, perfil, footer e modais. A sidebar adapta-se a tablet e torna-se um menu móvel. O shell preserva o estado entre navegações.
 
@@ -57,7 +57,7 @@ A seed contém 6 turmas, 186 alunos (28 na 10ª A), 7 disciplinas, 24 planos, 24
 - Mensagens: conversas de turma/individuais, pesquisa, filtros, favoritos, arquivo, texto e nomes de anexos, membros e exportação. Envio apenas para o estado local.
 - Configurações: perfil/escola, tema claro/escuro/sistema, preferências locais, fuso para mensagens, exportação JSON e reposição confirmada.
 
-## Persistência e backend futuro
+## Persistência e integração com backend
 
 ### Chamada e histórico de presenças
 
@@ -101,11 +101,11 @@ As aulas do dia permitem selecionar uma data, abrir/preparar o plano, marcar pre
 
 As chamadas começam por marcar, sem assumir presença. Os rascunhos são guardados por turma/data e recuperados ao regressar, sem afetar relatórios até à confirmação. No telemóvel, cada aluno tem botões Presente/Falta/Justificada e observações recolhidas; o resumo e as ações ficam fixos durante a deslocação. Só é possível confirmar depois de marcar todos os alunos. Descartar o rascunho exige confirmação.
 
-O aviso de ligação explica o modo local. Uma página carregada pode continuar a receber alterações sem rede, mas abrir/recarregar a aplicação offline ainda não é suportado. Não foi implementada sincronização com servidor. Estes incrementos foram revistos no código, sem executar testes ou builds, conforme pedido do utilizador.
+O aviso de ligação distingue a demonstração local do dashboard autenticado. As alterações autenticadas sincronizam com a API; sem ligação, alterações novas não são guardadas até a ligação voltar. Estes incrementos foram revistos no código, sem executar testes ou builds.
 
 `localDashboardRepository` guarda `{version: 1, state}` na chave `agendai-dashboard-demo-v1` de `localStorage`. Os dados pertencem à origem e ao navegador; não são partilhados entre utilizadores ou dispositivos. Dados ilegíveis não são sobrescritos automaticamente. Falhas de armazenamento mostram feedback. A interface do repository permite substituir o adapter por uma API.
 
-Continuam dependentes de backend: autenticação e permissões, base de dados multiutilizador, uploads/downloads originais, mensagens em tempo real, e-mails/push, recorrência executada de eventos, IA real, OAuth/integrações, pagamentos, faturação e segurança de contas. Estas funcionalidades não são apresentadas como ligações reais na demonstração. Preferências de lembretes/recorrência ficam guardadas, mas não são executadas.
+O dashboard autenticado sincroniza escolas, membros, turmas, alunos, disciplinas, planos, presenças, avaliações, calendário, recursos, biblioteca, mensagens, relatórios, tarefas e preferências. A demonstração continua no armazenamento local. Ainda faltam uploads binários, mensagens em tempo real, envio de email/push, recorrência executada, IA real, OAuth/integrações, pagamentos, faturação e recuperação de palavra-passe. O rate limit atual vive no processo NestJS e requer Redis/serviço partilhado para várias instâncias. A instalação e rotas estão em [docs/api.md](api.md).
 
 CSV abre em Excel; PDF usa a impressão do navegador. Não há geração binária de XLSX/PDF, envio automático de relatórios ou ficheiros de exemplo completos. Os relatórios não são snapshots históricos imutáveis. A meteorologia é ilustrativa, sem consulta externa.
 

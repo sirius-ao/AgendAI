@@ -7,20 +7,24 @@ import type { DashboardState } from '@/types/dashboard';
 import { DEMO_DATE } from '@/data/dashboard/seed';
 
 export function GettingStarted() {
-  const { state, update, error } = useDashboard();
+  const { state, update, error, apiMode } = useDashboard();
   const guide: NonNullable<DashboardState['onboarding']> = state.onboarding || { step: 0, name: '', year: '2026', subjectId: state.subjects[0]?.id || '', names: '', title: '', date: DEMO_DATE, objectives: '', time: '08:00' };
   const change = (patch: Partial<typeof guide>) => update((s) => ({ ...s, onboarding: { ...guide, ...patch } }));
   const names = [...new Set(guide.names.split(/\r?\n/).map((name) => name.trim()).filter(Boolean))];
   const currentClass = state.classes.find((c) => c.id === guide.classId);
+  if (!state.subjects.length && guide.step === 0) return <Panel title="Prepare a sua escola">
+    <p>Adicione pelo menos uma disciplina antes de criar a primeira turma.</p>
+    <Link className="dash-btn" href="/dashboard/configuracoes#settings-school">Adicionar disciplina</Link>
+  </Panel>;
   if (guide.step === 3) return <Panel title="O seu espaço está preparado">
-    <p>A turma, os alunos e a primeira aula estão criados neste dispositivo.</p>
+    <p>A turma, os alunos e a primeira aula estão {apiMode ? 'guardados na escola' : 'criados neste dispositivo'}.</p>
     <div className="dash-guide-actions"><Link className="dash-btn" href={`/dashboard/presencas?turma=${guide.classId}&data=${guide.date}`}>Marcar presenças</Link>
     <Link className="dash-btn secondary" href={`/dashboard/turmas/${guide.classId}`}>Ver turma</Link></div>
   </Panel>;
   return <Panel title="Comece pela sua primeira turma">
     <p>Passo {guide.step + 1} de 3 · {['Criar turma', 'Adicionar alunos', 'Preparar a primeira aula'][guide.step]}</p>
     <progress max={3} value={guide.step} aria-label="Progresso do início guiado" />
-    <p>{error ? 'Não foi possível guardar o progresso. Mantenha esta página aberta.' : 'O progresso fica neste dispositivo. Pode sair e continuar depois.'}</p>
+    <p>{error ? 'Não foi possível guardar o progresso. Mantenha esta página aberta.' : apiMode ? 'O progresso é sincronizado com a escola e pode continuar noutro dispositivo.' : 'O progresso fica neste dispositivo. Pode sair e continuar depois.'}</p>
     <form className="dash-guide" onSubmit={(event) => {
       event.preventDefault();
       if (guide.step === 0) {

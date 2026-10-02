@@ -229,7 +229,7 @@ export function ResourcesPage({
   return (
     <>
       <PageHeader
-        title={library ? 'Biblioteca' : 'Recursos Didáticos'}
+        title={library ? 'A minha biblioteca' : 'Explorar recursos'}
         description={
           library
             ? 'O seu espaço pessoal: organize os materiais guardados e use-os nas suas aulas.'

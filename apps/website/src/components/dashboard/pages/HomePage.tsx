@@ -107,7 +107,7 @@ export function HomePage() {
     ].map((item) => <Link key={item.label} href={`/dashboard/${item.href}`}><strong>{item.count}</strong><span>{item.label}</span></Link>)}</nav>
     <div className="dash-home-links">
       <section><div className="dash-home-section-heading"><h2>As minhas turmas</h2><Link href="/dashboard/turmas">Ver todas →</Link></div>{state.classes.slice(0, 4).map((c) => <Link className="dash-list-row" key={c.id} href={`/dashboard/turmas/${c.id}`}><BookOpen size={18} /><span>{c.name}<small>{studentsFor(c.id).length} alunos ativos</small></span><ArrowRight size={16} /></Link>)}</section>
-      <section><div className="dash-home-section-heading"><h2>Recursos recentes</h2><Link href="/dashboard/biblioteca">Ver todos →</Link></div>{[...state.resources].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3).map((r) => <Link className="dash-list-row" key={r.id} href={`/dashboard/biblioteca?q=${encodeURIComponent(r.title)}`}><FileText size={18} /><span>{r.title}<small>{formatDate(r.date)}</small></span><ArrowRight size={16} /></Link>)}</section>
+      <section><div className="dash-home-section-heading"><h2>Recursos recentes</h2><Link href="/dashboard/recursos">Ver todos →</Link></div>{[...state.resources].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3).map((r) => <Link className="dash-list-row" key={r.id} href={`/dashboard/recursos?q=${encodeURIComponent(r.title)}`}><FileText size={18} /><span>{r.title}<small>{formatDate(r.date)}</small></span><ArrowRight size={16} /></Link>)}</section>
     </div>
   </div>;
 }

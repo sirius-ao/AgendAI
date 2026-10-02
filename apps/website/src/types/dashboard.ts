@@ -24,6 +24,7 @@ export interface Student {
 }
 export interface SchoolClass {
   archived?: boolean;
+  schoolId?: Id;
   previousClassId?: Id;
   id: Id;
   name: string;
@@ -107,6 +108,7 @@ export interface Assessment {
   grades: Record<Id, number | null>;
 }
 export interface CalendarEvent {
+  schoolId?: Id;
   id: Id;
   title: string;
   description: string;
@@ -177,6 +179,8 @@ export interface Report {
   type: string;
   period: string;
   date: string;
+  sections?: string[];
+  filters?: { subjectId?: string; studentId?: string; startDate?: string; endDate?: string };
 }
 export interface Message {
   id: Id;
@@ -186,6 +190,7 @@ export interface Message {
   attachments: string[];
 }
 export interface Conversation {
+  schoolId?: Id;
   id: Id;
   title: string;
   subtitle: string;
@@ -210,11 +215,32 @@ export interface DashboardSettings {
   notifications: Record<string, boolean>;
   twoFactor: boolean;
 }
+export interface TeacherSchool {
+  id: Id;
+  name: string;
+  address: string;
+  year: string;
+  role: string;
+}
+export interface DashboardOnboarding {
+  schoolId?: Id;
+  classId?: Id;
+  step: number;
+  name: string;
+  year: string;
+  subjectId: string;
+  names: string;
+  title: string;
+  date: string;
+  objectives: string;
+  time: string;
+}
 export interface DashboardState {
   assessmentDrafts?: Record<Id, Record<Id, GradeDetail>>;
   planDrafts?: Record<string, LessonPlan>;
   planPreferences?: { modelId: 'simple' | 'detailed' | 'school'; schoolFieldLabels: string[] };
-  onboarding?: { classId?: Id; step: number; name: string; year: string; subjectId: string; names: string; title: string; date: string; objectives: string; time: string };
+  onboarding?: DashboardOnboarding;
+  onboardingBySchool?: Record<Id, DashboardOnboarding>;
   attendanceDrafts?: Record<string, Record<Id, { status: AttendanceStatus | ''; note: string }>>;
   user: User;
   subjects: Subject[];
@@ -231,4 +257,6 @@ export interface DashboardState {
   conversations: Conversation[];
   tasks: { id: Id; title: string; due: string; done: boolean }[];
   settings: DashboardSettings;
+  schools?: TeacherSchool[];
+  activeSchoolId?: Id;
 }

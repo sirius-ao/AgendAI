@@ -1,15 +1,19 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Check } from 'lucide-react';
 import { Button, Input } from '@agendai/ui';
 import { Logo } from './Logo';
 import { useRouter } from 'next/navigation';
+import { apiLogin, apiRegister, apiRequest } from '@/lib/api/client';
 export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto' }) {
-  const [message, setMessage] = useState(false);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [invitationToken, setInvitationToken] = useState('');
   const router = useRouter();
   const contact = mode === 'contacto';
   const login = mode === 'entrar';
+  useEffect(() => { setInvitationToken(new URLSearchParams(window.location.search).get('convite') || ''); }, []);
   return (
     <section className="access-page container">
       <div className="access-copy">
@@ -45,30 +49,39 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
               ? 'Bem-vindo de volta.'
               : 'O seu próximo plano começa aqui.'}
         </h2>
-        <p>
-          {contact
-            ? 'Prepare a sua mensagem nesta prévia do formulário de contacto.'
-            : login
-              ? 'Prévia do acesso à sua conta AgendAI.'
-              : 'Explore a proposta de criação de conta AgendAI.'}
-        </p>
-        <div className="form-notice">
-          {contact
-            ? 'O canal de contacto ainda não está configurado.'
-            : 'Explore o dashboard com dados de exemplo. Não é criada uma conta nem iniciada uma sessão autenticada.'}{' '}
-          Este formulário é demonstrativo; os dados não são enviados nem guardados.
-        </div>
+        <p>{contact ? 'Prepare uma mensagem para a equipa AgendAI.' : login ? 'Entre na sua conta AgendAI.' : 'Crie a conta da sua escola e comece a organizar o trabalho.'}</p>
+        {contact && <div className="form-notice">O canal de contacto ainda não está configurado.</div>}
         <form
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            if (contact) setMessage(true);
-            else router.push('/dashboard');
+            const data = new FormData(e.currentTarget);
+            const inviteToken = invitationToken || undefined;
+            if (contact) { setMessage('O formulário de contacto ainda não está ligado a um canal de envio.'); return; }
+            setBusy(true);
+            setMessage('');
+            try {
+              if (login) {
+                await apiLogin(String(data.get('email')), String(data.get('password')));
+                if (inviteToken) await apiRequest('/invitations/accept', { method: 'POST', body: JSON.stringify({ token: inviteToken }) });
+              } else {
+                await apiRegister({ name: String(data.get('name')), email: String(data.get('email')), password: String(data.get('password')), ...(inviteToken ? { invitationToken: inviteToken } : { schoolName: String(data.get('schoolName')) }) });
+              }
+              router.push('/dashboard');
+            } catch (error) {
+              setMessage(error instanceof Error ? error.message : 'Não foi possível entrar. Tente novamente.');
+            } finally { setBusy(false); }
           }}
         >
           {!login && (
             <label>
               O seu nome
               <Input name="name" required autoComplete="name" placeholder="Como se chama?" />
+            </label>
+          )}
+          {!login && !contact && !invitationToken && (
+            <label>
+              Nome da escola
+              <Input name="schoolName" required={!invitationToken} minLength={2} maxLength={140} autoComplete="organization" placeholder="Ex.: Escola Horizonte" />
             </label>
           )}
           <label>
@@ -99,32 +112,22 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
             </>
           ) : (
             <label>
-              Palavra-passe de demonstração
+              Palavra-passe
               <Input
                 name="password"
                 type="password"
                 required
-                minLength={8}
-                autoComplete="off"
-                placeholder="Use um exemplo, não uma palavra-passe real"
+                minLength={login ? 1 : 10}
+                autoComplete={login ? 'current-password' : 'new-password'}
+                placeholder={login ? 'A sua palavra-passe' : 'Pelo menos 10 caracteres'}
               />
             </label>
           )}
           <Button type="submit">
-            {contact
-              ? 'Pré-visualizar pedido'
-              : login
-                ? 'Experimentar entrada'
-                : 'Experimentar criação de conta'}
+            {busy ? 'Aguarde…' : contact ? 'Enviar pedido' : login ? 'Entrar' : 'Criar conta'}
             <ArrowRight size={17} />
           </Button>
-          {message && (
-            <p role="status" className="form-feedback">
-              {contact
-                ? 'Pedido validado localmente. O envio estará disponível quando o contacto oficial for configurado.'
-                : 'Formulário validado. Esta é uma demonstração: nenhuma conta foi criada e nenhuma sessão foi iniciada.'}
-            </p>
-          )}
+          {message && <p role="alert" className="form-feedback">{message}</p>}
         </form>
         {!contact && (
           <Link className="button button-outline demo-access-link" href="/dashboard">
