@@ -15,7 +15,7 @@ COPY packages/ui/package.json ./packages/ui/package.json
 COPY packages/eslint-config/package.json ./packages/eslint-config/package.json
 COPY packages/typescript-config/package.json ./packages/typescript-config/package.json
 RUN --mount=type=cache,id=agendai-pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --store-dir=/pnpm/store
+    pnpm install --frozen-lockfile --filter @agendai/website... --store-dir=/pnpm/store --fetch-timeout=300000 --fetch-retries=5
 
 FROM dependencies AS builder
 COPY . .

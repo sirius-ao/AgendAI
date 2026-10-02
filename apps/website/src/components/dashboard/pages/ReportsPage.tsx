@@ -33,7 +33,7 @@ function belongsToPeriod(date: string, period: string) {
   return false;
 }
 type ReportData = { title: string; headers: string[]; rows: (string | number)[][] };
-type ReportFilters = { subjectId?: string; studentId?: string; startDate?: string; endDate?: string };
+type ReportFilters = { subjectId?: string; teacherId?: string; studentId?: string; startDate?: string; endDate?: string };
 const reportFilename = (title: string) => `${title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.csv`;
 function buildReportData(
   state: DashboardState,
@@ -53,10 +53,10 @@ function buildReportData(
     .filter((item) => item.classId === classId && inPeriod(item.date))
     .sort((a, b) => a.date.localeCompare(b.date));
   const assessments = state.assessments
-    .filter((item) => item.classId === classId && inPeriod(item.date) && (!filters.subjectId || item.subjectId === filters.subjectId))
+    .filter((item) => item.classId === classId && inPeriod(item.date) && (!filters.subjectId || item.subjectId === filters.subjectId) && (!filters.teacherId || item.teacherId === filters.teacherId))
     .sort((a, b) => a.date.localeCompare(b.date));
   const activities = state.events
-    .filter((item) => item.classId === classId && inPeriod(item.date) && (!filters.subjectId || item.subjectId === filters.subjectId)
+    .filter((item) => item.classId === classId && inPeriod(item.date) && (!filters.subjectId || item.subjectId === filters.subjectId) && (!filters.teacherId || item.teacherId === filters.teacherId)
       && (!filters.studentId || item.participants === classId || item.participants.includes(students[0]?.name || '\u0000')))
     .sort((a, b) => a.date.localeCompare(b.date));
   const periodLabel = filters.startDate || filters.endDate
@@ -68,10 +68,11 @@ function buildReportData(
         : period;
   const subjectLabel = filters.subjectId ? state.subjects.find((subject) => subject.id === filters.subjectId)?.name : undefined;
   const studentLabel = filters.studentId ? students[0]?.name : undefined;
+  const teacherLabel = filters.teacherId ? state.teacherDirectory?.find((teacher) => teacher.id === filters.teacherId)?.name : undefined;
   const dateLabel = filters.startDate || filters.endDate
     ? ` · ${filters.startDate ? formatDate(filters.startDate) : 'sem início'}–${filters.endDate ? formatDate(filters.endDate) : 'sem fim'}`
     : '';
-  const title = `${type} · ${schoolClass?.name || 'Turma'} · ${periodLabel}${subjectLabel ? ` · ${subjectLabel}` : ''}${studentLabel ? ` · ${studentLabel}` : ''}${dateLabel}`;
+  const title = `${type} · ${schoolClass?.name || 'Turma'} · ${periodLabel}${subjectLabel ? ` · ${subjectLabel}` : ''}${teacherLabel ? ` · ${teacherLabel}` : ''}${studentLabel ? ` · ${studentLabel}` : ''}${dateLabel}`;
   const attendanceFor = (studentId: string) =>
     calls.map((call) => call.records[studentId]?.status).filter(Boolean);
   const attendanceMetrics = (studentId: string) => {
@@ -203,6 +204,7 @@ function buildReportData(
 }
 export function ReportsPage({ initialClass = '10a' }: { initialClass?: string }) {
   const { state, update, notify } = useDashboard();
+  const availableSubjects = state.subjects.filter((item) => state.user.role !== 'Professor' || state.teacherSubjectIds.includes(item.id));
   const [classId, setClassId] = useState(
       state.classes.some((c) => c.id === initialClass) ? initialClass : state.classes[0]?.id || '',
     ),
@@ -210,11 +212,12 @@ export function ReportsPage({ initialClass = '10a' }: { initialClass?: string })
     [tab, setTab] = useState('Visão Geral'),
     [customSections, setCustomSections] = useState(['Presenças', 'Avaliações']),
     [subjectId, setSubjectId] = useState(''),
+    [teacherId, setTeacherId] = useState(''),
     [studentId, setStudentId] = useState(''),
     [startDate, setStartDate] = useState(''),
     [endDate, setEndDate] = useState('');
   const dateRangeInvalid = Boolean(startDate && endDate && endDate < startDate);
-  const filters: ReportFilters = { subjectId, studentId, startDate, endDate };
+  const filters: ReportFilters = { subjectId, teacherId, studentId, startDate, endDate };
   const allStudents = classStudents(state, classId);
   const students = allStudents.filter((student) => !studentId || student.id === studentId);
   const inReportPeriod = (date: string) => ((startDate || endDate) ? true : belongsToPeriod(date, period))
@@ -224,11 +227,14 @@ export function ReportsPage({ initialClass = '10a' }: { initialClass?: string })
     )
     .sort((a, b) => a.date.localeCompare(b.date));
   const assessments = state.assessments.filter(
-    (a) => a.classId === classId && inReportPeriod(a.date)
+    (a) => (state.user.role !== 'Professor' || state.teacherSubjectIds.includes(a.subjectId)) && a.classId === classId && inReportPeriod(a.date)
+      && (!teacherId || a.teacherId === teacherId)
       && (!subjectId || a.subjectId === subjectId),
   );
   const activities = state.events.filter((event) => event.classId === classId
+    && (state.user.role !== 'Professor' || !event.subjectId || state.teacherSubjectIds.includes(event.subjectId))
     && inReportPeriod(event.date)
+    && (!teacherId || event.teacherId === teacherId)
     && (!subjectId || event.subjectId === subjectId)
     && (!studentId || event.participants === classId || event.participants.includes(students[0]?.name || '\u0000')))
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -342,7 +348,13 @@ export function ReportsPage({ initialClass = '10a' }: { initialClass?: string })
           label="Disciplina (notas e atividades)"
           value={subjectId}
           onChange={(event) => setSubjectId(event.target.value)}
-          options={[{ value: '', label: 'Todas as disciplinas' }, ...state.subjects.map((subject) => ({ value: subject.id, label: subject.name }))]}
+          options={[{ value: '', label: 'Todas as disciplinas' }, ...availableSubjects.map((subject) => ({ value: subject.id, label: subject.name }))]}
+        />
+        <SelectField
+          label="Professor"
+          value={teacherId}
+          onChange={(event) => setTeacherId(event.target.value)}
+          options={[{ value: '', label: 'Todos os professores' }, ...(state.teacherDirectory || [{ id: state.user.id, name: state.user.name }]).map((teacher) => ({ value: teacher.id, label: teacher.name }))]}
         />
         <SelectField
           label="Aluno"
@@ -358,8 +370,8 @@ export function ReportsPage({ initialClass = '10a' }: { initialClass?: string })
           <span>Até</span>
           <input type="date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} />
         </label>
-        {(subjectId || studentId || startDate || endDate) && (
-          <button className="dash-text-link" onClick={() => { setSubjectId(''); setStudentId(''); setStartDate(''); setEndDate(''); }}>Limpar filtros</button>
+        {(subjectId || teacherId || studentId || startDate || endDate) && (
+          <button className="dash-text-link" onClick={() => { setSubjectId(''); setTeacherId(''); setStudentId(''); setStartDate(''); setEndDate(''); }}>Limpar filtros</button>
         )}
         <small>As datas definem um intervalo próprio e substituem o período acima. A disciplina filtra avaliações e atividades; as presenças continuam a refletir as chamadas da turma.</small>
         {dateRangeInvalid && <p className="dash-report-filter-error" role="alert">A data final deve ser igual ou posterior à data inicial.</p>}
@@ -470,7 +482,7 @@ export function ReportsPage({ initialClass = '10a' }: { initialClass?: string })
             </Panel>
             <Panel title="Desempenho por disciplina">
               <div className="dash-progress-list">
-                {state.subjects.map((subject) => {
+                {availableSubjects.map((subject) => {
                   const aa = assessments.filter((a) => a.subjectId === subject.id);
                   const nn = students
                     .map((s) => studentAverage(aa, s.id))

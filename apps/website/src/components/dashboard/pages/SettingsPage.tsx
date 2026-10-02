@@ -24,10 +24,12 @@ export function SettingsPage() {
   const { state, update, notify, reset, apiMode, selectSchool } = useDashboard();
   const [active, setActive] = useState('profile');
   const [confirm, setConfirm] = useState(false);
-  const [members, setMembers] = useState<{ id: string; user: { name: string; email: string }; role: string }[]>([]);
+  const [members, setMembers] = useState<{ id: string; user: { id: string; name: string; email: string }; role: string }[]>([]);
   const [inviteUrl, setInviteUrl] = useState('');
   const [memberError, setMemberError] = useState('');
   const [audit, setAudit] = useState<{ id: string; action: string; entity: string; recordId?: string | null; createdAt: string; actor: { name: string } }[]>([]);
+  const [subjectRequests, setSubjectRequests] = useState<{ id: string; name: string; details: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; createdAt: string; requester: { name: string; email: string } }[]>([]);
+  const [subjectRequestError, setSubjectRequestError] = useState('');
 
   const loadMembers = useCallback(() => {
     if (!apiMode || !state.activeSchoolId || state.user.role === 'Professor') return;
@@ -35,6 +37,11 @@ export function SettingsPage() {
       .then((result) => { setMembers(result); setMemberError(''); }).catch((error) => setMemberError(error instanceof Error ? error.message : 'Não foi possível carregar os membros.'));
   }, [apiMode, state.activeSchoolId, state.user.role]);
   useEffect(() => { loadMembers(); }, [loadMembers]);
+  const loadSubjectRequests = useCallback(() => {
+    if (!apiMode || !state.activeSchoolId) return;
+    void apiRequest<typeof subjectRequests>(`/schools/${encodeURIComponent(state.activeSchoolId)}/subject-requests`).then(setSubjectRequests).catch((error) => setSubjectRequestError(error instanceof Error ? error.message : 'Não foi possível carregar os pedidos.'));
+  }, [apiMode, state.activeSchoolId]);
+  useEffect(() => { loadSubjectRequests(); }, [loadSubjectRequests]);
   const canManageSchool = !apiMode || state.user.role !== 'Professor';
   const canManageMembers = !apiMode || state.user.role !== 'Professor';
   useEffect(() => {
@@ -45,7 +52,16 @@ export function SettingsPage() {
   function saveProfile(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    update((s) => ({ ...s, user: { ...s.user, name: String(f.get('name')).trim(), email: String(f.get('email')), phone: String(f.get('phone')), ...(apiMode ? {} : { role: String(f.get('role')) }) }));
+    update((s) => ({
+      ...s,
+      user: {
+        ...s.user,
+        name: String(f.get('name')).trim(),
+        email: String(f.get('email')),
+        phone: String(f.get('phone')),
+        ...(apiMode ? {} : { role: String(f.get('role')) }),
+      },
+    }));
     notify(apiMode ? 'Perfil atualizado.' : 'Perfil de demonstração atualizado.');
   }
 
@@ -119,9 +135,44 @@ export function SettingsPage() {
     const form = new FormData(e.currentTarget);
     const name = String(form.get('subjectName') || '').trim();
     if (!name) return;
+    if (state.subjects.some((subject) => subject.name.trim().toLocaleLowerCase('pt') === name.toLocaleLowerCase('pt'))) { setSubjectRequestError('Esta disciplina já existe no catálogo da escola.'); return; }
     update((s) => ({ ...s, subjects: [...s.subjects, { id: localId('subject'), name, tone: String(form.get('tone')) as 'green' | 'blue' | 'purple' | 'red' | 'amber' | 'teal' | 'gray' }] }));
+    setSubjectRequestError('');
     e.currentTarget.reset();
     notify('Disciplina adicionada à escola.');
+  }
+
+  async function saveTeacherSubjects(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const subjectIds = form.getAll('teacherSubjects').map(String);
+    if (apiMode && state.activeSchoolId) {
+      try { await apiRequest(`/schools/${encodeURIComponent(state.activeSchoolId)}/teachers/me/subjects`, { method: 'PUT', body: JSON.stringify({ subjectIds }) }); }
+      catch (error) { setSubjectRequestError(error instanceof Error ? error.message : 'Não foi possível guardar as disciplinas.'); return; }
+    }
+    update((s) => ({ ...s, teacherSubjectIds: subjectIds }));
+    setSubjectRequestError('');
+    notify('As suas disciplinas foram guardadas nesta escola.');
+  }
+
+  async function requestSubject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!apiMode || !state.activeSchoolId) return;
+    const element = event.currentTarget;
+    const form = new FormData(element);
+    try {
+      await apiRequest(`/schools/${encodeURIComponent(state.activeSchoolId)}/subject-requests`, { method: 'POST', body: JSON.stringify({ name: form.get('requestName'), details: form.get('requestDetails') }) });
+      element.reset(); setSubjectRequestError(''); loadSubjectRequests(); notify('Pedido enviado à direção da escola.');
+    } catch (error) { setSubjectRequestError(error instanceof Error ? error.message : 'Não foi possível enviar o pedido.'); }
+  }
+
+  async function resolveSubjectRequest(id: string, status: 'APPROVED' | 'REJECTED') {
+    if (!state.activeSchoolId) return;
+    try {
+      const result = await apiRequest<{ subject?: { id: string; name: string; tone: 'green' } }>(`/schools/${encodeURIComponent(state.activeSchoolId)}/subject-requests/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      if (result.subject) update((s) => s.subjects.some((item) => item.id === result.subject!.id) ? s : { ...s, subjects: [...s.subjects, result.subject!] });
+      setSubjectRequestError(''); loadSubjectRequests(); notify(status === 'APPROVED' ? 'Disciplina aprovada e adicionada ao catálogo.' : 'Pedido recusado.');
+    } catch (error) { setSubjectRequestError(error instanceof Error ? error.message : 'Não foi possível tratar o pedido.'); }
   }
 
   return (
@@ -169,6 +220,11 @@ export function SettingsPage() {
                 <h3>Disciplinas</h3>
                 <div className="dash-school-memberships">{state.subjects.map((subject) => <div className="dash-school-membership" key={subject.id}><span className={`dash-icon ${subject.tone}`}><School size={18} /></span><strong>{subject.name}</strong></div>)}</div>
                 {canManageSchool && <form className="dash-fields-row" onSubmit={addSubject}><Field label="Nova disciplina"><input name="subjectName" required maxLength={100} /></Field><Field label="Cor"><select name="tone" defaultValue="green">{['green', 'blue', 'purple', 'red', 'amber', 'teal', 'gray'].map((tone) => <option value={tone} key={tone}>{tone}</option>)}</select></Field><button className="dash-btn secondary">Adicionar disciplina</button></form>}
+                {state.user.role === 'Professor' && <><h3>As minhas disciplinas nesta escola</h3><p className="dash-settings-intro">Escolha as disciplinas do catálogo que leciona. A lista é independente em cada escola.</p><form onSubmit={saveTeacherSubjects} className="dash-modal-simple">{state.subjects.map((subject) => <label className="dash-check" key={subject.id}><input type="checkbox" name="teacherSubjects" value={subject.id} defaultChecked={state.teacherSubjectIds.includes(subject.id)} />{subject.name}</label>)}{!state.subjects.length && <p>A escola ainda não tem disciplinas no catálogo.</p>}<button className="dash-btn secondary" disabled={!state.subjects.length}>Guardar as minhas disciplinas</button></form></>}
+                {apiMode && state.user.role === 'Professor' && <form onSubmit={requestSubject} className="dash-modal-simple"><h3>Pedir uma disciplina</h3><p>Se faltar uma opção, envie o pedido à direção ou coordenação.</p><Field label="Disciplina pretendida"><input name="requestName" required minLength={2} maxLength={100} /></Field><Field label="Nota para a direção"><textarea name="requestDetails" maxLength={500} rows={2} /></Field><button className="dash-btn secondary">Enviar pedido</button></form>}
+                {apiMode && state.user.role === 'Professor' && subjectRequests.length > 0 && <><h3>Estado dos meus pedidos</h3>{subjectRequests.map((request) => <div className="dash-list-row" key={request.id}><span>{request.name}<small>{request.details || 'Pedido enviado'}</small></span><strong>{request.status === 'PENDING' ? 'Pendente' : request.status === 'APPROVED' ? 'Aprovado' : 'Recusado'}</strong></div>)}</>}
+                {apiMode && canManageSchool && <><h3>Pedidos de disciplinas</h3>{subjectRequests.filter((request) => request.status === 'PENDING').map((request) => <div className="dash-list-row" key={request.id}><span><strong>{request.name}</strong><small>{request.requester.name} · {request.details || 'Sem nota adicional'}</small></span><button type="button" className="dash-btn secondary" onClick={() => void resolveSubjectRequest(request.id, 'APPROVED')}>Aprovar</button><button type="button" className="dash-btn secondary" onClick={() => void resolveSubjectRequest(request.id, 'REJECTED')}>Recusar</button></div>)}{!subjectRequests.some((request) => request.status === 'PENDING') && <p>Não há pedidos pendentes.</p>}</>}
+                {subjectRequestError && <p role="alert">{subjectRequestError}</p>}
               </Panel>
             </div>
 

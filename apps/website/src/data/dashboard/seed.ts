@@ -288,6 +288,8 @@ export function createDashboardSeed(): DashboardState {
       phone: '',
     },
     subjects,
+    teacherSubjectIds: subjects.map((subject) => subject.id),
+    teacherDirectory: [{ id: 'teacher', name: 'Adilson Futa' }],
     classes: classes.map((schoolClass) => ({ ...schoolClass, schoolId: 'school-demo' })),
     students,
     plans,
