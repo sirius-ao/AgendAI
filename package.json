@@ -11,6 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:e2e": "playwright test",
+    "test:api": "pnpm --filter @agendai/api test",
     "test:a11y": "node scripts/check-accessibility.mjs"
   },
   "devDependencies": {

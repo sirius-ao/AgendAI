@@ -12,6 +12,9 @@ async function bootstrap() {
     throw new Error('JWT_ACCESS_SECRET deve ter pelo menos 32 caracteres');
   }
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL é obrigatório');
+  if (process.env.NODE_ENV === 'production' && process.env.REQUIRE_EMAIL_CONFIG !== 'false' && (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM || !process.env.CONTACT_EMAIL)) {
+    throw new Error('RESEND_API_KEY, EMAIL_FROM e CONTACT_EMAIL são obrigatórios em produção');
+  }
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   app.getHttpAdapter().getInstance().set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false);
   const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:3000';

@@ -85,6 +85,9 @@ export async function loadApiDashboard(user: ApiUser, schoolId: string) {
 async function performSyncApiDashboard(state: DashboardState, schoolId: string, index: RecordIndex, previous: { name: string; address: string; academicYear: string }, user: { id: string; name: string; email: string; phone: string }) {
   const values = savedRecords(state, schoolId);
   for (const collection of collections) {
+    // School preferences contain school-wide identity fields; the generic endpoint
+    // intentionally reserves them for administrators.
+    if (state.user.role === 'Professor' && collection === 'settings') continue;
     const oldRows = index[collection] || new Map<string, string>();
     const nextRows = new Map(values[collection].map((item) => [item.id, JSON.stringify(item.payload)]));
     const operations: (() => Promise<unknown>)[] = [];

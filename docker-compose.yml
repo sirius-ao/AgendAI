@@ -60,6 +60,11 @@ services:
       NODE_ENV: production
       PORT: '3001'
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-}
+      REQUIRE_EMAIL_CONFIG: ${REQUIRE_EMAIL_CONFIG:-true}
       TRUST_PROXY: ${TRUST_PROXY:-false}
       DATABASE_URL: postgresql://agendai:${POSTGRES_PASSWORD:-agendai-local}@database:5432/agendai?schema=public
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Define JWT_ACCESS_SECRET com pelo menos 32 caracteres}

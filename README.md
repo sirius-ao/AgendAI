@@ -29,15 +29,19 @@ docker compose up --build -d
 
 O ficheiro `.env` fornece o segredo de desenvolvimento exigido pela API. Troque-o por um segredo aleatório próprio antes de publicar. Para executar só a API e a base de dados localmente, consulte [docs/api.md](docs/api.md).
 
+Com a stack Compose ativa, `scripts/backup-database.sh` e `scripts/backup-storage.sh` criam cópias da base de dados e dos anexos. Configure o cliente `mc`, agende os scripts e use um destino fora do servidor; instruções em [docs/api.md](docs/api.md).
+
 No Coolify, usar build pack **Dockerfile**, contexto `/`, Dockerfile `/Dockerfile` e porta `3000`. Definir `NEXT_PUBLIC_SITE_URL` como variável de build e de runtime. Instruções completas em [docs/coolify.md](docs/coolify.md).
 
 ## Dashboard
 
 Abrir **http://localhost:3000/dashboard** para a demonstração, ou usar `/comecar` para criar uma conta ligada à API.
 
-Inclui início, planos de aula, turmas e alunos, presenças, avaliações, calendário, recursos, relatórios, biblioteca, mensagens e configurações. Os três formulários principais criam e editam registos. Notas e presenças alimentam os relatórios; recursos podem ser associados aos planos; alterações persistem em `localStorage`.
+Inclui início, planos de aula, turmas e alunos, presenças, avaliações, calendário, recursos, relatórios, biblioteca, mensagens e configurações. Os três formulários principais criam e editam registos. Notas e presenças alimentam os relatórios; recursos podem ser associados aos planos. Na demonstração, alterações persistem em `localStorage`; em contas autenticadas sincronizam pela API.
 
-Os exemplos são partilhados entre módulos: 6 turmas, 186 alunos, 24 planos e 24 avaliações. O botão de demonstração continua a usar dados locais. Registo, login e dashboard autenticado usam a API NestJS para sincronizar dados por escola. Convites funcionam por link partilhável; email, ficheiros binários e IA real ainda não estão ligados.
+Os exemplos são partilhados entre módulos: 6 turmas, 186 alunos, 24 planos e 24 avaliações. O botão de demonstração continua a usar dados locais. Registo, login e dashboard autenticado usam a API NestJS para sincronizar dados por escola. Em produção, o login exige email confirmado. Recuperação, confirmação e convites usam Resend; os convites também disponibilizam um link partilhável.
+
+O modo de demonstração não tem autenticação e guarda dados apenas neste navegador; usa exclusivamente informação fictícia. Não introduza dados reais de alunos. Os valores na página de preços são ilustrativos e não há subscrições ou cobranças. Contacto, newsletter com confirmação dupla, confirmação de email, recuperação de palavra-passe e convites enviam mensagens através do Resend quando configurado.
 
 Arquitetura, rotas, ficheiros, componentes e dependências futuras: [docs/dashboard.md](docs/dashboard.md). Capturas da revisão: `artifacts/dashboard/`. Testes: `tests/dashboard.spec.ts`. Para auditar a acessibilidade com um servidor ativo, executar `node scripts/check-dashboard-accessibility.mjs`.
 
@@ -69,7 +73,7 @@ Os tokens de cor, tipografia, espaçamento, largura e raio estão em `apps/websi
 - Blog com pesquisa sem distinção de acentos, filtros, paginação local, categorias com contagens reais e oito artigos demonstrativos. Os dados tipados podem ser substituídos por uma integração CMS futura.
 - Dashboards e documentos reconstruídos em HTML/CSS. Os números pertencem à escola de demonstração; não são métricas públicas do AgendAI.
 - Os testemunhos fictícios foram substituídos por mensagens institucionais sem atribuição a clientes.
-- `/entrar` e `/comecar` autenticam pela API. `/contacto` e a newsletter ainda não enviam nem guardam mensagens.
+- `/entrar` e `/comecar` autenticam pela API. `/contacto` envia pedidos para `CONTACT_EMAIL`; a newsletter exige consentimento e confirmação por email, com cancelamento por ligação.
 - Ícones sociais apresentados como “em breve”, sem URLs inventados. Inserir os endereços oficiais antes de disponibilizar ligações.
 
 Ainda não há pagamentos, analytics ou CMS. Para iniciar o backend NestJS e consultar as rotas, ver [docs/api.md](docs/api.md).

@@ -26,6 +26,7 @@ export function SettingsPage() {
   const [confirm, setConfirm] = useState(false);
   const [members, setMembers] = useState<{ id: string; user: { id: string; name: string; email: string }; role: string }[]>([]);
   const [inviteUrl, setInviteUrl] = useState('');
+  const [inviteEmailSent, setInviteEmailSent] = useState(false);
   const [memberError, setMemberError] = useState('');
   const [audit, setAudit] = useState<{ id: string; action: string; entity: string; recordId?: string | null; createdAt: string; actor: { name: string } }[]>([]);
   const [subjectRequests, setSubjectRequests] = useState<{ id: string; name: string; details: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; createdAt: string; requester: { name: string; email: string } }[]>([]);
@@ -112,8 +113,9 @@ export function SettingsPage() {
     const formElement = e.currentTarget;
     const form = new FormData(formElement);
     try {
-      const invite = await apiRequest<{ invitationToken: string }>('/schools/' + encodeURIComponent(state.activeSchoolId) + '/invitations', { method: 'POST', body: JSON.stringify({ email: form.get('email'), role: form.get('role') }) });
+      const invite = await apiRequest<{ invitationToken: string; emailSent: boolean }>('/schools/' + encodeURIComponent(state.activeSchoolId) + '/invitations', { method: 'POST', body: JSON.stringify({ email: form.get('email'), role: form.get('role') }) });
       setInviteUrl(`${window.location.origin}/convites/aceitar?token=${encodeURIComponent(invite.invitationToken)}`);
+      setInviteEmailSent(invite.emailSent);
       formElement.reset();
       setMemberError('');
       loadMembers();
@@ -244,7 +246,7 @@ export function SettingsPage() {
                   <h3>Membros da escola</h3>
                   {members.map((member) => <div className="dash-list-row" key={member.id}><span><strong>{member.user.name}</strong><small>{member.user.email}</small></span>{state.user.role === 'Diretor' ? <select aria-label={`Função de ${member.user.name}`} value={member.role} onChange={(event) => void updateMemberRole(member.user.id, event.target.value)}><option value="OWNER" disabled>Proprietário</option><option value="ADMIN">Administrador</option><option value="COORDINATOR">Coordenador</option><option value="TEACHER">Professor</option></select> : <small>{member.role}</small>}{member.role !== 'OWNER' && member.user.id !== state.user.id && <button type="button" className="dash-btn secondary" onClick={() => void removeMember(member.user.id)}>Remover</button>}</div>)}
                   <form onSubmit={inviteMember} className="dash-modal-simple"><h3>Convidar membro</h3><Field label="Email"><input name="email" type="email" required /></Field><Field label="Função"><select name="role" defaultValue="TEACHER"><option value="TEACHER">Professor</option><option value="COORDINATOR">Coordenador</option><option value="ADMIN">Administrador</option></select></Field><button className="dash-btn secondary">Criar convite</button></form>
-                  {inviteUrl && <div className="dash-list-row"><label>Partilhe este link com o convidado<input readOnly value={inviteUrl} onFocus={(event) => event.currentTarget.select()} /></label></div>}
+                  {inviteUrl && <div className="dash-list-row"><label>{inviteEmailSent ? 'Convite enviado por email. Também pode partilhar este link' : 'Email não enviado. Partilhe este link com o convidado'}<input readOnly value={inviteUrl} onFocus={(event) => event.currentTarget.select()} /></label></div>}
                   {memberError && <p role="alert">{memberError}</p>}
                 </>}
                 <details className="dash-add-school">

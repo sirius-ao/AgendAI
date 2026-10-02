@@ -6,6 +6,7 @@ import type { SaveDashboardRecordDto } from './dashboard-data.dto.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { AuditService } from '../audit/audit.service.js';
 import { TeachingService } from '../teaching/teaching.service.js';
+import { deriveTeacherScope, teacherCanReadRecord } from './teacher-access.js';
 
 const collections = new Map<string, DashboardCollection>([
   ['subjects', DashboardCollection.SUBJECTS], ['plans', DashboardCollection.PLANS],
@@ -18,6 +19,7 @@ const collections = new Map<string, DashboardCollection>([
   ['folders', DashboardCollection.FOLDERS],
 ]);
 const ids = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+type RecordPayload = Record<string, unknown>;
 
 @Injectable()
 export class DashboardDataService {
@@ -27,15 +29,45 @@ export class DashboardDataService {
     if (!collection) throw new NotFoundException('Módulo não encontrado');
     return collection;
   }
+  private async teacherScope(userId: string, schoolId: string) {
+    const classes = await this.prisma.dashboardRecord.findMany({ where: { schoolId, collection: DashboardCollection.CLASSES } });
+    return deriveTeacherScope(userId, classes);
+  }
+  private async assertTeacherWrite(userId: string, schoolId: string, collection: DashboardCollection, recordId: string, payload?: RecordPayload) {
+    const scope = await this.teacherScope(userId, schoolId);
+    if ([DashboardCollection.SUBJECTS, DashboardCollection.CLASSES, DashboardCollection.STUDENTS, DashboardCollection.SETTINGS].includes(collection)) throw new ForbiddenException('Esta área só pode ser alterada pela administração');
+    if (payload) {
+      for (const key of ['teacherId', 'ownerId', 'createdById', 'authorId', 'userId']) {
+        if (payload[key] !== undefined && payload[key] !== userId) throw new ForbiddenException('Não pode alterar registos de outro utilizador');
+      }
+      if ([DashboardCollection.PLANS, DashboardCollection.ASSESSMENTS, DashboardCollection.EVENTS].includes(collection)) {
+        if (payload.teacherId === undefined) payload.teacherId = userId;
+      }
+    }
+    const existing = await this.prisma.dashboardRecord.findUnique({ where: { schoolId_collection_recordId: { schoolId, collection, recordId } } });
+    if (existing && !teacherCanReadRecord({ collection, recordId, value: existing.payload, userId, scope, createdById: existing.createdById })) throw new ForbiddenException('Não pode alterar este registo');
+    if (existing && collection !== DashboardCollection.ATTENDANCE) {
+      const existingPayload = existing.payload as RecordPayload;
+      const ownsExisting = existing.createdById === userId || [existingPayload.teacherId, existingPayload.ownerId, existingPayload.createdById, existingPayload.authorId, existingPayload.userId].includes(userId);
+      if (!ownsExisting) throw new ForbiddenException('Pode consultar este registo, mas só o autor o pode alterar');
+    }
+    const existingValue = existing?.payload;
+    const candidate = payload ?? (existingValue && typeof existingValue === 'object' && !Array.isArray(existingValue) ? existingValue as RecordPayload : {});
+    if (!teacherCanReadRecord({ collection, recordId, value: candidate, userId, scope, createdById: existing?.createdById || userId })) throw new ForbiddenException('O registo não pertence às suas turmas ou disciplinas');
+  }
   async list(userId: string, schoolId: string, name: string) {
-    await this.schools.assertMembership(userId, schoolId);
+    const membership = await this.schools.assertMembership(userId, schoolId);
     const collection = this.collection(name);
-    return this.prisma.dashboardRecord.findMany({ where: { schoolId, collection }, orderBy: { createdAt: 'asc' }, select: { recordId: true, payload: true, updatedAt: true } });
+    const rows = await this.prisma.dashboardRecord.findMany({ where: { schoolId, collection }, orderBy: { createdAt: 'asc' }, select: { recordId: true, payload: true, updatedAt: true, createdById: true } });
+    if (membership.role !== 'TEACHER') return rows;
+    const scope = await this.teacherScope(userId, schoolId);
+    return rows.filter((row) => teacherCanReadRecord({ collection, recordId: row.recordId, value: row.payload, userId, scope, createdById: row.createdById }));
   }
   async save(userId: string, schoolId: string, name: string, dto: SaveDashboardRecordDto) {
     const membership = await this.schools.assertMembership(userId, schoolId);
     const collection = this.collection(name);
     if ((collection === DashboardCollection.SUBJECTS || collection === DashboardCollection.CLASSES) && membership.role === 'TEACHER') throw new ForbiddenException('Apenas a administração pode alterar o catálogo e as turmas');
+    if (membership.role === 'TEACHER') await this.assertTeacherWrite(userId, schoolId, collection, dto.id, dto.payload);
     if (dto.payload.id !== undefined && dto.payload.id !== dto.id) throw new BadRequestException('O ID do registo não corresponde ao corpo do pedido');
     if (collection === DashboardCollection.SUBJECTS && typeof dto.payload.name === 'string') {
       const normalize = (value: string) => value.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt');
@@ -73,20 +105,22 @@ export class DashboardDataService {
     const membership = await this.schools.assertMembership(userId, schoolId);
     const collection = this.collection(name);
     if ((collection === DashboardCollection.SUBJECTS || collection === DashboardCollection.CLASSES) && membership.role === 'TEACHER') throw new ForbiddenException('Apenas a administração pode alterar o catálogo e as turmas');
+    if (membership.role === 'TEACHER') await this.assertTeacherWrite(userId, schoolId, collection, recordId);
     const result = await this.prisma.dashboardRecord.deleteMany({ where: { schoolId, collection, recordId } });
     if (!result.count) throw new NotFoundException('Registo não encontrado');
     await this.audit.write({ schoolId, actorId: userId, action: 'DELETE', entity: name, recordId });
     return { success: true };
   }
   async snapshot(userId: string, schoolId: string) {
-    await this.schools.assertMembership(userId, schoolId);
-    const rows = await this.prisma.dashboardRecord.findMany({ where: { schoolId }, select: { collection: true, recordId: true, payload: true, updatedAt: true } });
+    const membership = await this.schools.assertMembership(userId, schoolId);
+    const rows = await this.prisma.dashboardRecord.findMany({ where: { schoolId }, select: { collection: true, recordId: true, payload: true, updatedAt: true, createdById: true } });
     const data: Record<string, Array<{ id: string; payload: unknown; updatedAt: Date }>> = {};
-    for (const [name, collection] of collections) data[name] = rows.filter((row) => row.collection === collection).map((row) => ({ id: row.recordId, payload: row.payload, updatedAt: row.updatedAt }));
+    const scope = membership.role === 'TEACHER' ? await this.teacherScope(userId, schoolId) : undefined;
+    for (const [name, collection] of collections) data[name] = rows.filter((row) => row.collection === collection && (!scope || teacherCanReadRecord({ collection, recordId: row.recordId, value: row.payload, userId, scope, createdById: row.createdById }))).map((row) => ({ id: row.recordId, payload: row.payload, updatedAt: row.updatedAt }));
     const [school, classes, students] = await Promise.all([
       this.prisma.school.findUniqueOrThrow({ where: { id: schoolId } }),
-      this.prisma.schoolClass.findMany({ where: { schoolId, archived: false }, orderBy: [{ year: 'asc' }, { name: 'asc' }] }),
-      this.prisma.student.findMany({ where: { schoolId }, orderBy: { name: 'asc' } }),
+      this.prisma.schoolClass.findMany({ where: { schoolId, archived: false, ...(scope ? { id: { in: [...scope.classIds] } } : {}) }, orderBy: [{ year: 'asc' }, { name: 'asc' }] }),
+      this.prisma.student.findMany({ where: { schoolId, ...(scope ? { classId: { in: [...scope.classIds] } } : {}) }, orderBy: { name: 'asc' } }),
     ]);
     return { school, classes, students, data };
   }

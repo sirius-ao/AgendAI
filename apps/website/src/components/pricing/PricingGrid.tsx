@@ -27,6 +27,9 @@ export function PricingGrid({ insideDashboard = false }: { insideDashboard?: boo
         </button>
         <span>Poupe até 20%</span>
       </div>
+      <p className="prototype-note" role="note">
+        Preços e condições ilustrativos da proposta de lançamento. Não há subscrições nem cobranças nesta demonstração.
+      </p>
       <div className="pricing-grid">
         {plans.map((plan, i) => {
           const Icon = icons[i];
@@ -89,9 +92,6 @@ export function PricingGrid({ insideDashboard = false }: { insideDashboard?: boo
           );
         })}
       </div>
-      <p className="prototype-note">
-        Preços e condições ilustrativos da proposta de lançamento. Sem cobrança nesta demonstração.
-      </p>
     </>
   );
 }

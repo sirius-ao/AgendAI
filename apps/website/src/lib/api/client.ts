@@ -46,8 +46,34 @@ export async function apiLogin(email: string, password: string) {
   return result;
 }
 export async function apiRegister(input: { name: string; email: string; password: string; schoolName?: string; invitationToken?: string }) {
-  const result = await request<{ accessToken: string; user: unknown }>('/auth/register', { method: 'POST', body: JSON.stringify(input) }, false);
-  saveToken(result.accessToken);
+  const result = await request<{ accessToken?: string; user?: unknown; verificationRequired?: boolean; emailSent?: boolean; email?: string }>('/auth/register', { method: 'POST', body: JSON.stringify(input) }, false);
+  if (result.accessToken) saveToken(result.accessToken);
+  return result;
+}
+export async function apiVerifyEmail(token: string) {
+  return request<{ success: boolean }>('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) }, false);
+}
+export async function apiResendVerification(email: string) {
+  return request<{ success: boolean }>('/auth/verify-email/resend', { method: 'POST', body: JSON.stringify({ email }) }, false);
+}
+export async function apiContact(input: { name: string; email: string; school?: string; plan?: string; message: string }) {
+  return request<{ success: boolean }>('/marketing/contact', { method: 'POST', body: JSON.stringify(input) }, false);
+}
+export async function apiNewsletterSubscribe(email: string, consent: boolean) {
+  return request<{ success: boolean }>('/marketing/newsletter/subscribe', { method: 'POST', body: JSON.stringify({ email, consent }) }, false);
+}
+export async function apiNewsletterConfirm(token: string) {
+  return request<{ success: boolean }>('/marketing/newsletter/confirm', { method: 'POST', body: JSON.stringify({ token }) }, false);
+}
+export async function apiNewsletterUnsubscribe(token: string) {
+  return request<{ success: boolean }>('/marketing/newsletter/unsubscribe', { method: 'POST', body: JSON.stringify({ token }) }, false);
+}
+export async function apiForgotPassword(email: string) {
+  return request<{ success: boolean }>('/auth/password/forgot', { method: 'POST', body: JSON.stringify({ email }) }, false);
+}
+export async function apiResetPassword(token: string, password: string) {
+  const result = await request<{ success: boolean }>('/auth/password/reset', { method: 'POST', body: JSON.stringify({ token, password }) }, false);
+  saveToken(null);
   return result;
 }
 export async function apiLogout() {

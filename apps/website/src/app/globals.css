@@ -2290,7 +2290,8 @@ textarea {
   line-height: 1.4;
 }
 .newsletter form {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 7px;
   margin-top: 13px;
 }
@@ -2308,6 +2309,25 @@ textarea {
   border-radius: 8px;
   padding: 8px 14px;
   min-height: 34px;
+}
+.newsletter .newsletter-consent {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.newsletter .newsletter-consent input {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  margin: 1px 0 0;
+  padding: 0;
+}
+.newsletter .newsletter-consent a {
+  text-decoration: underline;
 }
 .newsletter small {
   font-size: 9px;

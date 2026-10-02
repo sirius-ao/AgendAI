@@ -5,15 +5,21 @@ import { ArrowRight, Check } from 'lucide-react';
 import { Button, Input } from '@agendai/ui';
 import { Logo } from './Logo';
 import { useRouter } from 'next/navigation';
-import { apiLogin, apiRegister, apiRequest } from '@/lib/api/client';
+import { apiContact, apiLogin, apiRegister, apiRequest } from '@/lib/api/client';
+const planLabels: Record<string, string> = { pro: 'Professor Pro', escola: 'Escola', plus: 'Escola Plus' };
 export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto' }) {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [invitationToken, setInvitationToken] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState('');
   const router = useRouter();
   const contact = mode === 'contacto';
   const login = mode === 'entrar';
-  useEffect(() => { setInvitationToken(new URLSearchParams(window.location.search).get('convite') || ''); }, []);
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    setInvitationToken(query.get('convite') || '');
+    setSelectedPlan(query.get('plano') || '');
+  }, []);
   return (
     <section className="access-page container">
       <div className="access-copy">
@@ -50,21 +56,29 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
               : 'O seu próximo plano começa aqui.'}
         </h2>
         <p>{contact ? 'Prepare uma mensagem para a equipa AgendAI.' : login ? 'Entre na sua conta AgendAI.' : 'Crie a conta da sua escola e comece a organizar o trabalho.'}</p>
-        {contact && <div className="form-notice">O canal de contacto ainda não está configurado.</div>}
+        {contact && selectedPlan && <div className="form-notice">Interesse no plano: {planLabels[selectedPlan] || selectedPlan}</div>}
         <form
           onSubmit={async (e) => {
             e.preventDefault();
-            const data = new FormData(e.currentTarget);
+            const formElement = e.currentTarget;
+            const data = new FormData(formElement);
             const inviteToken = invitationToken || undefined;
-            if (contact) { setMessage('O formulário de contacto ainda não está ligado a um canal de envio.'); return; }
             setBusy(true);
             setMessage('');
             try {
-              if (login) {
+              if (contact) {
+                await apiContact({ name: String(data.get('name')), email: String(data.get('email')), school: String(data.get('school') || ''), plan: planLabels[selectedPlan] || selectedPlan, message: String(data.get('message')) });
+                formElement.reset();
+                setMessage('Mensagem enviada. A equipa AgendAI entrará em contacto consigo.');
+              } else if (login) {
                 await apiLogin(String(data.get('email')), String(data.get('password')));
                 if (inviteToken) await apiRequest('/invitations/accept', { method: 'POST', body: JSON.stringify({ token: inviteToken }) });
               } else {
-                await apiRegister({ name: String(data.get('name')), email: String(data.get('email')), password: String(data.get('password')), ...(inviteToken ? { invitationToken: inviteToken } : { schoolName: String(data.get('schoolName')) }) });
+                const result = await apiRegister({ name: String(data.get('name')), email: String(data.get('email')), password: String(data.get('password')), ...(inviteToken ? { invitationToken: inviteToken } : { schoolName: String(data.get('schoolName')) }) });
+                if (result.verificationRequired) {
+                  setMessage(result.emailSent ? 'Conta criada. Enviámos uma ligação para confirmar o seu email antes de entrar.' : 'Conta criada, mas o email não foi enviado. Peça uma nova ligação de confirmação.');
+                  return;
+                }
               }
               router.push('/dashboard');
             } catch (error) {
@@ -140,6 +154,8 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
             <Link href={login ? '/comecar' : '/entrar'}>{login ? 'Começar grátis' : 'Entrar'}</Link>
           </p>
         )}
+        {login && <p className="access-switch"><Link href="/recuperar-palavra-passe">Esqueceu-se da palavra-passe?</Link></p>}
+        {!contact && <p className="access-switch"><Link href="/verificar-email">Reenviar confirmação de email</Link></p>}
       </div>
     </section>
   );
