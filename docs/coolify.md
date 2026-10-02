@@ -38,7 +38,7 @@ Depois do deploy:
 4. Confirmar o domínio em `/sitemap.xml`, `/robots.txt` e na canonical das páginas.
 5. Confirmar HTTPS no proxy do Coolify.
 
-O website serve a experiência pública e a demonstração local. As contas autenticadas usam a API e PostgreSQL publicados separadamente; a base de dados precisa de armazenamento persistente e cópias de segurança. Convites usam links para partilha; email, anexos binários e faturação ainda não estão configurados.
+O website serve a experiência pública e a demonstração local. As contas autenticadas usam a API e PostgreSQL publicados separadamente; a base de dados precisa de armazenamento persistente e cópias de segurança. Configure também o armazenamento S3 compatível para anexos de planos (`S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY` e `S3_SECRET_KEY`) no serviço da API. `S3_PUBLIC_ENDPOINT` tem de ser acessível pelo navegador e o bucket deve permanecer privado. Convites usam links para partilha; email e faturação ainda não estão configurados.
 
 O mesmo container serve o website público e todas as rotas `/dashboard`. Depois do deploy, abrir `/entrar` para testar o login e `/dashboard` para a demonstração. Usar HTTPS: a API define cookies de renovação seguros em produção.
 

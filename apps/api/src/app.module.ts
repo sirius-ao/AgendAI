@@ -8,6 +8,7 @@ import { MembersModule } from './members/members.module.js';
 import { DashboardDataModule } from './dashboard-data/dashboard-data.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { TeachingModule } from './teaching/teaching.module.js';
+import { FilesModule } from './files/files.module.js';
 
-@Module({ imports: [PrismaModule, AuthModule, SchoolsModule, ClassesModule, MembersModule, DashboardDataModule, AuditModule, TeachingModule], controllers: [HealthController] })
+@Module({ imports: [PrismaModule, AuthModule, SchoolsModule, ClassesModule, MembersModule, DashboardDataModule, AuditModule, TeachingModule, FilesModule], controllers: [HealthController] })
 export class AppModule {}

@@ -19,6 +19,8 @@ Defina `JWT_ACCESS_SECRET` como uma string aleatória de pelo menos 32 caractere
 
 Para executar os três serviços em Docker, defina `JWT_ACCESS_SECRET` no ambiente e execute `docker compose up --build -d`. A API aplica as migrações pendentes ao iniciar. `POSTGRES_PASSWORD` pode substituir a palavra-passe local predefinida; configure valores fortes antes de qualquer publicação.
 
+O Compose também inicia MinIO com bucket privado persistente (`agendai-local`). Para anexos na API autenticada, configure `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY` e `S3_SECRET_KEY`. Em Docker, `S3_ENDPOINT` é o endereço acessível pela API (`http://storage:9000`) e `S3_PUBLIC_ENDPOINT` é o endereço acessível pelo navegador (`http://localhost:9000` localmente). Em produção, use credenciais fortes, bucket privado, TLS e um endpoint público S3 compatível; nunca exponha as credenciais no frontend. Mantenha backups do volume MinIO e da base de dados.
+
 ## Autenticação
 
 - `POST /auth/register`: cria utilizador, escola inicial e associação OWNER.
@@ -52,6 +54,10 @@ As coleções suportam disciplinas, planos, presenças, avaliações, calendári
 
 Os convites não enviam email: a API devolve um token uma única vez e o administrador partilha o link apresentado em Configurações. A aceitação valida o email convidado e pode criar a conta no fluxo de adesão. O rate limit de login, registo e renovação é por IP e processo.
 
-## Limites desta fase
+## Anexos de planos
 
-Ainda não foram ligados envio de email/push, armazenamento binário de anexos, mensagens em tempo real, recuperação de palavra-passe, autenticação de dois fatores, billing, integrações OAuth, backups automáticos e monitorização. As alterações de registos e membros são auditadas em `GET /schools/:schoolId/audit`. Os dados de anexos no dashboard ainda são metadados; não constituem upload de ficheiros. O rate limit atual é local ao processo; use um limitador partilhado antes de executar várias instâncias.
+- `POST /schools/:schoolId/plans/:planId/attachments/upload` cria o metadado e devolve uma URL PUT assinada válida por 10 minutos.
+- O navegador envia o binário diretamente para essa URL e chama `POST /schools/:schoolId/plans/:planId/attachments/:attachmentId/complete` para confirmar o tamanho.
+- `GET /schools/:schoolId/plans/:planId/attachments` lista anexos; `GET .../:attachmentId/download` devolve uma URL GET assinada por 5 minutos; `DELETE .../:attachmentId` remove o objeto e o metadado.
+
+O limite é 10 MB por ficheiro e os tipos aceites são PDF, formatos Office, CSV, PNG, JPEG e WebP. A API valida associação à escola, plano e disciplina do professor; planos privados ficam restritos ao autor e à administração. A eliminação do plano remove metadados por cascata; configure regras de ciclo de vida no bucket para limpar objetos órfãos após eliminações em cascata ou uploads abandonados. A implementação atual cobre planos; avaliações e biblioteca podem reutilizar a camada quando os respetivos fluxos forem integrados. Mensagens em tempo real, recuperação de palavra-passe, autenticação de dois fatores, billing, integrações OAuth, backups automáticos e monitorização também não estão ligados. O rate limit atual é local ao processo; use um limitador partilhado antes de executar várias instâncias.
