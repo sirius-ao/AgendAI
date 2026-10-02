@@ -15,13 +15,22 @@ export class AuthService {
 
   async register(input: RegisterDto) {
     const email = input.email.trim().toLowerCase();
+    if (!input.schoolName && !input.invitationToken) throw new BadRequestException('Indique o nome da escola ou use um convite válido');
     if (await this.prisma.user.findUnique({ where: { email } })) throw new ConflictException('Este email já está registado');
     const passwordHash = await hash(input.password, 12);
     try {
       const user = await this.prisma.$transaction(async (tx) => {
         const created = await tx.user.create({ data: { name: input.name.trim(), email, passwordHash } });
-        const school = await tx.school.create({ data: { name: input.schoolName.trim() } });
-        await tx.schoolMembership.create({ data: { userId: created.id, schoolId: school.id, role: 'OWNER' } });
+        if (input.invitationToken) {
+          const invitation = await tx.schoolInvitation.findUnique({ where: { tokenHash: digest(input.invitationToken) } });
+          if (!invitation || invitation.email !== email || invitation.revokedAt || invitation.acceptedAt || invitation.expiresAt <= new Date()) throw new BadRequestException('Convite inválido, expirado ou destinado a outro email');
+          const accepted = await tx.schoolInvitation.updateMany({ where: { id: invitation.id, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } }, data: { acceptedAt: new Date() } });
+          if (!accepted.count) throw new BadRequestException('Este convite já foi utilizado');
+          await tx.schoolMembership.create({ data: { userId: created.id, schoolId: invitation.schoolId, role: invitation.role } });
+        } else {
+          const school = await tx.school.create({ data: { name: input.schoolName!.trim() } });
+          await tx.schoolMembership.create({ data: { userId: created.id, schoolId: school.id, role: 'OWNER' } });
+        }
         return created;
       });
       return this.issue(user);
@@ -59,7 +68,21 @@ export class AuthService {
   async me(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { memberships: { include: { school: true } } } });
     if (!user) throw new UnauthorizedException('Utilizador não encontrado');
-    return { ...this.publicUser(user), schools: user.memberships.map(({ role, school }) => ({ id: school.id, name: school.name, role })) };
+    return { ...this.publicUser(user), schools: user.memberships.map(({ role, school }) => ({ id: school.id, name: school.name, address: school.address, academicYear: school.academicYear, role })) };
+  }
+
+  async updateProfile(userId: string, input: { name?: string; phone?: string }) {
+    const data: { name?: string; phone?: string } = {};
+    if (input.name !== undefined) data.name = input.name.trim();
+    if (input.phone !== undefined) data.phone = input.phone.trim();
+    if (!Object.keys(data).length) throw new BadRequestException('Indique pelo menos um campo para atualizar');
+    try {
+      const user = await this.prisma.user.update({ where: { id: userId }, data });
+      return this.publicUser(user);
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') throw new ConflictException('Este email já está associado a outra conta');
+      throw error;
+    }
   }
 
   private async issue(user: AuthUser) {
@@ -72,5 +95,5 @@ export class AuthService {
     if (!secret || secret.length < 32) throw new BadRequestException('JWT_ACCESS_SECRET deve ter pelo menos 32 caracteres');
     return new SignJWT({ email: user.email }).setProtectedHeader({ alg: 'HS256' }).setSubject(user.id).setIssuedAt().setExpirationTime('15m').sign(new TextEncoder().encode(secret));
   }
-  private publicUser(user: AuthUser) { return { id: user.id, name: user.name, email: user.email }; }
+  private publicUser(user: AuthUser) { return { id: user.id, name: user.name, email: user.email, phone: user.phone ?? '' }; }
 }

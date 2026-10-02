@@ -4,6 +4,9 @@ import { HealthController } from './health.controller.js';
 import { AuthModule } from './auth/auth.module.js';
 import { SchoolsModule } from './schools/schools.module.js';
 import { ClassesModule } from './classes/classes.module.js';
+import { MembersModule } from './members/members.module.js';
+import { DashboardDataModule } from './dashboard-data/dashboard-data.module.js';
+import { AuditModule } from './audit/audit.module.js';
 
-@Module({ imports: [PrismaModule, AuthModule, SchoolsModule, ClassesModule], controllers: [HealthController] })
+@Module({ imports: [PrismaModule, AuthModule, SchoolsModule, ClassesModule, MembersModule, DashboardDataModule, AuditModule], controllers: [HealthController] })
 export class AppModule {}

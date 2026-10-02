@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: agendai
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agendai-local}
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - '${POSTGRES_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432'
     volumes:
       - agendai-postgres:/var/lib/postgresql/data
     healthcheck:
@@ -28,12 +28,12 @@ services:
       NODE_ENV: production
       PORT: '3001'
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
       DATABASE_URL: postgresql://agendai:${POSTGRES_PASSWORD:-agendai-local}@database:5432/agendai?schema=public
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Define JWT_ACCESS_SECRET com pelo menos 32 caracteres}
     depends_on:
       database:
         condition: service_healthy
-    command: ['sh', '-c', 'pnpm db:deploy && pnpm start']
     restart: unless-stopped
     init: true
 
@@ -44,6 +44,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
     ports:
       - '${WEBSITE_PORT:-3000}:3000'
     environment:
@@ -51,6 +52,7 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: '3000'
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
     restart: unless-stopped
     init: true
     security_opt:

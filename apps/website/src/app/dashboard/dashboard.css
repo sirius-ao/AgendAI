@@ -248,6 +248,8 @@
   white-space: nowrap;
   color: var(--dash-text);
 }
+.dash-sidebar nav > button.dash-sidebar-exit { width: 100%; padding: 13px 14px; display: flex; align-items: center; gap: 20px; color: #f7fcf9; min-height: 46px; border: 0; border-radius: 7px; font-size: 13px; text-align: left; background: transparent; cursor: pointer; }
+.dash-sidebar nav > button.dash-sidebar-exit:hover { background: #073e2b; }
 .dash-school-switch {
   display: grid;
   gap: 3px;
@@ -3717,6 +3719,7 @@
 .dash-sidebar nav > .dash-sidebar-exit { margin-top: 12px; border-top: 1px solid #ffffff24; }
 .dash-exit { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 44px; min-height: 44px; padding: 8px; border: 1px solid var(--dash-border); border-radius: 8px; color: var(--dash-muted); font-size: 12px; flex-shrink: 0; }
 .dash-exit:hover { background: var(--dash-green-soft); color: var(--dash-green); }
+.dash-exit { background: transparent; cursor: pointer; }
 @media (max-width: 700px) {
   .dash-exit > span { display: none; }
 }
@@ -3727,15 +3730,19 @@
   .sidebar-collapsed .dash-logo { justify-content: center; padding: 0 2px 22px; }
   .sidebar-collapsed .dash-logo > span,
   .sidebar-collapsed .dash-sidebar nav > a > span,
+  .sidebar-collapsed .dash-sidebar nav > button > span,
   .sidebar-collapsed .dash-pro { display: none; }
   .sidebar-collapsed .dash-sidebar nav > a { justify-content: center; padding: 13px; }
+  .sidebar-collapsed .dash-sidebar nav > button.dash-sidebar-exit { justify-content: center; padding: 13px; }
   .sidebar-expanded .dash-sidebar { width: 244px; padding: 24px 14px; }
   .sidebar-expanded .dash-workspace { margin-left: 244px; }
   .sidebar-expanded .dash-logo { justify-content: flex-start; padding: 0 9px 30px; }
   .sidebar-expanded .dash-logo > span,
   .sidebar-expanded .dash-sidebar nav > a > span,
+  .sidebar-expanded .dash-sidebar nav > button > span,
   .sidebar-expanded .dash-pro { display: block; }
   .sidebar-expanded .dash-sidebar nav > a { justify-content: flex-start; padding: 13px 14px; }
+  .sidebar-expanded .dash-sidebar nav > button.dash-sidebar-exit { justify-content: flex-start; padding: 13px 14px; }
 }
 @media (max-width: 700px) {
   .dash-sidebar-toggle { display: none; }

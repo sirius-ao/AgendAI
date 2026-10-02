@@ -1,5 +1,5 @@
 'use client';
-import { useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import {
   Bell, CreditCard, Download, Link2, LockKeyhole, Monitor, Moon, Palette, School,
@@ -9,25 +9,44 @@ import { useDashboard } from '../state/DashboardProvider';
 import { Avatar, ConfirmDialog, Field, PageHeader, Panel, Switch } from '../ui/Primitives';
 import { downloadText } from '@/lib/dashboard/export';
 import { localId } from '@/lib/dashboard/selectors';
+import { apiRequest } from '@/lib/api/client';
 
 const sections = [
   ['profile', 'Perfil', 'Os seus dados pessoais', User],
   ['school', 'Escola', 'Dados da instituição', School],
   ['schools', 'As minhas escolas', 'Vínculos e espaços de trabalho', School],
+  ['activity', 'Atividade', 'Alterações na escola', ShieldCheck],
   ['preferences', 'Preferências', 'Aparência e alertas', Palette],
   ['privacy', 'Dados e privacidade', 'Exportar ou repor dados', ShieldCheck],
 ] as const;
 
 export function SettingsPage() {
-  const { state, update, notify, reset } = useDashboard();
+  const { state, update, notify, reset, apiMode, selectSchool } = useDashboard();
   const [active, setActive] = useState('profile');
   const [confirm, setConfirm] = useState(false);
+  const [members, setMembers] = useState<{ id: string; user: { name: string; email: string }; role: string }[]>([]);
+  const [inviteUrl, setInviteUrl] = useState('');
+  const [memberError, setMemberError] = useState('');
+  const [audit, setAudit] = useState<{ id: string; action: string; entity: string; recordId?: string | null; createdAt: string; actor: { name: string } }[]>([]);
+
+  const loadMembers = useCallback(() => {
+    if (!apiMode || !state.activeSchoolId || state.user.role === 'Professor') return;
+    void apiRequest<typeof members>(`/schools/${encodeURIComponent(state.activeSchoolId)}/members`)
+      .then((result) => { setMembers(result); setMemberError(''); }).catch((error) => setMemberError(error instanceof Error ? error.message : 'Não foi possível carregar os membros.'));
+  }, [apiMode, state.activeSchoolId, state.user.role]);
+  useEffect(() => { loadMembers(); }, [loadMembers]);
+  const canManageSchool = !apiMode || state.user.role !== 'Professor';
+  const canManageMembers = !apiMode || state.user.role !== 'Professor';
+  useEffect(() => {
+    if (!apiMode || !state.activeSchoolId || state.user.role === 'Professor') return;
+    void apiRequest<typeof audit>(`/schools/${encodeURIComponent(state.activeSchoolId)}/audit?limit=50`).then(setAudit).catch(() => setAudit([]));
+  }, [apiMode, state.activeSchoolId, state.user.role]);
 
   function saveProfile(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    update((s) => ({ ...s, user: { ...s.user, name: String(f.get('name')).trim(), email: String(f.get('email')), phone: String(f.get('phone')), role: String(f.get('role')) } }));
-    notify('Perfil de demonstração atualizado.');
+    update((s) => ({ ...s, user: { ...s.user, name: String(f.get('name')).trim(), email: String(f.get('email')), phone: String(f.get('phone')), ...(apiMode ? {} : { role: String(f.get('role')) }) }));
+    notify(apiMode ? 'Perfil atualizado.' : 'Perfil de demonstração atualizado.');
   }
 
   function saveSchool(e: FormEvent<HTMLFormElement>) {
@@ -36,7 +55,7 @@ export function SettingsPage() {
     const name = String(f.get('school'));
     const address = String(f.get('address'));
     const year = String(f.get('year'));
-    const role = String(f.get('schoolRole'));
+    const role = apiMode ? state.schools?.find((school) => school.id === state.activeSchoolId)?.role || state.user.role : String(f.get('schoolRole'));
     update((s) => ({
       ...s,
       settings: { ...s.settings, school: name, address, year },
@@ -45,9 +64,10 @@ export function SettingsPage() {
     notify('Dados da escola guardados.');
   }
 
-  function addSchool(e: FormEvent<HTMLFormElement>) {
+  async function addSchool(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const f = new FormData(e.currentTarget);
+    const formElement = e.currentTarget;
+    const f = new FormData(formElement);
     const school = {
       id: localId('school'),
       name: String(f.get('schoolName')).trim(),
@@ -55,9 +75,53 @@ export function SettingsPage() {
       year: String(f.get('schoolYear')),
       role: String(f.get('schoolRole')),
     };
+    if (apiMode) {
+      try {
+        const created = await apiRequest<{ id: string; name: string; address: string; academicYear: string; role: string }>('/schools', { method: 'POST', body: JSON.stringify({ name: school.name, address: school.address, academicYear: school.year }) });
+        update((s) => ({ ...s, schools: [...(s.schools || []), { id: created.id, name: created.name, address: created.address, year: created.academicYear, role: created.role }], activeSchoolId: created.id }));
+        selectSchool(created.id);
+        formElement.reset();
+        notify('Escola criada na sua conta.');
+      } catch (error) { setMemberError(error instanceof Error ? error.message : 'Não foi possível criar a escola.'); }
+      return;
+    }
     update((s) => ({ ...s, schools: [...(s.schools || []), school], activeSchoolId: school.id }));
     e.currentTarget.reset();
     notify('Escola adicionada. O novo espaço começa sem turmas.');
+  }
+
+  async function inviteMember(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!state.activeSchoolId) return;
+    const formElement = e.currentTarget;
+    const form = new FormData(formElement);
+    try {
+      const invite = await apiRequest<{ invitationToken: string }>('/schools/' + encodeURIComponent(state.activeSchoolId) + '/invitations', { method: 'POST', body: JSON.stringify({ email: form.get('email'), role: form.get('role') }) });
+      setInviteUrl(`${window.location.origin}/convites/aceitar?token=${encodeURIComponent(invite.invitationToken)}`);
+      formElement.reset();
+      setMemberError('');
+      loadMembers();
+    } catch (error) { setMemberError(error instanceof Error ? error.message : 'Não foi possível criar o convite.'); }
+  }
+
+  async function updateMemberRole(memberId: string, role: string) {
+    if (!state.activeSchoolId) return;
+    try { await apiRequest(`/schools/${encodeURIComponent(state.activeSchoolId)}/members/${encodeURIComponent(memberId)}`, { method: 'PATCH', body: JSON.stringify({ role }) }); loadMembers(); }
+    catch (error) { setMemberError(error instanceof Error ? error.message : 'Não foi possível alterar a função.'); }
+  }
+  async function removeMember(memberId: string) {
+    if (!state.activeSchoolId || !window.confirm('Remover este membro da escola?')) return;
+    try { await apiRequest(`/schools/${encodeURIComponent(state.activeSchoolId)}/members/${encodeURIComponent(memberId)}`, { method: 'DELETE' }); loadMembers(); }
+    catch (error) { setMemberError(error instanceof Error ? error.message : 'Não foi possível remover o membro.'); }
+  }
+  function addSubject(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const name = String(form.get('subjectName') || '').trim();
+    if (!name) return;
+    update((s) => ({ ...s, subjects: [...s.subjects, { id: localId('subject'), name, tone: String(form.get('tone')) as 'green' | 'blue' | 'purple' | 'red' | 'amber' | 'teal' | 'gray' }] }));
+    e.currentTarget.reset();
+    notify('Disciplina adicionada à escola.');
   }
 
   return (
@@ -82,9 +146,9 @@ export function SettingsPage() {
                 <form key={JSON.stringify(state.user)} onSubmit={saveProfile}>
                   <div className="dash-fields-row">
                     <Field label="Nome completo"><input name="name" required defaultValue={state.user.name} /></Field>
-                    <Field label="Cargo"><input name="role" required defaultValue={state.user.role} /></Field>
+                    {!apiMode && <Field label="Cargo"><input name="role" required defaultValue={state.user.role} /></Field>}
                   </div>
-                  <Field label="E-mail"><input name="email" type="email" required defaultValue={state.user.email} /></Field>
+                  <Field label="E-mail"><input name="email" type="email" required defaultValue={state.user.email} readOnly={apiMode} /></Field>
                   <Field label="Telefone"><input name="phone" type="tel" defaultValue={state.user.phone} placeholder="+244" /></Field>
                   <button className="dash-btn secondary">Guardar perfil</button>
                 </form>
@@ -95,19 +159,22 @@ export function SettingsPage() {
               <Panel title={<><School /> Escola</>}>
                 <p className="dash-settings-intro">Dados da escola ativa. O seletor no topo permite alternar entre instituições.</p>
                 <form key={`${state.settings.school}-${state.settings.address}-${state.settings.year}-${state.schools?.find((school) => school.id === state.activeSchoolId)?.role}`} onSubmit={saveSchool}>
-                  <Field label="Nome da instituição"><input name="school" required defaultValue={state.settings.school} /></Field>
-                  <Field label="Endereço"><input name="address" defaultValue={state.settings.address} /></Field>
-                  <Field label="Ano letivo atual"><select name="year" defaultValue={state.settings.year}><option>2026 / 2027</option><option>2027 / 2028</option></select></Field>
-                  <Field label="A sua função nesta escola"><select name="schoolRole" defaultValue={state.schools?.find((school) => school.id === state.activeSchoolId)?.role || state.user.role}><option>Professor</option><option>Coordenador</option><option>Diretor</option></select></Field>
-                  <button className="dash-btn secondary">Guardar dados da escola</button>
+                  <Field label="Nome da instituição"><input name="school" required defaultValue={state.settings.school} readOnly={!canManageSchool} /></Field>
+                  <Field label="Endereço"><input name="address" defaultValue={state.settings.address} readOnly={!canManageSchool} /></Field>
+                  <Field label="Ano letivo atual"><select name="year" defaultValue={state.settings.year} disabled={!canManageSchool}><option>2026 / 2027</option><option>2027 / 2028</option></select></Field>
+                  {!apiMode && <Field label="A sua função nesta escola"><select name="schoolRole" defaultValue={state.schools?.find((school) => school.id === state.activeSchoolId)?.role || state.user.role}><option>Professor</option><option>Coordenador</option><option>Diretor</option></select></Field>}
+                  <button className="dash-btn secondary" disabled={!canManageSchool}>Guardar dados da escola</button>
                 </form>
                 <Link className="dash-list-row dash-settings-link" href="/dashboard/turmas"><School size={18} /> Gerir turmas e disciplinas <span aria-hidden="true">→</span></Link>
+                <h3>Disciplinas</h3>
+                <div className="dash-school-memberships">{state.subjects.map((subject) => <div className="dash-school-membership" key={subject.id}><span className={`dash-icon ${subject.tone}`}><School size={18} /></span><strong>{subject.name}</strong></div>)}</div>
+                {canManageSchool && <form className="dash-fields-row" onSubmit={addSubject}><Field label="Nova disciplina"><input name="subjectName" required maxLength={100} /></Field><Field label="Cor"><select name="tone" defaultValue="green">{['green', 'blue', 'purple', 'red', 'amber', 'teal', 'gray'].map((tone) => <option value={tone} key={tone}>{tone}</option>)}</select></Field><button className="dash-btn secondary">Adicionar disciplina</button></form>}
               </Panel>
             </div>
 
             <div id="settings-schools">
               <Panel title={<><School /> As minhas escolas <span className="dash-settings-count">{state.schools?.length || 0}</span></>}>
-                <p className="dash-settings-intro">Cada escola tem o seu próprio conjunto de turmas, alunos, planos, avaliações e mensagens. A função é informativa nesta demonstração; permissões reais exigem contas no backend.</p>
+                <p className="dash-settings-intro">Cada escola tem o seu próprio conjunto de dados e membros. {apiMode ? 'Os convites criam links que pode partilhar com a pessoa convidada.' : 'Os espaços desta demonstração são locais ao navegador.'}</p>
                 <div className="dash-school-memberships">
                   {(state.schools || []).map((school) => (
                     <div className={`dash-school-membership ${school.id === state.activeSchoolId ? 'active' : ''}`} key={school.id}>
@@ -117,6 +184,13 @@ export function SettingsPage() {
                     </div>
                   ))}
                 </div>
+                  {apiMode && canManageMembers && <>
+                  <h3>Membros da escola</h3>
+                  {members.map((member) => <div className="dash-list-row" key={member.id}><span><strong>{member.user.name}</strong><small>{member.user.email}</small></span>{state.user.role === 'Diretor' ? <select aria-label={`Função de ${member.user.name}`} value={member.role} onChange={(event) => void updateMemberRole(member.user.id, event.target.value)}><option value="OWNER" disabled>Proprietário</option><option value="ADMIN">Administrador</option><option value="COORDINATOR">Coordenador</option><option value="TEACHER">Professor</option></select> : <small>{member.role}</small>}{member.role !== 'OWNER' && member.user.id !== state.user.id && <button type="button" className="dash-btn secondary" onClick={() => void removeMember(member.user.id)}>Remover</button>}</div>)}
+                  <form onSubmit={inviteMember} className="dash-modal-simple"><h3>Convidar membro</h3><Field label="Email"><input name="email" type="email" required /></Field><Field label="Função"><select name="role" defaultValue="TEACHER"><option value="TEACHER">Professor</option><option value="COORDINATOR">Coordenador</option><option value="ADMIN">Administrador</option></select></Field><button className="dash-btn secondary">Criar convite</button></form>
+                  {inviteUrl && <div className="dash-list-row"><label>Partilhe este link com o convidado<input readOnly value={inviteUrl} onFocus={(event) => event.currentTarget.select()} /></label></div>}
+                  {memberError && <p role="alert">{memberError}</p>}
+                </>}
                 <details className="dash-add-school">
                   <summary>Adicionar outra escola</summary>
                   <form onSubmit={addSchool}>
@@ -127,9 +201,15 @@ export function SettingsPage() {
                       <Field label="A sua função"><select name="schoolRole" defaultValue="Professor"><option>Professor</option><option>Coordenador</option><option>Diretor</option></select></Field>
                     </div>
                     <button className="dash-btn secondary">Adicionar escola</button>
-                    <small>Este espaço é local e demonstrativo; ainda não envia convites nem partilha dados entre contas.</small>
+                    <small>{apiMode ? 'A escola fica associada à sua conta com função de proprietário.' : 'Este espaço é local e demonstrativo; ainda não partilha dados entre contas.'}</small>
                   </form>
                 </details>
+              </Panel>
+            </div>
+
+            <div id="settings-activity" className="dash-settings-span">
+              <Panel title={<><ShieldCheck /> Atividade da escola</>}>
+                {apiMode ? state.user.role === 'Professor' ? <p>O registo de atividade está disponível para a administração da escola.</p> : audit.length ? audit.map((event) => <div className="dash-list-row" key={event.id}><span><strong>{event.actor.name}</strong><small>{event.action} · {event.entity}{event.recordId ? ` · ${event.recordId}` : ''}</small></span><time>{new Date(event.createdAt).toLocaleString('pt-AO', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Africa/Luanda' })}</time></div>) : <p>Não há alterações administrativas registadas ainda.</p> : <p>O registo de atividade fica disponível na conta ligada ao backend.</p>}
               </Panel>
             </div>
 
@@ -159,11 +239,11 @@ export function SettingsPage() {
 
             <div id="settings-privacy" className="dash-settings-span">
               <Panel title={<><ShieldCheck /> Dados e privacidade</>}>
-                <p className="dash-settings-intro">Esta demonstração guarda os dados neste navegador. Pode exportá-los ou repor os exemplos iniciais.</p>
+                <p className="dash-settings-intro">{apiMode ? 'Os dados estão guardados na base de dados da escola ativa. Pode exportar uma cópia ou remover os registos desta escola.' : 'Esta demonstração guarda os dados neste navegador. Pode exportá-los ou repor os exemplos iniciais.'}</p>
                 <div className="dash-settings-actions">
                   <Link className="dash-list-row" href="/privacidade">Política de privacidade <span aria-hidden="true">→</span></Link>
                   <button className="dash-list-row" onClick={() => downloadText('agendai-dados-locais.json', JSON.stringify(state, null, 2), 'application/json')}><Download size={18} /> Exportar os meus dados</button>
-                  <button className="dash-list-row danger" onClick={() => setConfirm(true)}>Repor dados de demonstração</button>
+                  <button className="dash-list-row danger" onClick={() => setConfirm(true)}>{apiMode ? 'Apagar os dados desta escola' : 'Repor dados de demonstração'}</button>
                 </div>
               </Panel>
             </div>
@@ -173,7 +253,7 @@ export function SettingsPage() {
             <summary><Settings size={18} /> Opções avançadas e funcionalidades em desenvolvimento</summary>
             <div className="dash-settings-advanced-grid">
               <Panel title={<><LockKeyhole /> Segurança e acesso</>}>
-                <p>Esta demonstração não tem autenticação, palavras-passe ou sessões remotas. Os dados ficam acessíveis neste navegador; use apenas informação fictícia.</p>
+                <p>{apiMode ? 'A conta usa sessão autenticada com renovação de sessão por cookie HttpOnly. Use uma palavra-passe exclusiva.' : 'A demonstração não tem autenticação. Os dados ficam acessíveis neste navegador; use apenas informação fictícia.'}</p>
               </Panel>
               <Panel title={<><Link2 /> Integrações</>}>
                 <p>As ligações a serviços externos ainda não estão disponíveis.</p>

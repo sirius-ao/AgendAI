@@ -33,11 +33,11 @@ No Coolify, usar build pack **Dockerfile**, contexto `/`, Dockerfile `/Dockerfil
 
 ## Dashboard
 
-Abrir **http://localhost:3000/dashboard**, ou usar a entrada de demonstração em `/entrar`.
+Abrir **http://localhost:3000/dashboard** para a demonstração, ou usar `/comecar` para criar uma conta ligada à API.
 
 Inclui início, planos de aula, turmas e alunos, presenças, avaliações, calendário, recursos, relatórios, biblioteca, mensagens e configurações. Os três formulários principais criam e editam registos. Notas e presenças alimentam os relatórios; recursos podem ser associados aos planos; alterações persistem em `localStorage`.
 
-Os exemplos são partilhados entre módulos: 6 turmas, 186 alunos, 24 planos e 24 avaliações. O dashboard ainda funciona localmente. A API NestJS está em fase inicial e cobre autenticação, escolas, turmas e alunos, sem sincronização com os dados demonstrativos. Não existe envio externo de mensagens, upload para servidor ou serviço real de IA.
+Os exemplos são partilhados entre módulos: 6 turmas, 186 alunos, 24 planos e 24 avaliações. O botão de demonstração continua a usar dados locais. Registo, login e dashboard autenticado usam a API NestJS para sincronizar dados por escola. Convites funcionam por link partilhável; email, ficheiros binários e IA real ainda não estão ligados.
 
 Arquitetura, rotas, ficheiros, componentes e dependências futuras: [docs/dashboard.md](docs/dashboard.md). Capturas da revisão: `artifacts/dashboard/`. Testes: `tests/dashboard.spec.ts`. Para auditar a acessibilidade com um servidor ativo, executar `node scripts/check-dashboard-accessibility.mjs`.
 
@@ -69,14 +69,14 @@ Os tokens de cor, tipografia, espaçamento, largura e raio estão em `apps/websi
 - Blog com pesquisa sem distinção de acentos, filtros, paginação local, categorias com contagens reais e oito artigos demonstrativos. Os dados tipados podem ser substituídos por uma integração CMS futura.
 - Dashboards e documentos reconstruídos em HTML/CSS. Os números pertencem à escola de demonstração; não são métricas públicas do AgendAI.
 - Os testemunhos fictícios foram substituídos por mensagens institucionais sem atribuição a clientes.
-- `/entrar`, `/comecar` e `/contacto` são previews com validação local e feedback explícito. Não criam contas, enviam mensagens ou armazenam dados. A newsletter também não envia nem guarda o e-mail.
+- `/entrar` e `/comecar` autenticam pela API. `/contacto` e a newsletter ainda não enviam nem guardam mensagens.
 - Ícones sociais apresentados como “em breve”, sem URLs inventados. Inserir os endereços oficiais antes de disponibilizar ligações.
 
-Não há integração do dashboard com a API, pagamentos, analytics ou CMS. Para iniciar o backend NestJS, consultar [docs/api.md](docs/api.md).
+Ainda não há pagamentos, analytics ou CMS. Para iniciar o backend NestJS e consultar as rotas, ver [docs/api.md](docs/api.md).
 
 ## SEO
 
-Copiar `apps/website/.env.example` para `.env.local` e definir `NEXT_PUBLIC_SITE_URL` com o domínio oficial antes do build de publicação. O valor inicial é `http://localhost:3000`; não foi inventado um domínio de produção.
+Copiar `apps/website/.env.example` para `.env.local` e definir `NEXT_PUBLIC_SITE_URL` e `NEXT_PUBLIC_API_URL` antes do build de publicação. Os valores iniciais são locais; não foi inventado um domínio de produção.
 
 Inclui metadata por página, OpenGraph, Twitter, favicon SVG, sitemap, robots e JSON-LD nos artigos. As rotas de acesso não são indexáveis. As páginas de privacidade e termos explicam o âmbito demonstrativo; não substituem documentos comerciais finais.
 

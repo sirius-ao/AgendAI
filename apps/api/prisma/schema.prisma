@@ -19,15 +19,36 @@ enum StudentStatus {
   TRANSFERRED
 }
 
+enum DashboardCollection {
+  SUBJECTS
+  PLANS
+  ATTENDANCE
+  ASSESSMENTS
+  EVENTS
+  RESOURCES
+  LIBRARY
+  REPORTS
+  CONVERSATIONS
+  TASKS
+  SETTINGS
+  ONBOARDING
+  CLASSES
+  STUDENTS
+  FOLDERS
+}
+
 model User {
   id           String           @id @default(uuid()) @db.Uuid
   name         String           @db.VarChar(120)
   email        String           @unique @db.VarChar(254)
+  phone        String           @default("") @db.VarChar(40)
   passwordHash String           @db.VarChar(100)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   memberships  SchoolMembership[]
   sessions     RefreshSession[]
+  sentInvitations SchoolInvitation[] @relation("InvitationCreator")
+  auditEvents AuditEvent[]
 }
 
 model School {
@@ -42,6 +63,9 @@ model School {
   classes     SchoolClass[]
   students    Student[]
   subjects    Subject[]
+  dashboardRecords DashboardRecord[]
+  invitations SchoolInvitation[]
+  auditEvents AuditEvent[]
 }
 
 model SchoolMembership {
@@ -128,4 +152,52 @@ model RefreshSession {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+}
+
+model SchoolInvitation {
+  id          String         @id @default(uuid()) @db.Uuid
+  schoolId    String         @db.Uuid
+  createdById String         @db.Uuid
+  email       String         @db.VarChar(254)
+  role        MembershipRole
+  tokenHash   String         @unique @db.Char(64)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime       @default(now())
+  school      School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdBy   User           @relation("InvitationCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, email, acceptedAt, revokedAt])
+}
+
+model DashboardRecord {
+  id         String             @id @default(uuid()) @db.Uuid
+  schoolId   String             @db.Uuid
+  collection DashboardCollection
+  recordId   String             @db.VarChar(120)
+  payload    Json
+  createdById String            @db.Uuid
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  school     School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, collection, recordId])
+  @@index([schoolId, collection, updatedAt])
+}
+
+model AuditEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  schoolId  String   @db.Uuid
+  actorId   String   @db.Uuid
+  action    String   @db.VarChar(40)
+  entity    String   @db.VarChar(60)
+  recordId  String?  @db.VarChar(120)
+  details   Json?
+  createdAt DateTime @default(now())
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, createdAt])
+  @@index([actorId, createdAt])
 }

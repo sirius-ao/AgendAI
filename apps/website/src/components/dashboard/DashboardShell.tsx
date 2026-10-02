@@ -9,13 +9,14 @@ import { Avatar, Modal, SearchInput } from './ui/Primitives';
 import { CreationModals } from './forms/CreationModals';
 import { ConnectionStatus } from './ConnectionStatus';
 import { normalize } from '@/lib/dashboard/selectors';
+import { apiLogout, hasApiSession } from '@/lib/api/client';
 const subscribeCompact = (callback: () => void) => {
   const media = window.matchMedia('(max-width: 950px)');
   media.addEventListener('change', callback);
   return () => media.removeEventListener('change', callback);
 };
 export function DashboardShell({ children }: { children: ReactNode }) {
-  const { state, ready, error, clearError, update, selectSchool } = useDashboard();
+  const { state, ready, error, clearError, update, selectSchool, apiMode } = useDashboard();
   const compact = useSyncExternalStore(subscribeCompact, () => window.matchMedia('(max-width: 950px)').matches, () => false);
   const collapsed = state.settings.sidebarCollapsed ?? compact;
   const pathname = usePathname();
@@ -25,6 +26,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [bell, setBell] = useState(false);
   const unreadConversations = state.conversations.filter((conversation) => conversation.unread > 0).length;
   const activeSchool = state.schools?.find((school) => school.id === state.activeSchoolId);
+  const logout = async () => {
+    if (hasApiSession()) await apiLogout().catch(() => undefined);
+    window.location.assign('/entrar');
+  };
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -105,10 +110,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             }
             return renderNavigationLink(item);
           })}
-          <Link href="/entrar" onClick={() => setMenu(false)} className="dash-sidebar-exit" aria-label="Sair" title="Sair da demonstração. Os dados locais ficam guardados.">
+          <button type="button" onClick={() => void logout()} className="dash-sidebar-exit" aria-label="Sair" title={hasApiSession() ? 'Terminar sessão' : 'Sair da demonstração. Os dados locais ficam guardados.'}>
             <LogOut size={21} />
             <span>Sair</span>
-          </Link>
+          </button>
         </nav>
         <div className="dash-pro">
           <strong>
@@ -160,7 +165,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               {(state.schools || []).map((school) => <option value={school.id} key={school.id}>{school.name}</option>)}
             </select>
           </label>
-          <span className="dash-demo">Demonstração</span>
+          <span className="dash-demo">{apiMode ? 'Conta ligada' : 'Demonstração'}</span>
           <div className="dash-notification">
             <button
               aria-label="Notificações"
@@ -199,15 +204,16 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               <small>{activeSchool?.role || state.user.role}</small>
             </span>
           </Link>
-          <Link
-            href="/entrar"
+          <button
+            type="button"
+            onClick={() => void logout()}
             className="dash-exit"
             aria-label="Sair do dashboard"
-            title="Sair da demonstração. Os dados locais ficam guardados."
+            title={hasApiSession() ? 'Terminar sessão' : 'Sair da demonstração. Os dados locais ficam guardados.'}
           >
             <LogOut size={19} />
             <span>Sair</span>
-          </Link>
+          </button>
         </header>
         <main id="main" className="dash-main" key={state.activeSchoolId}>
           <ConnectionStatus />
