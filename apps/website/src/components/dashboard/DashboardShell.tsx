@@ -3,7 +3,7 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Bell, BookOpen, Crown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search, X } from 'lucide-react';
-import { dashboardNavigation } from '@/data/dashboard/navigation';
+import { dashboardNavigation, type DashboardNavigationItem } from '@/data/dashboard/navigation';
 import { useDashboard } from './state/DashboardProvider';
 import { Avatar, Modal, SearchInput } from './ui/Primitives';
 import { CreationModals } from './forms/CreationModals';
@@ -15,7 +15,7 @@ const subscribeCompact = (callback: () => void) => {
   return () => media.removeEventListener('change', callback);
 };
 export function DashboardShell({ children }: { children: ReactNode }) {
-  const { state, ready, error, clearError, update } = useDashboard();
+  const { state, ready, error, clearError, update, selectSchool } = useDashboard();
   const compact = useSyncExternalStore(subscribeCompact, () => window.matchMedia('(max-width: 950px)').matches, () => false);
   const collapsed = state.settings.sidebarCollapsed ?? compact;
   const pathname = usePathname();
@@ -23,6 +23,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [search, setSearch] = useState(false);
   const [query, setQuery] = useState('');
   const [bell, setBell] = useState(false);
+  const unreadConversations = state.conversations.filter((conversation) => conversation.unread > 0).length;
+  const activeSchool = state.schools?.find((school) => school.id === state.activeSchoolId);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -51,6 +53,28 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   ]
     .filter((r) => normalize(r.title).includes(normalize(query)))
     .slice(0, 12);
+  const renderNavigationLink = ({ href, label, icon: Icon }: DashboardNavigationItem) => (
+    <Link
+      onClick={() => setMenu(false)}
+      key={href}
+      href={href}
+      title={href === '/dashboard/mensagens' && unreadConversations
+        ? `${label} · ${unreadConversations} conversas por ler`
+        : label}
+      aria-label={href === '/dashboard/mensagens' && unreadConversations
+        ? `${label}, ${unreadConversations} conversas por ler`
+        : label}
+      aria-current={
+        (href === '/dashboard' ? pathname === href : pathname.startsWith(href)) ? 'page' : undefined
+      }
+    >
+      <Icon size={21} />
+      <span>{label}</span>
+      {href === '/dashboard/mensagens' && unreadConversations > 0 && (
+        <span className="dash-nav-unread" aria-hidden="true">{unreadConversations > 99 ? '99+' : unreadConversations}</span>
+      )}
+    </Link>
+  );
   return (
     <div className={`dash-app dash-theme-${state.settings.theme} ${collapsed ? 'sidebar-collapsed' : 'sidebar-expanded'}`}>
       <aside id="dashboard-sidebar" className={`dash-sidebar ${menu ? 'is-open' : ''}`}>
@@ -69,23 +93,18 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <X />
         </button>
         <nav aria-label="Dashboard">
-          {dashboardNavigation.map(({ href, label, icon: Icon }) => (
-            <Link
-              onClick={() => setMenu(false)}
-              key={href}
-              href={href}
-              title={label}
-              aria-label={label}
-              aria-current={
-                (href === '/dashboard' ? pathname === href : pathname.startsWith(href))
-                  ? 'page'
-                  : undefined
-              }
-            >
-              <Icon size={21} />
-              <span>{label}</span>
-            </Link>
-          ))}
+          {dashboardNavigation.map((item, index) => {
+            if (item.section === 'Materiais') {
+              if (dashboardNavigation[index - 1]?.section === 'Materiais') return null;
+              return (
+                <div className="dash-nav-group" key={item.section}>
+                  <span className="dash-nav-section-label">{item.section}</span>
+                  {dashboardNavigation.filter((entry) => entry.section === item.section).map(renderNavigationLink)}
+                </div>
+              );
+            }
+            return renderNavigationLink(item);
+          })}
           <Link href="/entrar" onClick={() => setMenu(false)} className="dash-sidebar-exit" aria-label="Sair" title="Sair da demonstração. Os dados locais ficam guardados.">
             <LogOut size={21} />
             <span>Sair</span>
@@ -102,7 +121,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <br />
             Mais tempo para ensinar.
           </p>
-          <Link href="/planos">Ver planos</Link>
+          <Link href="/dashboard/planos">Ver planos</Link>
         </div>
       </aside>
       {menu && (
@@ -135,6 +154,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <span>Pesquisar turmas, planos, alunos...</span>
             <kbd>Ctrl + K</kbd>
           </button>
+          <label className="dash-school-switch">
+            <span>Escola ativa</span>
+            <select aria-label="Escola ativa" value={state.activeSchoolId || ''} onChange={(event) => selectSchool(event.target.value)}>
+              {(state.schools || []).map((school) => <option value={school.id} key={school.id}>{school.name}</option>)}
+            </select>
+          </label>
           <span className="dash-demo">Demonstração</span>
           <div className="dash-notification">
             <button
@@ -171,7 +196,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <Avatar src={state.user.avatar} name={state.user.name} size={40} />
             <span>
               <strong>{state.user.name}</strong>
-              <small>{state.user.role}</small>
+              <small>{activeSchool?.role || state.user.role}</small>
             </span>
           </Link>
           <Link
@@ -184,7 +209,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <span>Sair</span>
           </Link>
         </header>
-        <main id="main" className="dash-main">
+        <main id="main" className="dash-main" key={state.activeSchoolId}>
           <ConnectionStatus />
           {error && (
             <div className="dash-error" role="alert">

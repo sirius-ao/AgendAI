@@ -2,7 +2,7 @@
 
 ## Integração no projeto existente
 
-O dashboard foi acrescentado ao app Next.js `apps/website` do monorepo. Não foi criado outro app, backend ou sistema de autenticação. O website público, os packages partilhados e o Dockerfile continuam a ser utilizados.
+O dashboard foi acrescentado ao app Next.js `apps/website` do monorepo. O backend NestJS separado em `apps/api` está em fase inicial; o dashboard ainda não usa a API nem tem autenticação integrada. O website público, os packages partilhados e o Dockerfile continuam a ser utilizados.
 
 `SiteFrame` escolhe o enquadramento público ou o dashboard. O layout `/dashboard` instala `DashboardProvider` e `DashboardShell`: sidebar, topbar, pesquisa global (`Ctrl/Cmd+K`), notificações locais, perfil, footer e modais. A sidebar adapta-se a tablet e torna-se um menu móvel. O shell preserva o estado entre navegações.
 
@@ -57,7 +57,7 @@ A seed contém 6 turmas, 186 alunos (28 na 10ª A), 7 disciplinas, 24 planos, 24
 - Mensagens: conversas de turma/individuais, pesquisa, filtros, favoritos, arquivo, texto e nomes de anexos, membros e exportação. Envio apenas para o estado local.
 - Configurações: perfil/escola, tema claro/escuro/sistema, preferências locais, fuso para mensagens, exportação JSON e reposição confirmada.
 
-## Persistência e backend futuro
+## Persistência e integração com backend
 
 ### Chamada e histórico de presenças
 
@@ -105,7 +105,7 @@ O aviso de ligação explica o modo local. Uma página carregada pode continuar 
 
 `localDashboardRepository` guarda `{version: 1, state}` na chave `agendai-dashboard-demo-v1` de `localStorage`. Os dados pertencem à origem e ao navegador; não são partilhados entre utilizadores ou dispositivos. Dados ilegíveis não são sobrescritos automaticamente. Falhas de armazenamento mostram feedback. A interface do repository permite substituir o adapter por uma API.
 
-Continuam dependentes de backend: autenticação e permissões, base de dados multiutilizador, uploads/downloads originais, mensagens em tempo real, e-mails/push, recorrência executada de eventos, IA real, OAuth/integrações, pagamentos, faturação e segurança de contas. Estas funcionalidades não são apresentadas como ligações reais na demonstração. Preferências de lembretes/recorrência ficam guardadas, mas não são executadas.
+O backend NestJS inicial já oferece autenticação, associações multi-escola, turmas e alunos. O dashboard ainda depende de `localStorage` e não faz pedidos à API. Continuam por implementar uploads/downloads originais, mensagens em tempo real, e-mails/push, recorrência executada de eventos, IA real, OAuth/integrações, pagamentos, faturação, recuperação de conta e rate limiting. Estas funcionalidades não são apresentadas como ligações reais na demonstração. Preferências de lembretes/recorrência ficam guardadas, mas não são executadas. A instalação e rotas disponíveis estão em [docs/api.md](api.md).
 
 CSV abre em Excel; PDF usa a impressão do navegador. Não há geração binária de XLSX/PDF, envio automático de relatórios ou ficheiros de exemplo completos. Os relatórios não são snapshots históricos imutáveis. A meteorologia é ilustrativa, sem consulta externa.
 

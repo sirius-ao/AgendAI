@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  COORDINATOR
+  TEACHER
+}
+
+enum StudentStatus {
+  ACTIVE
+  TRANSFERRED
+}
+
+model User {
+  id           String           @id @default(uuid()) @db.Uuid
+  name         String           @db.VarChar(120)
+  email        String           @unique @db.VarChar(254)
+  passwordHash String           @db.VarChar(100)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  memberships  SchoolMembership[]
+  sessions     RefreshSession[]
+}
+
+model School {
+  id          String             @id @default(uuid()) @db.Uuid
+  name        String             @db.VarChar(140)
+  address     String             @default("") @db.VarChar(200)
+  academicYear String            @default("") @db.VarChar(20)
+  timezone    String             @default("Africa/Luanda") @db.VarChar(64)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  memberships SchoolMembership[]
+  classes     SchoolClass[]
+  students    Student[]
+  subjects    Subject[]
+}
+
+model SchoolMembership {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @db.Uuid
+  schoolId  String         @db.Uuid
+  role      MembershipRole @default(TEACHER)
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school    School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, schoolId])
+  @@index([schoolId, role])
+}
+
+model SchoolClass {
+  id        String    @id @default(uuid()) @db.Uuid
+  schoolId  String    @db.Uuid
+  name      String    @db.VarChar(100)
+  year      String    @db.VarChar(20)
+  level     String    @default("") @db.VarChar(80)
+  room      String    @default("") @db.VarChar(80)
+  shift     String    @default("") @db.VarChar(40)
+  director  String    @default("") @db.VarChar(120)
+  archived  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  students  Student[]
+  subjects  ClassSubject[]
+
+  @@unique([id, schoolId])
+  @@unique([schoolId, name, year])
+  @@index([schoolId, archived, year])
+}
+
+model Subject {
+  id        String         @id @default(uuid()) @db.Uuid
+  schoolId  String         @db.Uuid
+  name      String         @db.VarChar(100)
+  tone      String         @default("green") @db.VarChar(20)
+  createdAt DateTime       @default(now())
+  school    School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classes   ClassSubject[]
+
+  @@unique([id, schoolId])
+  @@unique([schoolId, name])
+}
+
+model ClassSubject {
+  schoolId String      @db.Uuid
+  classId  String      @db.Uuid
+  subjectId String     @db.Uuid
+  schoolClass SchoolClass @relation(fields: [classId, schoolId], references: [id, schoolId], onDelete: Cascade)
+  subject  Subject     @relation(fields: [subjectId, schoolId], references: [id, schoolId], onDelete: Cascade)
+
+  @@id([classId, subjectId])
+  @@index([schoolId])
+}
+
+model Student {
+  id        String        @id @default(uuid()) @db.Uuid
+  schoolId  String        @db.Uuid
+  classId   String        @db.Uuid
+  name      String        @db.VarChar(120)
+  contact   String        @default("") @db.VarChar(160)
+  status    StudentStatus @default(ACTIVE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  school    School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolClass SchoolClass @relation(fields: [classId, schoolId], references: [id, schoolId], onDelete: Cascade)
+
+  @@index([schoolId, classId, status])
+  @@index([schoolId, name])
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
