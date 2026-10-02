@@ -23,6 +23,8 @@ export interface Student {
   status: 'Ativo' | 'Transferido';
 }
 export interface SchoolClass {
+  subjectTeacherIds?: Record<Id, Id>;
+  subjectTeacherNames?: Record<Id, string>;
   archived?: boolean;
   schoolId?: Id;
   previousClassId?: Id;
@@ -87,6 +89,7 @@ export interface GradeDetail {
   difficulties: string[];
 }
 export interface Assessment {
+  teacherId?: Id;
   gradeDetails?: Record<Id, GradeDetail>;
   gradeVersions?: { confirmedAt?: string; grades: Assessment['grades']; details: Record<Id, GradeDetail> }[];
   gradesConfirmedAt?: string;
@@ -108,6 +111,7 @@ export interface Assessment {
   grades: Record<Id, number | null>;
 }
 export interface CalendarEvent {
+  teacherId?: Id;
   schoolId?: Id;
   id: Id;
   title: string;
@@ -244,6 +248,8 @@ export interface DashboardState {
   attendanceDrafts?: Record<string, Record<Id, { status: AttendanceStatus | ''; note: string }>>;
   user: User;
   subjects: Subject[];
+  teacherSubjectIds: Id[];
+  teacherDirectory?: { id: Id; name: string }[];
   classes: SchoolClass[];
   students: Student[];
   plans: LessonPlan[];

@@ -1,16 +1,23 @@
 'use client';
 import { gradeDetail } from '@/lib/dashboard/assessment-grades';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useDashboard } from '../state/DashboardProvider';
 import { Field, Modal } from '../ui/Primitives';
 import { localId, normalize, formatDate } from '@/lib/dashboard/selectors';
 import type { SchoolClass, Student } from '@/types/dashboard';
+import { apiRequest } from '@/lib/api/client';
 
 export function ClassForm({ source, rollover = false, onClose }: { source?: SchoolClass; rollover?: boolean; onClose: () => void }) {
-  const { state, update, notify } = useDashboard();
+  const { state, update, notify, apiMode } = useDashboard();
   const [subjects, setSubjects] = useState(source?.subjectIds || []);
+  const [subjectTeachers, setSubjectTeachers] = useState<Record<string, string>>(source?.subjectTeacherIds || {});
+  const [teachers, setTeachers] = useState<{ id: string; name: string; subjectIds: string[] }[]>([]);
   const [error, setError] = useState('');
+  useEffect(() => {
+    if (!apiMode || !state.activeSchoolId || state.user.role === 'Professor') return;
+    void apiRequest<typeof teachers>(`/schools/${encodeURIComponent(state.activeSchoolId)}/teachers/subjects`).then(setTeachers).catch(() => setTeachers([]));
+  }, [apiMode, state.activeSchoolId, state.user.role]);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -18,7 +25,7 @@ export function ClassForm({ source, rollover = false, onClose }: { source?: Scho
     if (!get('name') || !get('year') || !subjects.length) { setError('Preencha nome, ano letivo e pelo menos uma disciplina.'); return; }
     if (rollover && get('year') === source?.year) { setError('Escolha um novo ano letivo. A turma anterior será preservada.'); return; }
     const id = source && !rollover ? source.id : localId('class');
-    const schoolClass: SchoolClass = { id, name: get('name'), year: get('year'), room: get('room'), shift: get('shift'), level: get('level'), director: get('director'), subjectIds: subjects, archived: source && !rollover ? source.archived : false, previousClassId: rollover ? source?.id : source?.previousClassId };
+    const schoolClass: SchoolClass = { id, name: get('name'), year: get('year'), room: get('room'), shift: get('shift'), level: get('level'), director: get('director'), subjectIds: subjects, subjectTeacherIds: Object.fromEntries(Object.entries(subjectTeachers).filter(([subjectId, teacherId]) => subjects.includes(subjectId) && teacherId)), archived: source && !rollover ? source.archived : false, previousClassId: rollover ? source?.id : source?.previousClassId };
     const copied: Student[] = rollover && form.has('copyStudents') ? state.students.filter((student) => student.classId === source?.id && student.status === 'Ativo').map((student) => ({ ...student, id: localId('student'), previousStudentId: student.id, classId: id })) : [];
     update((s) => ({ ...s,
       classes: source && !rollover ? s.classes.map((c) => c.id === id ? schoolClass : c) : [...s.classes, schoolClass],
@@ -34,7 +41,8 @@ export function ClassForm({ source, rollover = false, onClose }: { source?: Scho
     <Field label="Sala"><input name="room" defaultValue={source?.room || ''} /></Field>
     <Field label="Turno"><select name="shift" defaultValue={source?.shift || 'Manhã'}>{['Manhã', 'Tarde', 'Noite'].map((value) => <option key={value}>{value}</option>)}</select></Field>
     <Field label="Direção de turma"><input name="director" defaultValue={source?.director || state.user.name} /></Field>
-    <fieldset className="dash-plan-stage"><legend>Disciplinas</legend>{state.subjects.map((subject) => <label className="dash-check" key={subject.id}><input type="checkbox" checked={subjects.includes(subject.id)} onChange={(e) => setSubjects(e.target.checked ? [...subjects, subject.id] : subjects.filter((id) => id !== subject.id))} />{subject.name}</label>)}</fieldset>
+    <fieldset className="dash-plan-stage"><legend>Disciplinas da turma</legend>{state.subjects.map((subject) => <div className="dash-modal-simple" key={subject.id}><label className="dash-check"><input type="checkbox" checked={subjects.includes(subject.id)} onChange={(e) => setSubjects(e.target.checked ? [...subjects, subject.id] : subjects.filter((id) => id !== subject.id))} />{subject.name}</label>{subjects.includes(subject.id) && apiMode && state.user.role !== 'Professor' && <Field label={`Professor de ${subject.name}`}><select value={subjectTeachers[subject.id] || ''} onChange={(event) => setSubjectTeachers((current) => ({ ...current, [subject.id]: event.target.value }))}><option value="">Por atribuir</option>{teachers.filter((teacher) => teacher.subjectIds.includes(subject.id)).map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select></Field>}</div>)}</fieldset>
+    {apiMode && state.user.role !== 'Professor' && <small>O professor só aparece nesta lista depois de indicar a disciplina no seu perfil.</small>}
     {rollover && <><label className="dash-check"><input type="checkbox" name="copyStudents" defaultChecked />Copiar alunos ativos para a nova turma</label><p>São criadas novas inscrições. Notas, presenças, planos e mensagens permanecem na turma anterior. Pode arquivá-la depois.</p></>}
     {error && <p role="alert">{error}</p>}<div className="dash-form-actions"><button className="dash-btn secondary" type="button" onClick={onClose}>Cancelar</button><button className="dash-btn">{rollover ? 'Criar nova turma' : 'Guardar'}</button></div>
   </form></Modal>;

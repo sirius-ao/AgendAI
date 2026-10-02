@@ -20,18 +20,19 @@ export const localDashboardRepository: DashboardRepository = {
       !Array.isArray(stored.state.plans)
     )
       throw new Error('Os dados locais não são compatíveis.');
+    const savedState = stored.state;
     const seed = createDashboardSeed();
-    const state = { ...seed, ...stored.state };
-    const schools = Array.isArray(stored.state.schools) && stored.state.schools.length
-      ? stored.state.schools
+    const state = { ...seed, ...savedState };
+    const schools = Array.isArray(savedState.schools) && savedState.schools.length
+      ? savedState.schools
       : [{
           ...seed.schools![0],
-          name: stored.state.settings?.school || seed.schools![0].name,
-          address: stored.state.settings?.address || seed.schools![0].address,
-          year: stored.state.settings?.year || seed.schools![0].year,
+          name: savedState.settings?.school || seed.schools![0].name,
+          address: savedState.settings?.address || seed.schools![0].address,
+          year: savedState.settings?.year || seed.schools![0].year,
         }];
-    const activeSchoolId = schools.some((school) => school.id === stored.state.activeSchoolId)
-      ? stored.state.activeSchoolId!
+    const activeSchoolId = schools.some((school) => school.id === savedState.activeSchoolId)
+      ? savedState.activeSchoolId!
       : schools[0].id;
     const defaultSchoolId = schools[0].id;
     const classSchool = new Map((state.classes || []).map((schoolClass) => [schoolClass.id, schoolClass.schoolId || defaultSchoolId]));

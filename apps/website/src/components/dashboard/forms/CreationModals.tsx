@@ -97,6 +97,7 @@ function CreationForm() {
       }
       const assessment: Assessment = {
         ...common,
+        teacherId: state.user.id,
         type: get('type') as Assessment['type'],
         duration: Number(get('duration', '50')),
         weight,
@@ -121,9 +122,11 @@ function CreationForm() {
             title: assessment.title,
             classId,
             subjectId: assessment.subjectId,
+            teacherId: state.user.id,
             date,
             endDate: date,
             type: 'Avaliação',
+            owner: state.user.id,
             color: 'red',
             sourceId: id,
           },
@@ -141,6 +144,7 @@ function CreationForm() {
         ...eventDefaults(),
         ...(old && 'start' in old ? old : {}),
         ...common,
+        teacherId: state.user.id,
         endDate,
         start,
         end,

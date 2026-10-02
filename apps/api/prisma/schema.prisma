@@ -35,6 +35,22 @@ enum DashboardCollection {
   CLASSES
   STUDENTS
   FOLDERS
+  TEACHER_SUBJECTS
+}
+
+enum DashboardValueKind {
+  OBJECT
+  ARRAY
+  STRING
+  NUMBER
+  BOOLEAN
+  NULL
+}
+
+enum SubjectRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model User {
@@ -43,12 +59,68 @@ model User {
   email        String           @unique @db.VarChar(254)
   phone        String           @default("") @db.VarChar(40)
   passwordHash String           @db.VarChar(100)
+  tokenVersion Int              @default(0)
+  emailVerifiedAt DateTime?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   memberships  SchoolMembership[]
   sessions     RefreshSession[]
   sentInvitations SchoolInvitation[] @relation("InvitationCreator")
   auditEvents AuditEvent[]
+  subjectRequests SubjectRequest[] @relation("SubjectRequestRequester")
+  resolvedSubjectRequests SubjectRequest[] @relation("SubjectRequestResolver")
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model NewsletterSubscription {
+  id                     String    @id @default(uuid()) @db.Uuid
+  email                  String    @unique @db.VarChar(254)
+  consentAt              DateTime
+  confirmedAt            DateTime?
+  unsubscribedAt         DateTime?
+  confirmationTokenHash  String?   @unique @db.Char(64)
+  confirmationExpiresAt DateTime?
+  unsubscribeTokenHash  String    @unique @db.Char(64)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([confirmedAt, unsubscribedAt])
+}
+
+model RateLimitBucket {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique @db.Char(64)
+  hits      Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }
 
 model School {
@@ -66,6 +138,7 @@ model School {
   dashboardRecords DashboardRecord[]
   invitations SchoolInvitation[]
   auditEvents AuditEvent[]
+  subjectRequests SubjectRequest[]
 }
 
 model SchoolMembership {
@@ -176,14 +249,53 @@ model DashboardRecord {
   schoolId   String             @db.Uuid
   collection DashboardCollection
   recordId   String             @db.VarChar(120)
-  payload    Json
   createdById String            @db.Uuid
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt
   school     School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  attachments FileAttachment[]
+  values     DashboardValue[]
 
   @@unique([schoolId, collection, recordId])
   @@index([schoolId, collection, updatedAt])
+}
+
+// Each JSON-like dashboard value is represented as an indexed relational tree.
+// This keeps arbitrary nested form data without storing opaque JSON blobs.
+model DashboardValue {
+  id          String             @id @default(uuid()) @db.Uuid
+  recordDbId  String             @db.Uuid
+  path        String             @db.Text
+  parentPath  String?            @db.Text
+  propertyKey String?            @db.Text
+  position    Int?
+  kind        DashboardValueKind
+  stringValue String?            @db.Text
+  numberValue Float?
+  booleanValue Boolean?
+  record      DashboardRecord    @relation(fields: [recordDbId], references: [id], onDelete: Cascade)
+
+  @@unique([recordDbId, path])
+  @@index([recordDbId, parentPath, position])
+  @@index([propertyKey, stringValue])
+}
+
+model FileAttachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  schoolId     String   @db.Uuid
+  userId       String   @db.Uuid
+  collection   DashboardCollection
+  recordId     String   @db.VarChar(120)
+  objectKey    String   @unique @db.VarChar(500)
+  originalName String   @db.VarChar(255)
+  contentType  String   @db.VarChar(120)
+  size         Int
+  createdAt    DateTime @default(now())
+  uploadedAt   DateTime?
+  record       DashboardRecord @relation(fields: [schoolId, collection, recordId], references: [schoolId, collection, recordId], onDelete: Cascade)
+
+  @@index([schoolId, collection, recordId, createdAt])
+  @@index([userId, schoolId])
 }
 
 model AuditEvent {
@@ -200,4 +312,22 @@ model AuditEvent {
 
   @@index([schoolId, createdAt])
   @@index([actorId, createdAt])
+}
+
+model SubjectRequest {
+  id          String               @id @default(uuid()) @db.Uuid
+  schoolId    String               @db.Uuid
+  requesterId String               @db.Uuid
+  resolvedById String?             @db.Uuid
+  name        String               @db.VarChar(100)
+  details     String               @default("") @db.VarChar(500)
+  status      SubjectRequestStatus @default(PENDING)
+  createdAt   DateTime             @default(now())
+  resolvedAt  DateTime?
+  school      School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  requester   User                 @relation("SubjectRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  resolver    User?                @relation("SubjectRequestResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, status, createdAt])
+  @@index([requesterId, schoolId])
 }

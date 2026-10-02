@@ -1,4 +1,7 @@
 FROM node:22-bookworm-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN npm install --global pnpm@11.0.9
@@ -7,7 +10,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/package.json
 COPY apps/website/package.json ./apps/website/package.json
 COPY packages ./packages
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=agendai-pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter @agendai/api... --store-dir=/pnpm/store --fetch-timeout=300000 --fetch-retries=5
 COPY apps/api ./apps/api
 RUN pnpm --filter @agendai/api build
 WORKDIR /app/apps/api

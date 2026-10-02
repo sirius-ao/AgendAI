@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
-import { LoginDto, RegisterDto, UpdateProfileDto } from './auth.dto.js';
+import { ForgotPasswordDto, LoginDto, RegisterDto, ResendVerificationDto, ResetPasswordDto, UpdateProfileDto, VerifyEmailDto } from './auth.dto.js';
 import { AuthGuard } from './auth.guard.js';
 import { CurrentUser } from './current-user.decorator.js';
 import type { AccessPayload } from './auth.types.js';
@@ -17,8 +17,16 @@ export class AuthController {
     res.cookie(COOKIE, result.refreshToken, cookieOptions());
     return res.json({ accessToken: result.accessToken, user: result.user });
   }
-  @UseGuards(AuthRateLimitGuard) @Post('register') async register(@Body() dto: RegisterDto, @Res() res: Response) { return this.send(res, await this.auth.register(dto)); }
+  @UseGuards(AuthRateLimitGuard) @Post('register') async register(@Body() dto: RegisterDto, @Res() res: Response) {
+    const result = await this.auth.register(dto);
+    if ('verificationRequired' in result) return res.status(202).json(result);
+    return this.send(res, result);
+  }
   @UseGuards(AuthRateLimitGuard) @Post('login') async login(@Body() dto: LoginDto, @Res() res: Response) { return this.send(res, await this.auth.login(dto)); }
+  @UseGuards(AuthRateLimitGuard) @Post('password/forgot') forgotPassword(@Body() dto: ForgotPasswordDto) { return this.auth.forgotPassword(dto); }
+  @UseGuards(AuthRateLimitGuard) @Post('password/reset') resetPassword(@Body() dto: ResetPasswordDto) { return this.auth.resetPassword(dto); }
+  @UseGuards(AuthRateLimitGuard) @Post('verify-email') verifyEmail(@Body() dto: VerifyEmailDto) { return this.auth.verifyEmail(dto.token); }
+  @UseGuards(AuthRateLimitGuard) @Post('verify-email/resend') resendVerification(@Body() dto: ResendVerificationDto) { return this.auth.resendVerification(dto); }
   @UseGuards(AuthRateLimitGuard) @Post('refresh') async refresh(@Req() req: Request, @Res() res: Response) { return this.send(res, await this.auth.refresh(req.cookies?.[COOKIE])); }
   @Post('logout') async logout(@Req() req: Request, @Res() res: Response) {
     await this.auth.logout(req.cookies?.[COOKIE]);

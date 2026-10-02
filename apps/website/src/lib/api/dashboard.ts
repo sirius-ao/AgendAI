@@ -41,11 +41,17 @@ function savedRecords(state: DashboardState, schoolId: string): Record<Collectio
 
 export async function loadApiDashboard(user: ApiUser, schoolId: string) {
   const snapshot = await apiRequest<Snapshot>(`/schools/${encodeURIComponent(schoolId)}/dashboard`);
+  const teacherSubjects = await apiRequest<{ subjectIds: string[] }>(`/schools/${encodeURIComponent(schoolId)}/teachers/me/subjects`);
   const seed = createDashboardSeed();
   const data = fromRows(snapshot);
   const school = user.schools.find((item) => item.id === schoolId);
+  const teacherDirectory = school && ['OWNER', 'ADMIN', 'COORDINATOR'].includes(school.role)
+    ? await apiRequest<{ id: string; name: string }[]>(`/schools/${encodeURIComponent(schoolId)}/teachers/subjects`)
+    : [{ id: user.id, name: user.name }];
   const state: DashboardState = {
     ...seed,
+    teacherSubjectIds: teacherSubjects.subjectIds,
+    teacherDirectory,
     user: { id: user.id, name: user.name, email: user.email, role: roleName(school?.role || ''), avatar: '', phone: user.phone || '' },
     schools: user.schools.map((item) => ({ id: item.id, name: item.name, address: item.address || '', year: item.academicYear || '', role: roleName(item.role) })),
     activeSchoolId: schoolId,
@@ -72,12 +78,16 @@ export async function loadApiDashboard(user: ApiUser, schoolId: string) {
   };
   const index: RecordIndex = {};
   for (const collection of collections) index[collection] = new Map((snapshot.data[collection] || []).map((row) => [row.recordId, JSON.stringify(row.payload)]));
+  index.teacherSubjects = new Map([[user.id, JSON.stringify(teacherSubjects.subjectIds)]]);
   return { state, index, school: snapshot.school };
 }
 
-async function performSyncApiDashboard(state: DashboardState, schoolId: string, index: RecordIndex, previous: { name: string; address: string; academicYear: string }, user: { name: string; email: string; phone: string }) {
+async function performSyncApiDashboard(state: DashboardState, schoolId: string, index: RecordIndex, previous: { name: string; address: string; academicYear: string }, user: { id: string; name: string; email: string; phone: string }) {
   const values = savedRecords(state, schoolId);
   for (const collection of collections) {
+    // School preferences contain school-wide identity fields; the generic endpoint
+    // intentionally reserves them for administrators.
+    if (state.user.role === 'Professor' && collection === 'settings') continue;
     const oldRows = index[collection] || new Map<string, string>();
     const nextRows = new Map(values[collection].map((item) => [item.id, JSON.stringify(item.payload)]));
     const operations: (() => Promise<unknown>)[] = [];
@@ -87,6 +97,13 @@ async function performSyncApiDashboard(state: DashboardState, schoolId: string, 
     for (const id of oldRows.keys()) if (!nextRows.has(id)) operations.push(() => apiRequest(`/schools/${encodeURIComponent(schoolId)}/data/${collection}/${encodeURIComponent(id)}`, { method: 'DELETE' }));
     for (let offset = 0; offset < operations.length; offset += 8) await Promise.all(operations.slice(offset, offset + 8).map((operation) => operation()));
     index[collection] = nextRows;
+  }
+  const teacherSubjectIndex = index.teacherSubjects || new Map<string, string>();
+  const teacherSubjects = JSON.stringify(state.teacherSubjectIds || []);
+  if (teacherSubjectIndex.get(user.id) !== teacherSubjects) {
+    await apiRequest(`/schools/${encodeURIComponent(schoolId)}/teachers/me/subjects`, { method: 'PUT', body: JSON.stringify({ subjectIds: state.teacherSubjectIds || [] }) });
+    teacherSubjectIndex.set(user.id, teacherSubjects);
+    index.teacherSubjects = teacherSubjectIndex;
   }
   const schoolPatch = { name: state.settings.school, address: state.settings.address, academicYear: state.settings.year };
   if (schoolPatch.name !== previous.name || schoolPatch.address !== previous.address || schoolPatch.academicYear !== previous.academicYear) {
@@ -100,7 +117,7 @@ async function performSyncApiDashboard(state: DashboardState, schoolId: string, 
 }
 
 let syncQueue: Promise<void> = Promise.resolve();
-export function syncApiDashboard(state: DashboardState, schoolId: string, index: RecordIndex, previous: { name: string; address: string; academicYear: string }, user: { name: string; email: string; phone: string }) {
+export function syncApiDashboard(state: DashboardState, schoolId: string, index: RecordIndex, previous: { name: string; address: string; academicYear: string }, user: { id: string; name: string; email: string; phone: string }) {
   const result = syncQueue.then(() => performSyncApiDashboard(state, schoolId, index, previous, user));
   syncQueue = result.then(() => undefined, () => undefined);
   return result;

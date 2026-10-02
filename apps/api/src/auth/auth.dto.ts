@@ -17,3 +17,16 @@ export class UpdateProfileDto {
   @IsOptional() @IsString() @MinLength(2) @MaxLength(120) name?: string;
   @IsOptional() @IsString() @MaxLength(40) phone?: string;
 }
+export class ForgotPasswordDto {
+  @IsEmail() @MaxLength(254) email!: string;
+}
+export class ResetPasswordDto {
+  @IsString() @MinLength(40) @MaxLength(100) token!: string;
+  @IsString() @MinLength(10) @MaxLength(72) password!: string;
+}
+export class VerifyEmailDto {
+  @IsString() @MinLength(40) @MaxLength(100) token!: string;
+}
+export class ResendVerificationDto {
+  @IsEmail() @MaxLength(254) email!: string;
+}

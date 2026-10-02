@@ -83,6 +83,7 @@ function schoolView(raw: DashboardState): DashboardState {
 function mergeSchoolView(raw: DashboardState, next: DashboardState, schoolId: Id): DashboardState {
   const currentClasses = raw.classes.filter((schoolClass) => (schoolClass.schoolId || raw.schools?.[0]?.id) === schoolId);
   const classIds = new Set(currentClasses.map((schoolClass) => schoolClass.id));
+  const visibleAssessments = new Set(raw.assessments.filter((assessment) => classIds.has(assessment.classId)).map((assessment) => assessment.id));
   const merge = <T,>(all: T[], visible: T[], belongs: (item: T) => boolean): T[] => [
     ...all.filter((item) => !belongs(item)),
     ...visible,
@@ -151,7 +152,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const storageReadable = useRef(false);
   const serverRecords = useRef<RecordIndex>({});
   const serverSchool = useRef({ id: '', name: '', address: '', academicYear: '' });
-  const serverUser = useRef({ name: '', email: '', phone: '' });
+  const serverUser = useRef({ id: '', name: '', email: '', phone: '' });
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -165,7 +166,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           if (!active) return;
           serverRecords.current = loaded.index;
           serverSchool.current = { id: schoolId, name: loaded.school.name, address: loaded.school.address, academicYear: loaded.school.academicYear };
-          serverUser.current = { name: user.name, email: user.email, phone: user.phone || '' };
+          serverUser.current = { id: user.id, name: user.name, email: user.email, phone: user.phone || '' };
           setState(loaded.state);
           setReady(true);
         } catch (cause) {

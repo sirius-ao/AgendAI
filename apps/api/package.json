@@ -10,6 +10,7 @@
     "dev": "tsx watch src/main.ts",
     "build": "prisma generate && tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
+    "test": "tsx --test test/*.test.ts",
     "typecheck": "prisma generate && tsc --noEmit -p tsconfig.build.json",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

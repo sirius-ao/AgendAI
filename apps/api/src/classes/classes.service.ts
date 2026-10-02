@@ -3,13 +3,27 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { SchoolsService } from '../schools/schools.service.js';
 import type { CreateClassDto, CreateStudentDto, UpdateClassDto } from './classes.dto.js';
 import { AuditService } from '../audit/audit.service.js';
+import { DashboardCollection } from '../generated/prisma/enums.js';
+import { deriveTeacherScope } from '../dashboard-data/teacher-access.js';
 
 @Injectable()
 export class ClassesService {
   constructor(private readonly prisma: PrismaService, private readonly schools: SchoolsService, private readonly audit: AuditService) {}
+  private async canViewClass(userId: string, schoolId: string, classId: string) {
+    const [schoolClass, classRecords] = await Promise.all([
+      this.prisma.schoolClass.findFirst({ where: { id: classId, schoolId, archived: false }, include: { subjects: true } }),
+      this.prisma.dashboardRecord.findMany({ where: { schoolId, collection: DashboardCollection.CLASSES }, select: { recordId: true, payload: true } }),
+    ]);
+    const scope = deriveTeacherScope(userId, classRecords);
+    return scope.classIds.has(classId) && !!schoolClass?.subjects.some(({ subjectId }) => scope.subjectIds.has(subjectId));
+  }
   async list(userId: string, schoolId: string) {
-    await this.schools.assertMembership(userId, schoolId);
-    return this.prisma.schoolClass.findMany({ where: { schoolId, archived: false }, include: { _count: { select: { students: true } }, subjects: { include: { subject: true } } }, orderBy: [{ year: 'asc' }, { name: 'asc' }] });
+    const membership = await this.schools.assertMembership(userId, schoolId);
+    const rows = await this.prisma.schoolClass.findMany({ where: { schoolId, archived: false }, include: { _count: { select: { students: true } }, subjects: { include: { subject: true } } }, orderBy: [{ year: 'asc' }, { name: 'asc' }] });
+    if (membership.role !== 'TEACHER') return rows;
+    const classRecords = await this.prisma.dashboardRecord.findMany({ where: { schoolId, collection: DashboardCollection.CLASSES }, select: { recordId: true, payload: true } });
+    const scope = deriveTeacherScope(userId, classRecords);
+    return rows.filter((schoolClass) => scope.classIds.has(schoolClass.id) && schoolClass.subjects.some(({ subjectId }) => scope.subjectIds.has(subjectId)));
   }
   async create(userId: string, schoolId: string, dto: CreateClassDto) {
     const membership = await this.schools.assertMembership(userId, schoolId);
@@ -36,9 +50,10 @@ export class ClassesService {
     return { success: true };
   }
   async students(userId: string, schoolId: string, classId: string) {
-    await this.schools.assertMembership(userId, schoolId);
+    const membership = await this.schools.assertMembership(userId, schoolId);
     const schoolClass = await this.prisma.schoolClass.findFirst({ where: { id: classId, schoolId, archived: false } });
     if (!schoolClass) throw new NotFoundException('Turma não encontrada');
+    if (membership.role === 'TEACHER' && !(await this.canViewClass(userId, schoolId, classId))) throw new ForbiddenException('Não tem acesso a esta turma');
     return this.prisma.student.findMany({ where: { schoolId, classId }, orderBy: { name: 'asc' } });
   }
   async addStudent(userId: string, schoolId: string, classId: string, dto: CreateStudentDto) {

@@ -1,4 +1,36 @@
 services:
+  storage:
+    image: elestio/minio:latest
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-agendai-local}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-agendai-local-secret-change-me}
+    ports:
+      - '${S3_BIND_ADDRESS:-127.0.0.1}:${S3_PORT:-9000}:9000'
+      - '${S3_CONSOLE_BIND_ADDRESS:-127.0.0.1}:${S3_CONSOLE_PORT:-9001}:9001'
+    volumes:
+      - agendai-files:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+    init: true
+
+  storage-init:
+    image: minio/mc:latest
+    depends_on:
+      storage:
+        condition: service_healthy
+    entrypoint: ['/bin/sh', '-c']
+    command: ['mc alias set local http://storage:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" && mc mb --ignore-existing local/$${S3_BUCKET} && mc anonymous set none local/$${S3_BUCKET}']
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-agendai-local}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-agendai-local-secret-change-me}
+      S3_BUCKET: ${S3_BUCKET:-agendai-local}
+    restart: 'no'
+
   database:
     image: postgres:17-alpine
     environment:
@@ -28,12 +60,25 @@ services:
       NODE_ENV: production
       PORT: '3001'
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-}
+      REQUIRE_EMAIL_CONFIG: ${REQUIRE_EMAIL_CONFIG:-true}
       TRUST_PROXY: ${TRUST_PROXY:-false}
       DATABASE_URL: postgresql://agendai:${POSTGRES_PASSWORD:-agendai-local}@database:5432/agendai?schema=public
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Define JWT_ACCESS_SECRET com pelo menos 32 caracteres}
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://storage:9000}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+      S3_BUCKET: ${S3_BUCKET:-agendai-local}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-agendai-local}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-agendai-local-secret-change-me}
     depends_on:
       database:
         condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
     restart: unless-stopped
     init: true
 
@@ -60,3 +105,4 @@ services:
 
 volumes:
   agendai-postgres:
+  agendai-files:

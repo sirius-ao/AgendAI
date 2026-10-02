@@ -9,7 +9,7 @@ export function syncPlanEvent(state: DashboardState, plan: LessonPlan, eventId?:
   const date = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
   return [...state.events.filter((event) => event.sourceId !== plan.id && event.id !== previous?.id), {
     id: previous?.id || `event-${plan.id}`, title: plan.title, description: plan.objectives,
-    type: 'Aula', category: 'Escolar', classId: plan.classId, subjectId: plan.subjectId,
+    type: 'Aula', category: 'Escolar', classId: plan.classId, subjectId: plan.subjectId, teacherId: plan.teacherId,
     date: plan.date, endDate: date, start,
     end: `${String(Math.floor(finish / 60) % 24).padStart(2, '0')}:${String(finish % 60).padStart(2, '0')}`,
     allDay: false, location: state.classes.find((c) => c.id === plan.classId)?.room || '',

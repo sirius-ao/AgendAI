@@ -1,14 +1,17 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SchoolsService } from '../schools/schools.service.js';
 import type { ChangeMemberRoleDto, InviteMemberDto } from './members.dto.js';
 import { AuditService } from '../audit/audit.service.js';
+import { EmailService } from '../auth/email.service.js';
 const digest = (token: string) => createHash('sha256').update(token).digest('hex');
+const roleLabel = (role: string) => ({ ADMIN: 'administrador', COORDINATOR: 'coordenador', TEACHER: 'professor' } as Record<string, string>)[role] || role;
 
 @Injectable()
 export class MembersService {
-  constructor(private readonly prisma: PrismaService, private readonly schools: SchoolsService, private readonly audit: AuditService) {}
+  private readonly logger = new Logger(MembersService.name);
+  constructor(private readonly prisma: PrismaService, private readonly schools: SchoolsService, private readonly audit: AuditService, private readonly email: EmailService) {}
   async list(userId: string, schoolId: string) {
     const actor = await this.schools.assertMembership(userId, schoolId);
     if (actor.role === 'TEACHER') throw new ForbiddenException('Apenas a administração pode gerir membros');
@@ -23,7 +26,15 @@ export class MembersService {
     const token = randomBytes(36).toString('base64url');
     const invitation = await this.prisma.schoolInvitation.create({ data: { schoolId, createdById: userId, email, role: dto.role, tokenHash: digest(token), expiresAt: new Date(Date.now() + 7 * 86400_000) } });
     await this.audit.write({ schoolId, actorId: userId, action: 'INVITE', entity: 'member', recordId: invitation.id, details: { email, role: dto.role } });
-    return { id: invitation.id, email, role: invitation.role, expiresAt: invitation.expiresAt, invitationToken: token };
+    let emailSent = false;
+    try {
+      const school = await this.prisma.school.findUniqueOrThrow({ where: { id: schoolId }, select: { name: true } });
+      await this.email.sendInvitation(email, school.name, roleLabel(dto.role), token);
+      emailSent = true;
+    } catch (error) {
+      this.logger.error(`Invitation email delivery failed: ${error instanceof Error ? error.message : 'unknown error'}`);
+    }
+    return { id: invitation.id, email, role: invitation.role, expiresAt: invitation.expiresAt, invitationToken: token, emailSent };
   }
   async invitations(userId: string, schoolId: string) {
     const actor = await this.schools.assertMembership(userId, schoolId);

@@ -25,8 +25,8 @@ export const plans = [
     subtitle: 'Mais produtividade para si',
     price: 3500,
     description: 'Tudo o que precisa para planificar, registar e avaliar sem limites.',
-    cta: 'Escolher plano',
-    href: '/comecar?plano=pro',
+    cta: 'Tenho interesse',
+    href: '/contacto?plano=pro',
     features: [
       'Escolas ilimitadas',
       'Turmas ilimitadas',
