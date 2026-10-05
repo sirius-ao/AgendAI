@@ -62,6 +62,19 @@ export class EmailService {
       renderBrandedEmail({ siteUrl: this.siteUrl, preheader: 'Confirme o seu endereço para ativar a sua conta AgendAKI.', title: 'Confirme o seu email', content }));
   }
 
+  async sendWelcome(email: string, name: string) {
+    const link = new URL('/entrar', this.siteUrl);
+    const text = `Olá ${name},\n\nO seu endereço de email foi confirmado e a sua conta AgendAKI está ativa.\n\nEntre na sua conta para começar a organizar o seu trabalho: ${link}\n\nEstamos aqui para ajudar a planear hoje e ensinar melhor.`;
+    const content = [
+      emailParagraph(`Olá ${escapeEmailHtml(name)},`),
+      emailParagraph('O seu endereço de email foi confirmado e a sua conta AgendAKI está ativa.'),
+      emailParagraph('Pode agora entrar e começar a organizar o seu trabalho como professor.'),
+      emailButton('Aceder à minha conta', link.toString()),
+    ].join('');
+    await this.deliver(email, 'Bem-vindo ao AgendAKI', text,
+      renderBrandedEmail({ siteUrl: this.siteUrl, preheader: 'A sua conta está confirmada. Já pode começar a usar o AgendAKI.', title: 'Bem-vindo ao AgendAKI', content }));
+  }
+
   async sendContact(input: { name: string; email: string; school: string; message: string; plan?: string }) {
     const to = process.env.CONTACT_EMAIL;
     if (!to) throw new ServiceUnavailableException('O canal de contacto não está configurado');
