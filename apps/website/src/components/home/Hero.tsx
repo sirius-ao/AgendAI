@@ -8,7 +8,7 @@ export function Hero() {
     <section className="home-hero">
       <div className="hero-photo">
         <Image
-          src="/images/home/hero-teacher.webp"
+          src="/images/home/hero-teacher.jpg"
           alt="Professora com um tablet numa sala de aula"
           fill
           priority
@@ -27,7 +27,7 @@ export function Hero() {
             importa: <span>ensinar.</span>
           </h1>
           <p>
-            Com o AgendAI, professores criam planos de aula,
+            Com o AgendAKI, professores criam planos de aula,
             <br className="desktop-break" /> registam presenças e acompanham as avaliações
             <br className="desktop-break" /> dos seus alunos — de forma simples, rápida e
             organizada.

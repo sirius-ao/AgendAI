@@ -16,7 +16,7 @@ const subscribeCompact = (callback: () => void) => {
   return () => media.removeEventListener('change', callback);
 };
 export function DashboardShell({ children }: { children: ReactNode }) {
-  const { state, ready, error, clearError, update, selectSchool, apiMode } = useDashboard();
+  const { state, ready, update, selectSchool, apiMode } = useDashboard();
   const compact = useSyncExternalStore(subscribeCompact, () => window.matchMedia('(max-width: 950px)').matches, () => false);
   const collapsed = state.settings.sidebarCollapsed ?? compact;
   const pathname = usePathname();
@@ -83,10 +83,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   return (
     <div className={`dash-app dash-theme-${state.settings.theme} ${collapsed ? 'sidebar-collapsed' : 'sidebar-expanded'}`}>
       <aside id="dashboard-sidebar" className={`dash-sidebar ${menu ? 'is-open' : ''}`}>
-        <Link href="/dashboard" className="dash-logo" aria-label="AgendAI — Início">
+        <Link href="/dashboard" className="dash-logo" aria-label="AgendAKI — Início">
           <BookOpen />
           <span>
-            Agend<span>AI</span>
+            Agend<span>AKI</span>
             <small>Planear hoje. Ensinar melhor.</small>
           </span>
         </Link>
@@ -117,7 +117,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="dash-pro">
           <strong>
-            <Crown /> AgendAI Pro
+            <Crown /> AgendAKI Pro
           </strong>
           <p>
             Mais recursos.
@@ -154,7 +154,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           >
             <Menu />
           </button>
-          <button className="dash-global-search" onClick={() => setSearch(true)}>
+          <button className="dash-global-search" aria-label="Pesquisar turmas, planos e alunos" onClick={() => setSearch(true)}>
             <Search size={18} />
             <span>Pesquisar turmas, planos, alunos...</span>
             <kbd>Ctrl + K</kbd>
@@ -217,12 +217,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </header>
         <main id="main" className="dash-main" key={state.activeSchoolId}>
           <ConnectionStatus />
-          {error && (
-            <div className="dash-error" role="alert">
-              {error}
-              <button onClick={clearError}>Fechar</button>
-            </div>
-          )}
           {ready ? (
             children
           ) : (
@@ -234,7 +228,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         <footer className="dash-footer">
           <span>
             <strong>
-              Agend<span>AI</span>
+              Agend<span>AKI</span>
             </strong>
             　|　Planear hoje. Ensinar melhor.
           </span>
@@ -248,7 +242,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       </div>
       {search && (
         <Modal
-          title="Pesquisar no AgendAI"
+          title="Pesquisar no AgendAKI"
           onClose={() => setSearch(false)}
           className="dash-dialog-small"
         >

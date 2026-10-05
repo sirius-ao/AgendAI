@@ -19,7 +19,7 @@ Para executar os testes unitários das regras de acesso: `pnpm test:api`.
 
 Defina `JWT_ACCESS_SECRET` como uma string aleatória de pelo menos 32 caracteres em `apps/api/.env`. A API fica em `http://localhost:3001/api/v1`; `WEB_ORIGIN` deve corresponder exatamente à origem do frontend. `NEXT_PUBLIC_API_URL` configura a URL pública usada pelo navegador e, no desenvolvimento local, usa `http://localhost:3001/api/v1`. `GET /api/v1/health` confirma que o processo responde.
 
-Para executar os três serviços em Docker, defina `JWT_ACCESS_SECRET` no ambiente e execute `docker compose up --build -d`. A API aplica as migrações pendentes ao iniciar. `POSTGRES_PASSWORD` pode substituir a palavra-passe local predefinida; configure valores fortes antes de qualquer publicação.
+Para executar a stack completa em Docker, copie `.env.example` para `.env`, defina `JWT_ACCESS_SECRET` e execute `docker compose up --build -d --wait`. A API aplica as migrações pendentes ao iniciar. `POSTGRES_PASSWORD` pode substituir a palavra-passe local predefinida; configure valores fortes antes de qualquer publicação.
 
 O Compose também inicia MinIO com bucket privado persistente (`agendai-local`). Para anexos na API autenticada, configure `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY` e `S3_SECRET_KEY`. Em Docker, `S3_ENDPOINT` é o endereço acessível pela API (`http://storage:9000`) e `S3_PUBLIC_ENDPOINT` é o endereço acessível pelo navegador (`http://localhost:9000` localmente). Em produção, use credenciais fortes, bucket privado, TLS e um endpoint público S3 compatível; nunca exponha as credenciais no frontend. Mantenha backups do volume MinIO e da base de dados.
 

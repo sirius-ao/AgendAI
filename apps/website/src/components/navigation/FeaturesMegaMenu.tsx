@@ -62,7 +62,7 @@ export function FeaturesMegaMenu({
       </div>
       <div className="mega-bottom">
         <div className="audiences">
-          <p className="eyebrow">Para quem é o AgendAI?</p>
+          <p className="eyebrow">Para quem é o AgendAKI?</p>
           <div>
             {[
               {

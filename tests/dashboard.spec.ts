@@ -20,7 +20,7 @@ test('dashboard: páginas, imagens, navegação responsiva e pesquisa por teclad
   fs.mkdirSync('artifacts/dashboard', { recursive: true });
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  for (const width of [1536, 1024, 768, 390, 375]) {
+  for (const width of [1536, 1024, 768, 390, 375, 320]) {
     await page.setViewportSize({ width, height: width === 1536 ? 1024 : 844 });
     for (const route of routes) {
       expect((await page.goto(`/dashboard${route ? '/' + route : ''}`))?.status()).toBe(200);
@@ -65,12 +65,15 @@ test('dashboard: páginas, imagens, navegação responsiva e pesquisa por teclad
 test('editar plano preserva os seus atributos e criar turma liga a conversa', async ({ page }) => {
   await page.goto('/dashboard/planos-de-aula');
   await page
-    .getByRole('button', { name: /Funções do 2º grau Introdução/ })
-    .first()
+    .locator('.dash-table tbody tr')
+    .filter({ hasText: 'Funções do 2º grau' })
+    .getByRole('button', { name: 'Abrir', exact: true })
     .click();
   await page.getByRole('dialog').getByRole('button', { name: 'Editar plano', exact: true }).click();
   await page.getByRole('dialog').getByLabel('Título da aula').fill('Plano editado E2E');
   await page.getByRole('dialog').getByRole('button', { name: 'Guardar alterações' }).click();
+  await expect(page.getByRole('dialog')).toContainText('Plano e calendário atualizados');
+  await page.getByRole('dialog').getByRole('button', { name: 'Continuar nos planos' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const stored = await page.evaluate(() =>
     JSON.parse(localStorage.getItem('agendai-dashboard-demo-v1')!).state.plans.find(
@@ -88,19 +91,42 @@ test('editar plano preserva os seus atributos e criar turma liga a conversa', as
   await page.goto('/dashboard/turmas');
   await page.getByRole('button', { name: 'Nova turma' }).click();
   await page.getByLabel('Nome da turma').fill('Turma integrada E2E');
+  await page.getByRole('dialog').getByRole('checkbox').first().check();
   await page.getByRole('dialog').getByRole('button', { name: 'Guardar', exact: true }).click();
   const card = page
     .locator('.dash-class-grid .dash-panel')
     .filter({ hasText: 'Turma integrada E2E' });
-  await card.getByRole('link', { name: 'Ver turma' }).click();
+  await card.getByRole('link', { name: /Abrir turma/ }).click();
   await page.getByRole('link', { name: 'Enviar mensagem à turma' }).click();
   await expect(page.locator('.dash-chat-panel h2')).toHaveText('Turma integrada E2E');
+});
+
+test('importação em massa valida, deteta repetidos e confirma os alunos selecionados', async ({ page }) => {
+  await page.goto('/dashboard/turmas/10a');
+  await page.getByRole('button', { name: 'Adicionar alunos' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: 'alunos.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('Nome,Contacto\nAluno de Importação E2E,923123456\nAndré Manuel,923000000\n,923999999\n'),
+  });
+  await expect(dialog.locator('.dash-import-summary')).toContainText('1 selecionados');
+  await expect(dialog.locator('.dash-import-summary')).toContainText('1 repetidos');
+  await expect(dialog.locator('.dash-import-summary')).toContainText('1 com erros');
+  await dialog.getByRole('checkbox', { name: 'Importar aluno da linha 3' }).check();
+  await dialog.getByRole('checkbox', { name: /Confirmo que os nomes repetidos/ }).check();
+  await dialog.getByRole('button', { name: 'Importar 2 alunos' }).click();
+  await expect(dialog).toContainText('2 alunos adicionados');
+  await expect(dialog).toContainText('0 ignorados · 1 com erros');
+  await dialog.getByRole('button', { name: 'Concluir' }).click();
+  await page.getByRole('button', { name: 'Alunos', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Aluno de Importação E2E/ })).toBeVisible();
 });
 
 test('modais em telemóvel e recuperação explícita de armazenamento inválido', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   for (const [route, button] of [
-    ['planos-de-aula', 'Novo plano de aula'],
+    ['planos-de-aula', 'Novo plano'],
     ['avaliacoes', 'Nova avaliação'],
     ['calendario', 'Novo evento'],
   ]) {
@@ -115,13 +141,15 @@ test('modais em telemóvel e recuperação explícita de armazenamento inválido
   }
   await page.evaluate(() => localStorage.setItem('agendai-dashboard-demo-v1', 'invalid-json'));
   await page.goto('/dashboard/configuracoes');
-  await expect(page.locator('.dash-error')).toContainText('Não foi possível recuperar');
+  await expect(page.locator('.dash-error[role="alert"]')).toContainText(
+    'Não foi possível recuperar',
+  );
   expect(await page.evaluate(() => localStorage.getItem('agendai-dashboard-demo-v1'))).toBe(
     'invalid-json',
   );
   await page.getByRole('button', { name: 'Repor dados de demonstração' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Confirmar', exact: true }).click();
-  await expect(page.locator('.dash-error')).toHaveCount(0);
+  await expect(page.locator('.dash-error[role="alert"]')).toHaveCount(0);
   expect(
     await page.evaluate(
       () => JSON.parse(localStorage.getItem('agendai-dashboard-demo-v1')!).state.classes.length,
@@ -133,7 +161,7 @@ test('criação de plano, avaliação e evento; persistência e integração no 
 }) => {
   await page.setViewportSize({ width: 1536, height: 1024 });
   await page.goto('/dashboard/planos-de-aula');
-  await page.getByRole('button', { name: 'Novo plano de aula', exact: true }).click();
+  await page.getByRole('button', { name: 'Novo plano', exact: true }).click();
   let dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await page.screenshot({ path: 'artifacts/dashboard/modal-plano.png', fullPage: true });

@@ -45,7 +45,8 @@ O mesmo container serve o website público e todas as rotas `/dashboard`. Depois
 ## Testar Docker localmente
 
 ```sh
-cp apps/api/.env.example .env
+cp .env.example .env
+docker compose config --quiet
 docker compose up --build -d
 docker compose ps
 docker compose logs -f website

@@ -11,7 +11,7 @@ export function NewsletterAction({ mode, token }: { mode: 'confirm' | 'cancel'; 
   const [busy, setBusy] = useState(false);
   return (
     <section className="access-page container">
-      <div className="access-copy"><p className="eyebrow">Newsletter AgendAI</p><h1>{mode === 'confirm' ? <>Confirme a sua<br /><span>subscrição.</span></> : <>Cancele a sua<br /><span>subscrição.</span></>}</h1><p>Gerimos as suas preferências de email com o seu consentimento.</p></div>
+      <div className="access-copy"><p className="eyebrow">Newsletter AgendAKI</p><h1>{mode === 'confirm' ? <>Confirme a sua<br /><span>subscrição.</span></> : <>Cancele a sua<br /><span>subscrição.</span></>}</h1><p>Gerimos as suas preferências de email com o seu consentimento.</p></div>
       <div className="card access-card">
         <h2>{mode === 'confirm' ? 'Quer receber os nossos artigos?' : 'Deixar de receber a newsletter?'}</h2>
         <p>{mode === 'confirm' ? 'Confirme para ativar a subscrição.' : 'Pode voltar a subscrever a qualquer momento.'}</p>

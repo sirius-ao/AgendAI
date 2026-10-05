@@ -249,6 +249,8 @@ model DashboardRecord {
   schoolId   String             @db.Uuid
   collection DashboardCollection
   recordId   String             @db.VarChar(120)
+  // Kept as the canonical write/read representation while DashboardValue is indexed for search.
+  payload    Json
   createdById String            @db.Uuid
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt

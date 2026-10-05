@@ -5,12 +5,12 @@ export function Logo({ compact = false }: { compact?: boolean }) {
     <Link
       href="/"
       className={`logo ${compact ? 'logo-compact' : ''}`}
-      aria-label="AgendAI — Início"
+      aria-label="AgendAKI — Início"
     >
       <BookOpen strokeWidth={1.7} />
       <span>
         <span className="logo-name">
-          Agend<span>AI</span>
+          Agend<span>AKI</span>
         </span>
         {!compact && <span className="tagline">Planear hoje. Ensinar melhor.</span>}
       </span>

@@ -1,4 +1,4 @@
-# Dashboard AgendAI
+# Dashboard AgendAKI
 
 ## Integração no projeto existente
 
@@ -116,7 +116,7 @@ CSV abre em Excel; PDF usa a impressão do navegador. Não há geração binári
 Treze recortes WebP em `public/images/dashboard/`: 5 avatares das referências 10/11 e 8 fotografias de materiais da referência 9. `scripts/crop-dashboard-assets.py` regista origem e coordenadas. Os recortes excluem etiquetas, botões e restante interface. Tabelas, documentos, gráficos, layouts e formulários são componentes, não screenshots completas.
 
 ```sh
-python scripts/crop-dashboard-assets.py "C:/caminho/Dashboard AgendAI"
+python scripts/crop-dashboard-assets.py "C:/caminho/Dashboard AgendAKI"
 ```
 
 ## Validação e deployment

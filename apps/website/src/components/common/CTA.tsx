@@ -19,7 +19,7 @@ export function CTA({ schools = false, blog = false }: { schools?: boolean; blog
           </p>
           <h2>
             {schools
-              ? 'Leve o AgendAI para a sua instituição.'
+              ? 'Leve o AgendAKI para a sua instituição.'
               : blog
                 ? 'Conteúdo hoje. Melhores aulas amanhã.'
                 : 'Mais organização. Melhores aulas. Novas possibilidades.'}
@@ -29,7 +29,7 @@ export function CTA({ schools = false, blog = false }: { schools?: boolean; blog
               ? 'Conheça a proposta e descubra como podemos ajudar.'
               : blog
                 ? 'Acompanhe o nosso blog e faça parte desta comunidade de professores.'
-                : 'Descubra como o AgendAI pode transformar a sua rotina.'}
+                : 'Descubra como o AgendAKI pode transformar a sua rotina.'}
           </p>
         </div>
         <div>

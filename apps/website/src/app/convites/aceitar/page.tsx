@@ -19,5 +19,5 @@ export default function AcceptInvitationPage() {
       .then(() => setStatus('Convite aceite. Já pode abrir o dashboard da escola.'))
       .catch((error) => setStatus(error instanceof Error ? error.message : 'Não foi possível aceitar o convite.'));
   }, []);
-  return <main className="access-page container"><section className="card access-card"><h1>Convite para uma escola</h1><p role="status">{status}</p>{links && <div className="dash-form-actions"><Link className="dash-btn" href={links.login}>Entrar</Link><Link className="dash-btn secondary" href={links.register}>Criar conta</Link></div>}<Link href="/">Voltar ao AgendAI</Link></section></main>;
+  return <main className="access-page container"><section className="card access-card"><h1>Convite para uma escola</h1><p role="status">{status}</p>{links && <div className="dash-form-actions"><Link className="dash-btn" href={links.login}>Entrar</Link><Link className="dash-btn secondary" href={links.register}>Criar conta</Link></div>}<Link href="/">Voltar ao AgendAKI</Link></section></main>;
 }

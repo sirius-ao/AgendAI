@@ -31,13 +31,13 @@ type Context = {
   state: DashboardState;
   ready: boolean;
   error: string;
+  syncStatus: 'syncing' | 'synced' | 'error';
   update: (fn: (state: DashboardState) => DashboardState) => void;
   notify: (message: string) => void;
   modal: ModalRequest;
   openModal: (modal: ModalRequest) => void;
   reset: () => void;
   selectSchool: (id: Id) => void;
-  clearError: () => void;
   apiMode: boolean;
 };
 const DashboardContext = createContext<Context | null>(null);
@@ -145,6 +145,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DashboardState>(createDashboardSeed);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
+  const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'error'>('syncing');
   const [apiMode, setApiMode] = useState(false);
   const [toast, setToast] = useState('');
   const [modal, openModal] = useState<ModalRequest>(null);
@@ -158,6 +159,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     const load = async () => {
       if (hasApiSession()) {
         setApiMode(true);
+        setSyncStatus('syncing');
         try {
           const user = await apiMe();
           if (!user.schools.length) throw new Error('A sua conta ainda não pertence a uma escola.');
@@ -168,17 +170,20 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           serverSchool.current = { id: schoolId, name: loaded.school.name, address: loaded.school.address, academicYear: loaded.school.academicYear };
           serverUser.current = { id: user.id, name: user.name, email: user.email, phone: user.phone || '' };
           setState(loaded.state);
+          setSyncStatus('synced');
           setReady(true);
         } catch (cause) {
           if (!active) return;
           const empty = createDashboardSeed();
           setState({ ...empty, subjects: [], classes: [], students: [], plans: [], attendance: [], assessments: [], events: [], resources: [], library: [], folders: [], reports: [], conversations: [], tasks: [], schools: [], activeSchoolId: undefined });
           setError(cause instanceof Error ? cause.message : 'Não foi possível carregar os dados da conta.');
+          setSyncStatus('error');
           setReady(true);
         }
         return;
       }
-      if (!active) return;
+    if (!active) return;
+      setSyncStatus('synced');
       try {
         setState(localDashboardRepository.load());
         storageReadable.current = true;
@@ -201,10 +206,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       const schoolId = serverSchool.current.id;
       if (!schoolId) return;
       const current = state;
+      setSyncStatus('syncing');
       const timerId = setTimeout(() => {
         void syncApiDashboard(current, schoolId, serverRecords.current, serverSchool.current, serverUser.current)
-          .then(() => setError(''))
-          .catch((cause) => setError(cause instanceof Error ? `Não foi possível sincronizar: ${cause.message}` : 'Não foi possível sincronizar com o servidor.'));
+          .then(() => { setError(''); setSyncStatus('synced'); })
+          .catch((cause) => { setError(cause instanceof Error ? cause.message : 'Não foi possível sincronizar com o servidor.'); setSyncStatus('error'); });
       }, 450);
       return () => clearTimeout(timerId);
     }
@@ -232,12 +238,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }), []);
   const selectSchool = useCallback((id: Id) => {
     if (!apiMode) { setState((raw) => raw.schools?.some((school) => school.id === id) ? { ...raw, activeSchoolId: id } : raw); return; }
+    setSyncStatus('syncing');
     void apiMe().then((user) => loadApiDashboard(user, id)).then((loaded) => {
       serverRecords.current = loaded.index;
       serverSchool.current = { id, name: loaded.school.name, address: loaded.school.address, academicYear: loaded.school.academicYear };
       setState(loaded.state);
       setError('');
-    }).catch((cause) => setError(cause instanceof Error ? cause.message : 'Não foi possível mudar de escola.'));
+      setSyncStatus('synced');
+    }).catch((cause) => { setError(cause instanceof Error ? cause.message : 'Não foi possível mudar de escola.'); setSyncStatus('error'); });
   }, [apiMode]);
   const notify = useCallback((message: string) => {
     setToast(message);
@@ -267,13 +275,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         state: schoolView(state),
         ready,
         error,
+        syncStatus,
         update,
         notify,
         modal,
         openModal,
         reset,
         selectSchool,
-        clearError: () => setError(''),
         apiMode,
       }}
     >

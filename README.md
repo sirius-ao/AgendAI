@@ -1,4 +1,4 @@
-# AgendAI
+# AgendAKI
 
 Website e dashboard em português para professores e escolas, reconstruídos em componentes React a partir das referências fornecidas. O website público foi preservado e o dashboard foi integrado no mesmo app e container.
 
@@ -23,11 +23,17 @@ pnpm --filter @agendai/website start
 O repositório inclui `Dockerfile` multi-stage, `.dockerignore`, `docker-compose.yml` e `/health`. O Next.js produz um servidor `standalone` para a imagem de produção.
 
 ```sh
-cp apps/api/.env.example .env
-docker compose up --build -d
+cp .env.example .env
+# Definir JWT_ACCESS_SECRET em .env (gerar com openssl rand -hex 32).
+docker compose config --quiet
+docker compose up --build -d --wait
 ```
 
-O ficheiro `.env` fornece o segredo de desenvolvimento exigido pela API. Troque-o por um segredo aleatório próprio antes de publicar. Para executar só a API e a base de dados localmente, consulte [docs/api.md](docs/api.md).
+O ficheiro `.env.example` reúne as variáveis da stack e um placeholder para o segredo exigido pela API. Troque-o por um segredo aleatório próprio antes de publicar. Para executar só a API e a base de dados localmente, consulte [docs/api.md](docs/api.md).
+
+Os serviços publicados ficam em `127.0.0.1` por omissão. Para acesso remoto, configure `API_BIND_ADDRESS` e `WEBSITE_BIND_ADDRESS` (por exemplo, `0.0.0.0`), bem como as URLs públicas e `WEB_ORIGIN`. Alterações a `NEXT_PUBLIC_API_URL` ou `NEXT_PUBLIC_SITE_URL` exigem novo build do website.
+
+A API aguarda pelo PostgreSQL saudável e pela criação do bucket; o website aguarda pela API saudável. As imagens de runtime ficam fixadas no `.env.example` para tornar os deploys reproduzíveis. Os logs rodam em três ficheiros de até 10 MB por container. Use `docker compose ps` e `docker compose logs --tail=100 api storage-init` para diagnosticar o arranque. `docker compose down` mantém os volumes; adicionar `-v` elimina a base de dados e os anexos.
 
 Com a stack Compose ativa, `scripts/backup-database.sh` e `scripts/backup-storage.sh` criam cópias da base de dados e dos anexos. Configure o cliente `mc`, agende os scripts e use um destino fora do servidor; instruções em [docs/api.md](docs/api.md).
 
@@ -71,7 +77,7 @@ Os tokens de cor, tipografia, espaçamento, largura e raio estão em `apps/websi
 - Preços centralizados em `src/data/plans.ts`; a proposta anual aplica 20% de desconto e apresenta o total faturado anualmente. Valores e condições são explicitamente ilustrativos.
 - FAQ nativa e comparação de planos expansível.
 - Blog com pesquisa sem distinção de acentos, filtros, paginação local, categorias com contagens reais e oito artigos demonstrativos. Os dados tipados podem ser substituídos por uma integração CMS futura.
-- Dashboards e documentos reconstruídos em HTML/CSS. Os números pertencem à escola de demonstração; não são métricas públicas do AgendAI.
+- Dashboards e documentos reconstruídos em HTML/CSS. Os números pertencem à escola de demonstração; não são métricas públicas do AgendAKI.
 - Os testemunhos fictícios foram substituídos por mensagens institucionais sem atribuição a clientes.
 - `/entrar` e `/comecar` autenticam pela API. `/contacto` envia pedidos para `CONTACT_EMAIL`; a newsletter exige consentimento e confirmação por email, com cancelamento por ligação.
 - Ícones sociais apresentados como “em breve”, sem URLs inventados. Inserir os endereços oficiais antes de disponibilizar ligações.

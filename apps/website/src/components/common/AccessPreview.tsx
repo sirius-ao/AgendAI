@@ -55,7 +55,7 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
               ? 'Bem-vindo de volta.'
               : 'O seu próximo plano começa aqui.'}
         </h2>
-        <p>{contact ? 'Prepare uma mensagem para a equipa AgendAI.' : login ? 'Entre na sua conta AgendAI.' : 'Crie a conta da sua escola e comece a organizar o trabalho.'}</p>
+        <p>{contact ? 'Prepare uma mensagem para a equipa AgendAKI.' : login ? 'Entre na sua conta AgendAKI.' : 'Crie a conta da sua escola e comece a organizar o trabalho.'}</p>
         {contact && selectedPlan && <div className="form-notice">Interesse no plano: {planLabels[selectedPlan] || selectedPlan}</div>}
         <form
           onSubmit={async (e) => {
@@ -69,7 +69,7 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
               if (contact) {
                 await apiContact({ name: String(data.get('name')), email: String(data.get('email')), school: String(data.get('school') || ''), plan: planLabels[selectedPlan] || selectedPlan, message: String(data.get('message')) });
                 formElement.reset();
-                setMessage('Mensagem enviada. A equipa AgendAI entrará em contacto consigo.');
+                setMessage('Mensagem enviada. A equipa AgendAKI entrará em contacto consigo.');
               } else if (login) {
                 await apiLogin(String(data.get('email')), String(data.get('password')));
                 if (inviteToken) await apiRequest('/invitations/accept', { method: 'POST', body: JSON.stringify({ token: inviteToken }) });

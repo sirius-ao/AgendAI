@@ -1,12 +1,12 @@
 import { pageMetadata } from '@/lib/site';
-export const metadata = pageMetadata('Termos', 'Âmbito da demonstração do AgendAI.', '/termos');
+export const metadata = pageMetadata('Termos', 'Âmbito da demonstração do AgendAKI.', '/termos');
 export default function Terms() {
   return (
     <article className="article-page container">
       <p className="eyebrow">Website de demonstração</p>
       <h1>Sobre esta versão</h1>
       <p>
-        O website apresenta a proposta do AgendAI e disponibiliza uma demonstração local e um
+        O website apresenta a proposta do AgendAKI e disponibiliza uma demonstração local e um
         serviço autenticado. A demonstração guarda dados fictícios neste navegador. As contas
         autenticadas sincronizam dados com o servidor; não introduza dados reais de alunos enquanto
         os controlos e documentos do serviço não estiverem aprovados para esse uso.

@@ -46,7 +46,7 @@ export function SchoolBenefits() {
       <section className="school-benefits">
         <div>
           <SectionHeader
-            eyebrow="Porquê escolher o AgendAI?"
+            eyebrow="Porquê escolher o AgendAKI?"
             title={
               <>
                 Soluções pensadas

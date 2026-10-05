@@ -20,7 +20,7 @@ As referências `2.png` e `3.png` foram usadas para a reconstrução do mega men
 
 ## Dashboard
 
-As referências numeradas abaixo pertencem à pasta **Dashboard AgendAI**, distinta das cinco referências do website público. Recortes reproduzíveis em `scripts/crop-dashboard-assets.py`.
+As referências numeradas abaixo pertencem à pasta **Dashboard AgendAKI**, distinta das cinco referências do website público. Recortes reproduzíveis em `scripts/crop-dashboard-assets.py`.
 
 | Assets em `public/images/dashboard/`                                                               | Referência | Região                                   |
 | -------------------------------------------------------------------------------------------------- | ---------- | ---------------------------------------- |
