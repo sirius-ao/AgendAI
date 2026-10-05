@@ -20,11 +20,11 @@ Criar uma aplicação a partir do repositório Git e selecionar **Dockerfile** c
 
 ## Variável obrigatória para SEO de produção
 
-No Coolify, definir `NEXT_PUBLIC_SITE_URL` com a origem pública completa, por exemplo `https://o-seu-dominio.ao`, sem barra final, e `NEXT_PUBLIC_API_URL` com a URL pública da API, terminada em `/api/v1`. Estes endereços são exemplos; usar os domínios reais do projeto.
+No Coolify, definir `NEXT_PUBLIC_SITE_URL` com a origem pública completa, por exemplo `https://o-seu-dominio.ao`, sem barra final. O website chama a API em `/api/v1` no mesmo domínio; o Next.js encaminha estas chamadas ao serviço `api` pela rede interna do Compose, sem expor um endereço local no browser.
 
-Para o domínio atual do AgendAKI, usar `https://www.agendaki.net` em `NEXT_PUBLIC_SITE_URL` e `WEB_ORIGIN`. Nunca usar `localhost` nessas variáveis em produção. No Compose, o website usa a porta interna `3000` e publica por omissão a porta do host `3003` (`WEBSITE_PORT=3003`), pois a `3000` já está ocupada neste servidor. A API usa a porta interna `3001` e publica a `3002` (`API_PORT=3002`). A URL configurada em `NEXT_PUBLIC_API_URL` tem de ser uma URL HTTPS pública alcançável pelo navegador (por exemplo `https://api.agendaki.net/api/v1`, depois de configurar o domínio e o proxy do Coolify para a API); `http://localhost:3002/api/v1` só serve para acesso local e será bloqueada pelo navegador numa página HTTPS.
+Para o domínio atual do AgendAKI, usar `https://www.agendaki.net` em `NEXT_PUBLIC_SITE_URL` e `WEB_ORIGIN`. Nunca usar `localhost` nessas variáveis em produção. No Compose, o website usa a porta interna `3000` e publica por omissão a porta do host `3003` (`WEBSITE_PORT=3003`), pois a `3000` já está ocupada neste servidor. A API usa a porta interna `3001` e publica a `3002` (`API_PORT=3002`), mas o website comunica com ela pela rede interna do Compose; não configurar `NEXT_PUBLIC_API_URL` no Coolify.
 
-Ativar `NEXT_PUBLIC_SITE_URL` e `NEXT_PUBLIC_API_URL` **no build e no runtime**. O Dockerfile declara os argumentos com os mesmos nomes. O Next.js inclui a URL pública da API no bundle durante o build: mudar o endereço requer novo build/deploy.
+Ativar `NEXT_PUBLIC_SITE_URL` **no build e no runtime**. O Dockerfile declara o argumento com esse nome. A rota relativa `/api/v1` não depende do domínio durante o build.
 
 O website define `NODE_ENV=production`, `PORT=3000` e `HOSTNAME=0.0.0.0`. Para login e dashboard autenticado, publicar também a API e uma base PostgreSQL; a instalação e variáveis estão em [docs/api.md](api.md). Configurar `WEB_ORIGIN` na API com a origem exata do website e guardar `JWT_ACCESS_SECRET` como segredo. O Dockerfile da API aplica as migrações ao arrancar.
 
@@ -59,8 +59,8 @@ Abrir `http://localhost:3000`. Para usar outra porta, definir `WEBSITE_PORT` no 
 Sem Compose:
 
 ```sh
-docker build --build-arg NEXT_PUBLIC_SITE_URL=https://o-seu-dominio.ao --build-arg NEXT_PUBLIC_API_URL=https://api.o-seu-dominio.ao/api/v1 -t agendai-website .
-docker run --rm -p 3000:3000 -e NEXT_PUBLIC_SITE_URL=https://o-seu-dominio.ao -e NEXT_PUBLIC_API_URL=https://api.o-seu-dominio.ao/api/v1 agendai-website
+docker build --build-arg NEXT_PUBLIC_SITE_URL=https://o-seu-dominio.ao -t agendai-website .
+docker run --rm -p 3000:3000 -e NEXT_PUBLIC_SITE_URL=https://o-seu-dominio.ao agendai-website
 ```
 
 Se o Docker Desktop falhar antes do build com um erro de resolução do proxy, corrigir a configuração de rede/proxy do próprio Docker Desktop. Esse erro impede o download das imagens base e não é uma falha de compilação do website. Não é necessário levar um proxy local para o Coolify.

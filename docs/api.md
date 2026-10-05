@@ -17,7 +17,7 @@ pnpm --filter @agendai/api dev
 
 Para executar os testes unitários das regras de acesso: `pnpm test:api`.
 
-Defina `JWT_ACCESS_SECRET` como uma string aleatória de pelo menos 32 caracteres em `apps/api/.env`. A API fica em `http://localhost:3001/api/v1`; `WEB_ORIGIN` deve corresponder exatamente à origem do frontend. `NEXT_PUBLIC_API_URL` configura a URL pública usada pelo navegador e, no desenvolvimento local, usa `http://localhost:3001/api/v1`. `GET /api/v1/health` confirma que o processo responde.
+Defina `JWT_ACCESS_SECRET` como uma string aleatória de pelo menos 32 caracteres em `apps/api/.env`. A API fica em `http://localhost:3001/api/v1`; `WEB_ORIGIN` deve corresponder exatamente à origem do frontend. O website usa `/api/v1` na mesma origem, encaminhado pelo Next.js para a API. `GET /api/v1/health` confirma que o processo responde.
 
 Para executar a stack completa em Docker, copie `.env.example` para `.env`, defina `JWT_ACCESS_SECRET` e execute `docker compose up --build -d --wait`. A API aplica as migrações pendentes ao iniciar. `POSTGRES_PASSWORD` pode substituir a palavra-passe local predefinida; configure valores fortes antes de qualquer publicação.
 

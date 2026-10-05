@@ -22,8 +22,6 @@ COPY . .
 # Public metadata is generated during the build; set this in Coolify as a build variable.
 ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN pnpm --filter @agendai/website build
 
 FROM node:22-bookworm-slim AS runner
@@ -34,8 +32,6 @@ ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN groupadd --system --gid 1001 nodejs \
     && useradd --system --uid 1001 --gid nodejs nextjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/website/.next/standalone ./

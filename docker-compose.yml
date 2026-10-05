@@ -115,7 +115,6 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
     ports:
       # Host port defaults to 3003 because 3000 is already used on the production server.
       - '${WEBSITE_BIND_ADDRESS:-127.0.0.1}:${WEBSITE_PORT:-3003}:3000'
@@ -124,7 +123,6 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: '3000'
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
     depends_on:
       api:
         condition: service_healthy
