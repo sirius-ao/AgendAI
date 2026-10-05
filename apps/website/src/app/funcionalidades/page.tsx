@@ -7,7 +7,7 @@ import { CTA } from '@/components/common/CTA';
 import { pageMetadata } from '@/lib/site';
 export const metadata = pageMetadata(
   'Funcionalidades',
-  'Planos de aula, presença, avaliações e partilha. Conheça as ferramentas do AgendAI.',
+  'Planos de aula, presença, avaliações e partilha. Conheça as ferramentas do AgendAKI.',
   '/funcionalidades',
 );
 export default function Features() {

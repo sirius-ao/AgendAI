@@ -1,6 +1,18 @@
+# Shared runtime settings keep logs bounded for every service.
+x-runtime: &runtime
+  init: true
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '3'
+  security_opt:
+    - no-new-privileges:true
+
 services:
   storage:
-    image: elestio/minio:latest
+    <<: *runtime
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2024-12-18T13-15-44Z}
     command: server /data --console-address ':9001'
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY:-agendai-local}
@@ -11,28 +23,38 @@ services:
     volumes:
       - agendai-files:/data
     healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:9000/minio/health/ready']
       interval: 5s
       timeout: 3s
       retries: 15
+      start_period: 20s
     restart: unless-stopped
-    init: true
+    stop_grace_period: 30s
 
   storage-init:
-    image: minio/mc:latest
+    <<: *runtime
+    image: ${RCLONE_IMAGE:-rclone/rclone:1.68.2}
     depends_on:
       storage:
         condition: service_healthy
-    entrypoint: ['/bin/sh', '-c']
-    command: ['mc alias set local http://storage:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" && mc mb --ignore-existing local/$${S3_BUCKET} && mc anonymous set none local/$${S3_BUCKET}']
+    # Use a list so sh -c receives the entire script as a single argument.
+    # $$ defers expansion to the container rather than the host's .env.
+    entrypoint: ['/bin/sh', '-ec']
+    command:
+      - exec rclone --config /dev/null mkdir "local:$${S3_BUCKET}"
     environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-agendai-local}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-agendai-local-secret-change-me}
+      RCLONE_CONFIG_LOCAL_TYPE: s3
+      RCLONE_CONFIG_LOCAL_PROVIDER: Minio
+      RCLONE_CONFIG_LOCAL_ENDPOINT: http://storage:9000
+      RCLONE_CONFIG_LOCAL_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-agendai-local}
+      RCLONE_CONFIG_LOCAL_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-agendai-local-secret-change-me}
+      RCLONE_CONFIG_LOCAL_REGION: ${S3_REGION:-us-east-1}
       S3_BUCKET: ${S3_BUCKET:-agendai-local}
     restart: 'no'
 
   database:
-    image: postgres:17-alpine
+    <<: *runtime
+    image: ${POSTGRES_IMAGE:-postgres:17.5-alpine}
     environment:
       POSTGRES_DB: agendai
       POSTGRES_USER: agendai
@@ -46,16 +68,18 @@ services:
       interval: 5s
       timeout: 3s
       retries: 15
+      start_period: 20s
     restart: unless-stopped
-    init: true
+    stop_grace_period: 30s
 
   api:
+    <<: *runtime
     image: agendai-api:local
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     ports:
-      - '${API_PORT:-3001}:3001'
+      - '${API_BIND_ADDRESS:-127.0.0.1}:${API_PORT:-3001}:3001'
     environment:
       NODE_ENV: production
       PORT: '3001'
@@ -80,9 +104,10 @@ services:
       storage-init:
         condition: service_completed_successfully
     restart: unless-stopped
-    init: true
+    stop_grace_period: 30s
 
   website:
+    <<: *runtime
     image: agendai-website:local
     build:
       context: .
@@ -91,17 +116,18 @@ services:
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
     ports:
-      - '${WEBSITE_PORT:-3000}:3000'
+      - '${WEBSITE_BIND_ADDRESS:-127.0.0.1}:${WEBSITE_PORT:-3000}:3000'
     environment:
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
       PORT: '3000'
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
-    init: true
-    security_opt:
-      - no-new-privileges:true
+    stop_grace_period: 30s
 
 volumes:
   agendai-postgres:

@@ -78,7 +78,7 @@ export const posts: Post[] = [
     image: 'attendance',
     alt: 'Tablet com uma lista de presenças numa secretária',
     excerpt:
-      'Veja as vantagens de usar o AgendAI para registar presenças e como isso pode poupar tempo e reduzir erros.',
+      'Veja as vantagens de usar o AgendAKI para registar presenças e como isso pode poupar tempo e reduzir erros.',
     date: '2026-09-04',
     dateLabel: '04 de Set, 2026',
     minutes: 4,
@@ -168,7 +168,7 @@ export const posts: Post[] = [
       },
       {
         heading: 'Espaço para histórias reais',
-        text: 'Este artigo é uma reflexão editorial de demonstração. Não relata casos de clientes nem atribui resultados ao AgendAI. Futuramente, este espaço poderá receber histórias autorizadas de educadores.',
+        text: 'Este artigo é uma reflexão editorial de demonstração. Não relata casos de clientes nem atribui resultados ao AgendAKI. Futuramente, este espaço poderá receber histórias autorizadas de educadores.',
       },
     ],
   },

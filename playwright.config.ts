@@ -4,7 +4,9 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
   workers: 1,
-  timeout: 180000,
+  // The dashboard matrix intentionally visits 12 routes at five viewport sizes
+  // and captures each page; allow teardown to finish on slower CI runners.
+  timeout: 300000,
   use: {
     baseURL,
     viewport: { width: 1312, height: 900 },

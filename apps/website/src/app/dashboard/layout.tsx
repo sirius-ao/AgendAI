@@ -3,7 +3,7 @@ import { DashboardProvider } from '@/components/dashboard/state/DashboardProvide
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import './dashboard.css';
 export const metadata: Metadata = {
-  title: 'Dashboard | AgendAI',
+  title: 'Dashboard | AgendAKI',
   robots: { index: false, follow: false },
 };
 export default function Layout({ children }: { children: React.ReactNode }) {

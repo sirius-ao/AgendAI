@@ -14,7 +14,7 @@ export function PasswordRecovery({ token }: { token?: string }) {
   const reset = Boolean(token);
   return (
     <section className="access-page container">
-      <div className="access-copy"><p className="eyebrow">Acesso à conta</p><h1>Recupere o<br /><span>seu acesso.</span></h1><p>Vamos ajudar a voltar à sua conta AgendAI.</p></div>
+      <div className="access-copy"><p className="eyebrow">Acesso à conta</p><h1>Recupere o<br /><span>seu acesso.</span></h1><p>Vamos ajudar a voltar à sua conta AgendAKI.</p></div>
       <div className="card access-card">
         <Logo />
         <h2>{reset ? 'Escolha uma nova palavra-passe.' : 'Esqueceu-se da palavra-passe?'}</h2>

@@ -5,7 +5,7 @@ export const plans = [
     name: 'Gratuito',
     subtitle: 'Ideal para começar',
     price: 0,
-    description: 'Conheça o AgendAI e explore o essencial.',
+    description: 'Conheça o AgendAKI e explore o essencial.',
     cta: 'Começar grátis',
     href: '/comecar?plano=gratuito',
     features: [

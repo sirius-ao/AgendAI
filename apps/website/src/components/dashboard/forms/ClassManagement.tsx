@@ -7,6 +7,7 @@ import { Field, Modal } from '../ui/Primitives';
 import { localId, normalize, formatDate } from '@/lib/dashboard/selectors';
 import type { SchoolClass, Student } from '@/types/dashboard';
 import { apiRequest } from '@/lib/api/client';
+import { parsePastedStudentList, parseStudentImportFile, type StudentImportRecord } from '@/lib/dashboard/student-import';
 
 export function ClassForm({ source, rollover = false, onClose }: { source?: SchoolClass; rollover?: boolean; onClose: () => void }) {
   const { state, update, notify, apiMode } = useDashboard();
@@ -51,25 +52,78 @@ export function ClassForm({ source, rollover = false, onClose }: { source?: Scho
 export function StudentImport({ schoolClass, onClose }: { schoolClass: SchoolClass; onClose: () => void }) {
   const { state, update, notify } = useDashboard();
   const [text, setText] = useState('');
-  const [review, setReview] = useState<{ name: string; selected: boolean; duplicate: boolean }[] | null>(null);
+  const [review, setReview] = useState<(StudentImportRecord & { selected: boolean })[] | null>(null);
   const [confirmed, setConfirmed] = useState(false);
-  const chosen = review?.filter((row) => row.selected) || [];
-  const duplicates = chosen.some((row) => row.duplicate);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ added: number; skipped: number; errors: number } | null>(null);
+  const knownNames = new Set(state.students.filter((student) => student.classId === schoolClass.id).map((student) => normalize(student.name).trim().replace(/\s+/g, ' ')));
+  const reviewRows = (review || []).map((row) => ({
+    ...row,
+    duplicate: knownNames.has(normalize(row.name).trim().replace(/\s+/g, ' ')) || review?.some((other) => other.line < row.line && normalize(other.name).trim().replace(/\s+/g, ' ') === normalize(row.name).trim().replace(/\s+/g, ' ')) || false,
+    errors: [row.name.trim().length < 2 ? 'Indique um nome com pelo menos 2 caracteres.' : row.name.trim().length > 120 ? 'O nome excede 120 caracteres.' : '', row.contact.trim().length > 160 ? 'O contacto excede 160 caracteres.' : ''].filter(Boolean),
+  }));
+  const chosen = reviewRows.filter((row) => row.selected && !row.errors.length);
+  const duplicateSelected = chosen.some((row) => row.duplicate);
+  const errorCount = reviewRows.filter((row) => row.errors.length).length;
+  const duplicateCount = reviewRows.filter((row) => row.duplicate && !row.errors.length).length;
+  const startReview = (records: StudentImportRecord[]) => {
+    const alreadySeen = new Set<string>();
+    setReview(records.map((record) => {
+      const normalizedName = normalize(record.name).trim().replace(/\s+/g, ' ');
+      const duplicate = knownNames.has(normalizedName) || alreadySeen.has(normalizedName);
+      alreadySeen.add(normalizedName);
+      const invalid = record.name.trim().length < 2 || record.name.trim().length > 120 || record.contact.trim().length > 160;
+      return { ...record, selected: !duplicate && !invalid };
+    }));
+    setConfirmed(false);
+    setError('');
+    setResult(null);
+  };
+  const loadFile = async (file?: File) => {
+    if (!file) return;
+    setBusy(true);
+    setError('');
+    try {
+      startReview(await parseStudentImportFile(file));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível ler o ficheiro.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const template = `\uFEFFNome,Contacto\r\nAna Costa,923000000\r\nCarlos Manuel,\r\n`;
   return <Modal title="Adicionar alunos por lista" onClose={onClose}><div className="dash-modal-simple">
-    {!review ? <><Field label="Um nome por linha"><textarea rows={8} maxLength={30000} value={text} onChange={(e) => setText(e.target.value)} placeholder={'Ana Costa\nCarlos Manuel'} /></Field><p>Pode colar uma lista ou escrever apenas um nome. Os contactos podem ser preenchidos na ficha individual.</p><button className="dash-btn" disabled={!text.trim()} onClick={() => {
-      const known = new Set(state.students.filter((student) => student.classId === schoolClass.id).map((student) => normalize(student.name.trim())));
-      const names = text.split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
-      const counts = new Map<string, number>(); names.forEach((name) => counts.set(normalize(name), (counts.get(normalize(name)) || 0) + 1));
-      setReview(names.map((name) => ({ name, selected: true, duplicate: known.has(normalize(name)) || (counts.get(normalize(name)) || 0) > 1 }))); setConfirmed(false);
-    }}>Rever antes de adicionar</button></> : <>
-      <p>{chosen.length} alunos selecionados. Desmarque os nomes que não pretende adicionar.</p>
-      <div className="dash-import-review">{review.map((row, index) => <label className="dash-import-row" key={index}><input type="checkbox" checked={row.selected} onChange={(e) => { setConfirmed(false); setReview(review.map((r, i) => i === index ? { ...r, selected: e.target.checked } : r)); }} /><span>{row.name}{row.duplicate && <small>Nome repetido na lista ou já existente na turma — confirme se é outra pessoa.</small>}</span></label>)}</div>
-      {duplicates && <label className="dash-check"><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />Confirmei os nomes repetidos selecionados; são inscrições que quero adicionar.</label>}
-      <div className="dash-form-actions"><button className="dash-btn secondary" onClick={() => setReview(null)}>Editar lista</button><button className="dash-btn" disabled={!chosen.length || (duplicates && !confirmed)} onClick={() => {
-        const students: Student[] = chosen.map((row) => ({ id: localId('student'), name: row.name, classId: schoolClass.id, avatar: '', contact: '', status: 'Ativo' }));
-        update((s) => ({ ...s, students: [...s.students, ...students], conversations: s.conversations.map((conversation) => conversation.classId === schoolClass.id ? { ...conversation, memberIds: [...conversation.memberIds, ...students.map((student) => student.id)] } : conversation) }));
-        notify(`${students.length} alunos adicionados.`); onClose();
-      }}>Adicionar {chosen.length} alunos</button></div>
+    {result ? <>
+      <div className="dash-import-result" role="status"><strong>Importação concluída</strong><p>{result.added} {result.added === 1 ? 'aluno adicionado' : 'alunos adicionados'} à turma.</p><p>{result.skipped} ignorados · {result.errors} com erros</p></div>
+      {errorCount > 0 && <details><summary>Ver {errorCount} linhas que precisam de correção</summary><ul>{reviewRows.filter((row) => row.errors.length).map((row) => <li key={row.line}>Linha {row.line}: {row.errors.join(' ')}</li>)}</ul></details>}
+      <div className="dash-form-actions"><button className="dash-btn" onClick={onClose}>Concluir</button></div>
+    </> : !review ? <>
+      <p>Carregue um ficheiro de alunos para <strong>{schoolClass.name}</strong> ou cole uma lista abaixo. Campos aceites: nome e contacto.</p>
+      <div className="dash-import-actions"><label className="dash-btn secondary dash-import-file">{busy ? 'A ler ficheiro…' : 'Escolher ficheiro'}<input type="file" accept=".csv,.tsv,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={busy} onChange={(event) => { void loadFile(event.currentTarget.files?.[0]); event.currentTarget.value = ''; }} /></label><a className="dash-btn secondary" href={`data:text/csv;charset=utf-8,${encodeURIComponent(template)}`} download="modelo-alunos-agendaki.csv">Descarregar modelo CSV</a></div>
+      <small>Formatos aceites: CSV, TSV e Excel (.xlsx). Até 2.000 alunos e 5 MB por ficheiro.</small>
+      <Field label="Ou cole nomes ou uma tabela"><textarea rows={7} maxLength={100000} value={text} onChange={(event) => setText(event.target.value)} placeholder={'Ana Costa\nCarlos Manuel\n\nTambém pode colar uma tabela com cabeçalho: Nome | Contacto'} /></Field>
+      <small>Para importar contactos, use uma coluna “Contacto”. A lista simples pode ter um nome por linha.</small>
+      {error && <p className="dash-import-error" role="alert">{error}</p>}
+      <div className="dash-form-actions"><button className="dash-btn secondary" onClick={onClose}>Cancelar</button><button className="dash-btn" disabled={!text.trim() || busy} onClick={() => { try { startReview(parsePastedStudentList(text)); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível ler a lista.'); } }}>Rever lista</button></div>
+    </> : <>
+      <p>Reveja os dados, corrija as células e selecione os alunos a importar para <strong>{schoolClass.name}</strong>.</p>
+      <div className="dash-import-summary" aria-live="polite"><span><strong>{chosen.length}</strong> selecionados</span><span><strong>{duplicateCount}</strong> repetidos</span><span><strong>{errorCount}</strong> com erros</span></div>
+      <div className="dash-import-review"><table className="dash-table"><thead><tr><th>Importar</th><th>Linha</th><th>Nome</th><th>Contacto</th><th>Validação</th></tr></thead><tbody>{reviewRows.map((row, index) => <tr key={`${row.line}-${index}`}>
+        <td><input type="checkbox" aria-label={`Importar aluno da linha ${row.line}`} disabled={row.errors.length > 0} checked={row.selected} onChange={(event) => { setConfirmed(false); setReview((current) => current?.map((item, itemIndex) => itemIndex === index ? { ...item, selected: event.target.checked } : item) || null); }} /></td>
+        <td>{row.line}</td><td><input aria-label={`Nome, linha ${row.line}`} maxLength={120} value={row.name} aria-invalid={row.errors.some((message) => message.startsWith('Indique') || message.startsWith('O nome'))} onChange={(event) => { setConfirmed(false); setReview((current) => current?.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) || null); }} /></td>
+        <td><input aria-label={`Contacto, linha ${row.line}`} maxLength={160} value={row.contact} aria-invalid={row.errors.some((message) => message.startsWith('O contacto'))} onChange={(event) => { setConfirmed(false); setReview((current) => current?.map((item, itemIndex) => itemIndex === index ? { ...item, contact: event.target.value } : item) || null); }} /></td>
+        <td>{row.errors.length ? <span className="dash-import-invalid">{row.errors.join(' ')}</span> : row.duplicate ? <span className="dash-import-duplicate">Nome repetido — será ignorado salvo confirmação.</span> : <span className="dash-import-valid">Pronto</span>}</td>
+      </tr>)}</tbody></table></div>
+      {duplicateSelected && <label className="dash-check dash-import-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />Confirmo que os nomes repetidos selecionados pertencem a alunos diferentes.</label>}
+      {error && <p className="dash-import-error" role="alert">{error}</p>}
+      <div className="dash-form-actions"><button className="dash-btn secondary" onClick={() => { setReview(null); setConfirmed(false); setError(''); }}>Voltar</button><button className="dash-btn" disabled={!chosen.length || (duplicateSelected && !confirmed)} onClick={() => {
+        const students: Student[] = chosen.map((row) => ({ id: localId('student'), name: row.name.trim(), classId: schoolClass.id, avatar: '', contact: row.contact.trim(), status: 'Ativo' }));
+        update((current) => ({ ...current, students: [...current.students, ...students], conversations: current.conversations.map((conversation) => conversation.classId === schoolClass.id ? { ...conversation, memberIds: [...conversation.memberIds, ...students.map((student) => student.id)] } : conversation) }));
+        const skipped = (review?.length || 0) - students.length - errorCount;
+        setResult({ added: students.length, skipped, errors: errorCount });
+        notify(`${students.length} alunos adicionados à turma.`);
+      }}>Importar {chosen.length} {chosen.length === 1 ? 'aluno' : 'alunos'}</button></div>
     </>}
   </div></Modal>;
 }

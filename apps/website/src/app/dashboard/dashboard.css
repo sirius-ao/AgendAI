@@ -155,6 +155,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  flex: 0 0 auto;
 }
 .dash-sidebar nav > a {
   padding: 13px 14px;
@@ -176,9 +177,10 @@
 .dash-pro {
   border: 1px solid #075035;
   border-radius: 9px;
-  margin: auto 8px 0;
+  margin: 18px 8px 0;
   padding: 16px 16px 15px;
   min-height: 150px;
+  flex: 0 0 auto;
 }
 .dash-pro strong {
   display: flex;
@@ -2890,7 +2892,15 @@
     gap: 12px;
   }
   .dash-global-search {
-    width: min(70%, 530px);
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+  .dash-school-switch {
+    width: 120px;
+  }
+  .dash-exit {
+    display: none;
   }
   .dash-home-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3724,6 +3734,10 @@
   .dash-exit > span { display: none; }
 }
 .dash-sidebar-toggle { min-width: 44px; min-height: 44px; flex-shrink: 0; }
+@media (max-width: 950px) {
+  .dash-exit,
+  .dash-demo { display: none; }
+}
 @media (min-width: 701px) {
   .sidebar-collapsed .dash-sidebar { width: 78px; padding: 20px 10px; }
   .sidebar-collapsed .dash-workspace { margin-left: 78px; }
@@ -3746,6 +3760,12 @@
 }
 @media (max-width: 700px) {
   .dash-sidebar-toggle { display: none; }
+}
+@media (max-width: 380px) {
+  .dash-topbar { gap: 6px; padding-inline: 10px; }
+  .dash-global-search { flex: 0 0 40px; width: 40px; justify-content: center; padding-inline: 8px; }
+  .dash-global-search span { display: none; }
+  .dash-school-switch { flex: 0 0 94px; width: 94px; }
 }
 .dash-plans-summary { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 22px; }
 .dash-plans-summary button { display: flex; gap: 10px; align-items: baseline; padding: 14px 20px; border: 1px solid var(--dash-border); border-radius: 10px; background: var(--dash-surface); color: var(--dash-text); }
@@ -3825,7 +3845,25 @@
 .dash-students-mobile { display: none; }
 .dash-students-desktop button.dash-person { text-align: left; cursor: pointer; min-height: 44px; }
 .dash-students-desktop button.dash-person:hover { color: var(--dash-green); }
-.dash-import-review { max-height: 360px; overflow: auto; margin: 16px 0; }
+.dash-import-review { max-height: 420px; overflow: auto; margin: 16px 0; }
+.dash-import-review table { min-width: 700px; }
+.dash-import-review th, .dash-import-review td { vertical-align: top; }
+.dash-import-review td input:not([type='checkbox']) { width: 100%; min-width: 130px; min-height: 40px; padding: 8px 10px; border: 1px solid var(--dash-border); border-radius: 8px; color: inherit; background: var(--dash-surface); }
+.dash-import-review td input[aria-invalid='true'] { border-color: #dc2626; background: #fff1f2; }
+.dash-import-review td:last-child { min-width: 190px; white-space: normal; }
+.dash-import-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 4px 0 12px; }
+.dash-import-file { position: relative; overflow: hidden; cursor: pointer; }
+.dash-import-file input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.dash-import-summary { display: flex; flex-wrap: wrap; gap: 18px; padding: 12px 0; }
+.dash-import-summary span { color: var(--dash-muted); font-size: 13px; }
+.dash-import-summary strong { color: var(--dash-text); }
+.dash-import-valid { color: var(--dash-green); }
+.dash-import-duplicate, .dash-import-invalid, .dash-import-error { color: var(--dash-amber); }
+.dash-import-invalid, .dash-import-error { color: #b42318; }
+.dash-import-confirm { margin: 12px 0; }
+.dash-import-result { padding: 16px; border-radius: 12px; background: var(--dash-surface); }
+.dash-import-result strong { font-size: 18px; }
+.dash-import-result p { margin: 8px 0 0; }
 .dash-import-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-bottom: 1px solid var(--dash-border); }
 .dash-import-row span { min-width: 0; overflow-wrap: anywhere; }
 .dash-import-row small { display: block; margin-top: 5px; color: var(--dash-amber); }
@@ -3936,4 +3974,70 @@
 .dash-recipient-help { margin: 0; padding: 12px; border-radius: 8px; background: var(--dash-green-soft); color: var(--dash-text); font-size: 13px; }
 @media (max-width: 700px) {
   .dash-sidebar.is-open .dash-nav-unread { right: 10px; }
+}
+.dash-settings-grid .dash-subject-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, 0.55fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 14px;
+}
+.dash-settings-grid .dash-subject-form > .dash-field {
+  min-width: 0;
+  margin: 0;
+  font-size: 12px;
+}
+.dash-settings-grid .dash-subject-form > .dash-field > span {
+  color: var(--dash-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.dash-settings-grid .dash-subject-form input,
+.dash-settings-grid .dash-subject-form select {
+  min-height: 44px !important;
+  padding: 10px 12px !important;
+  border-radius: 8px;
+  font-size: 13px !important;
+}
+.dash-settings-grid .dash-subject-form > .dash-btn {
+  min-height: 44px;
+  padding: 10px 14px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.dash-subject-requests-empty {
+  margin: 10px 0 0 !important;
+  padding: 13px 14px;
+  border: 1px dashed var(--dash-border);
+  border-radius: 8px;
+  color: var(--dash-muted);
+  background: var(--dash-surface);
+}
+@media (max-width: 700px) {
+  .dash-settings-grid .dash-subject-form {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .dash-settings-grid .dash-subject-form > .dash-btn {
+    width: 100%;
+    white-space: normal;
+  }
+}
+.dash-connection {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+.dash-connection > svg { flex: 0 0 auto; margin-top: 1px; }
+.dash-connection-copy { display: grid; gap: 4px; min-width: 0; }
+.dash-connection-copy strong { font-weight: 650; }
+.dash-connection-error { color: inherit; overflow-wrap: anywhere; }
+.dash-connection.is-error { color: #8f1d1d; background: #fff1f0; border: 1px solid #f2c3bf; }
+.dash-theme-dark .dash-connection.is-error { color: #ffd5d1; background: #3a211f; border-color: #75413b; }
+.dash-connection.is-offline { color: var(--dash-text); background: var(--dash-surface); border: 1px solid var(--dash-border); }
+.dash-connection.is-demo { color: var(--dash-muted); background: var(--dash-surface); border: 1px solid var(--dash-border); }
+.dash-connection-spinner { animation: dash-sync-spin 1s linear infinite; }
+@keyframes dash-sync-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .dash-connection-spinner { animation: none; }
 }
