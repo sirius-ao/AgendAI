@@ -117,7 +117,8 @@ services:
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
     ports:
-      - '${WEBSITE_BIND_ADDRESS:-127.0.0.1}:${WEBSITE_PORT:-3000}:3000'
+      # Host port defaults to 3003 because 3000 is already used on the production server.
+      - '${WEBSITE_BIND_ADDRESS:-127.0.0.1}:${WEBSITE_PORT:-3003}:3000'
     environment:
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
