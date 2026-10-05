@@ -1,5 +1,5 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
-import { emailButton, emailNotice, emailParagraph, escapeEmailHtml, renderBrandedEmail } from './email-templates.js';
+import { emailButton, emailNotice, emailParagraph, escapeEmailHtml, renderBrandedEmail, resolveEmailSiteUrl } from './email-templates.js';
 
 @Injectable()
 export class EmailService {
@@ -17,7 +17,7 @@ export class EmailService {
   }
 
   private get siteUrl() {
-    return (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+    return resolveEmailSiteUrl(process.env.NEXT_PUBLIC_SITE_URL, process.env.NODE_ENV === 'production');
   }
 
   async sendPasswordReset(email: string, name: string, token: string) {

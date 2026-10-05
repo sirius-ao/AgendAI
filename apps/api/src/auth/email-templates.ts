@@ -5,6 +5,20 @@ export interface EmailTemplateInput {
   content: string;
 }
 
+export function resolveEmailSiteUrl(configuredUrl: string | undefined, production: boolean) {
+  const fallback = production ? 'https://www.agendaki.net' : 'http://localhost:3000';
+  if (!configuredUrl) return fallback;
+  try {
+    const url = new URL(configuredUrl);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return fallback;
+    if (production && ['localhost', '127.0.0.1', '::1', '[::1]'].includes(url.hostname)) return fallback;
+    if (production) url.protocol = 'https:';
+    return url.origin;
+  } catch {
+    return fallback;
+  }
+}
+
 export function escapeEmailHtml(value: string) {
   const entities: Record<string, string> = {
     '&': '&amp;',
