@@ -22,6 +22,8 @@ Criar uma aplicação a partir do repositório Git e selecionar **Dockerfile** c
 
 No Coolify, definir `NEXT_PUBLIC_SITE_URL` com a origem pública completa, por exemplo `https://o-seu-dominio.ao`, sem barra final, e `NEXT_PUBLIC_API_URL` com a URL pública da API, terminada em `/api/v1`. Estes endereços são exemplos; usar os domínios reais do projeto.
 
+Para o domínio atual do AgendAKI, usar `https://www.agendaki.net` em `NEXT_PUBLIC_SITE_URL` e `WEB_ORIGIN`. Nunca usar `localhost` nessas variáveis em produção. O Compose publica a API na porta do host `3002` por omissão (`API_PORT=3002`), encaminhando para a porta interna `3001`. A URL configurada em `NEXT_PUBLIC_API_URL` tem de ser uma URL HTTPS pública alcançável pelo navegador (por exemplo `https://api.agendaki.net/api/v1`, depois de configurar o domínio e o proxy do Coolify para a API); `http://localhost:3002/api/v1` só serve para acesso local e será bloqueada pelo navegador numa página HTTPS.
+
 Ativar `NEXT_PUBLIC_SITE_URL` e `NEXT_PUBLIC_API_URL` **no build e no runtime**. O Dockerfile declara os argumentos com os mesmos nomes. O Next.js inclui a URL pública da API no bundle durante o build: mudar o endereço requer novo build/deploy.
 
 O website define `NODE_ENV=production`, `PORT=3000` e `HOSTNAME=0.0.0.0`. Para login e dashboard autenticado, publicar também a API e uma base PostgreSQL; a instalação e variáveis estão em [docs/api.md](api.md). Configurar `WEB_ORIGIN` na API com a origem exata do website e guardar `JWT_ACCESS_SECRET` como segredo. O Dockerfile da API aplica as migrações ao arrancar.

@@ -79,7 +79,8 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     ports:
-      - '${API_BIND_ADDRESS:-127.0.0.1}:${API_PORT:-3001}:3001'
+      # Host port defaults to 3002 because 3001 is already used on the production server.
+      - '${API_BIND_ADDRESS:-127.0.0.1}:${API_PORT:-3002}:3001'
     environment:
       NODE_ENV: production
       PORT: '3001'
