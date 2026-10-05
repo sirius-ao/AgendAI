@@ -24,7 +24,7 @@ export function BlogHero() {
           </h1>
           <p>
             Conteúdos práticos para planear melhor, ensinar com mais eficácia e aproveitar ao máximo
-            o AgendAI no seu dia a dia.
+            o AgendAKI no seu dia a dia.
           </p>
         </div>
       </Container>

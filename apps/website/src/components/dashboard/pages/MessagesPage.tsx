@@ -26,7 +26,8 @@ export function MessagesPage({
     [tab, setTab] = useState('Todas'),
     [text, setText] = useState(''),
     [files, setFiles] = useState<string[]>([]),
-    [dialog, setDialog] = useState('');
+    [dialog, setDialog] = useState(''),
+    [targetType, setTargetType] = useState<'turma' | 'aluno'>('turma');
   const conversation = state.conversations.find((c) => c.id === active) || state.conversations[0];
   const messageList = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -87,8 +88,9 @@ export function MessagesPage({
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const target = String(f.get('target'));
-    const c = state.classes.find((c) => c.id === target);
-    const student = state.students.find((s) => s.id === target);
+    const recipientType = f.get('targetType');
+    const c = recipientType === 'turma' ? state.classes.find((c) => c.id === target) : undefined;
+    const student = recipientType === 'aluno' ? state.students.find((s) => s.id === target) : undefined;
     const existing = state.conversations.find((cv) =>
       c ? cv.classId === c.id : !cv.classId && cv.memberIds.includes(target),
     );
@@ -129,7 +131,7 @@ export function MessagesPage({
         title="Mensagens"
         description="Converse com a sua comunidade escolar neste espaço de demonstração local."
         actions={
-          <button className="dash-btn" onClick={() => setDialog('new')}>
+          <button className="dash-btn" onClick={() => { setTargetType('turma'); setDialog('new'); }}>
             <Plus />
             Nova mensagem
           </button>
@@ -376,26 +378,30 @@ export function MessagesPage({
             </div>
           ) : (
             <form className="dash-modal-simple" onSubmit={create}>
-              <Field label="Destinatário" required>
-                <select name="target" required>
-                  <optgroup label="Turmas">
-                    {state.classes.map((c) => (
-                      <option value={c.id} key={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Alunos">
-                    {state.students.map((s) => (
-                      <option value={s.id} key={s.id}>
-                        {s.name} · {state.classes.find((c) => c.id === s.classId)?.name}
-                      </option>
-                    ))}
-                  </optgroup>
+              <fieldset className="dash-recipient-type">
+                <legend>Tipo de conversa</legend>
+                <label>
+                  <input type="radio" name="targetType" value="turma" checked={targetType === 'turma'} onChange={() => setTargetType('turma')} />
+                  <span>Com uma turma</span>
+                </label>
+                <label>
+                  <input type="radio" name="targetType" value="aluno" checked={targetType === 'aluno'} onChange={() => setTargetType('aluno')} />
+                  <span>Individual com um aluno</span>
+                </label>
+              </fieldset>
+              <Field label={targetType === 'turma' ? 'Turma destinatária' : 'Aluno destinatário'} required>
+                <select key={targetType} name="target" required defaultValue="">
+                  <option value="" disabled>{targetType === 'turma' ? 'Selecionar uma turma' : 'Selecionar um aluno'}</option>
+                  {targetType === 'turma'
+                    ? state.classes.map((c) => <option value={c.id} key={c.id}>{c.name}</option>)
+                    : state.students.map((s) => <option value={s.id} key={s.id}>{s.name} · {state.classes.find((c) => c.id === s.classId)?.name}</option>)}
                 </select>
               </Field>
-              <p>Esta conversa fica apenas neste navegador.</p>
-              <button className="dash-btn">Abrir conversa</button>
+              <p className="dash-recipient-help">{targetType === 'turma'
+                ? 'Todos os alunos da turma participam nesta conversa.'
+                : 'A conversa inclui apenas o aluno selecionado.'}</p>
+              <p>Esta demonstração guarda as mensagens apenas neste navegador; não envia mensagens.</p>
+              <button className="dash-btn">{targetType === 'turma' ? 'Abrir conversa da turma' : 'Abrir conversa individual'}</button>
             </form>
           )}
         </Modal>

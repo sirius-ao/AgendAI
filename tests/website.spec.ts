@@ -8,7 +8,7 @@ test('páginas responsivas sem overflow, imagens carregadas e sem erros de JavaS
   fs.mkdirSync('artifacts/screenshots', { recursive: true });
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  for (const width of [1312, 1024, 768, 375, 390, 430]) {
+  for (const width of [1312, 1024, 768, 430, 390, 375, 320]) {
     await page.setViewportSize({ width, height: 900 });
     for (const route of routes) {
       const response = await page.goto(route);
@@ -82,9 +82,9 @@ test('planos mensal/anual, FAQ e comparação', async ({ page }) => {
   await page.getByRole('button', { name: 'Anual', exact: true }).click();
   await expect(pro.locator('.price')).toContainText('2.800');
   await expect(pro).toContainText('33.600 Kz faturados por ano');
-  await expect(pro.getByRole('link', { name: 'Escolher plano' })).toHaveAttribute(
+  await expect(pro.getByRole('link', { name: 'Tenho interesse' })).toHaveAttribute(
     'href',
-    '/comecar?plano=pro&periodo=anual',
+    '/contacto?plano=pro&periodo=anual',
   );
   await page.getByText('Posso mudar de plano mais tarde?', { exact: true }).click();
   await expect(page.getByText(/A proposta prevê a mudança/)).toBeVisible();
@@ -95,6 +95,13 @@ test('planos mensal/anual, FAQ e comparação', async ({ page }) => {
 });
 
 test('blog: categorias, pesquisa, paginação, artigos e newsletter honesta', async ({ page }) => {
+  await page.route('**/api/v1/marketing/newsletter/subscribe', async (route) => {
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true }),
+    });
+  });
   await page.goto('/blog');
   await expect(page.locator('.blog-card')).toHaveCount(6);
   await page.getByRole('button', { name: 'Carregar mais artigos' }).click();
@@ -112,15 +119,18 @@ test('blog: categorias, pesquisa, paginação, artigos e newsletter honesta', as
   await expect(page.getByRole('heading', { name: 'Nenhum artigo encontrado.' })).toBeVisible();
   await page.getByRole('button', { name: 'Limpar filtros' }).click();
   await page.getByLabel('O seu e-mail', { exact: true }).fill('demo@example.com');
+  await page.getByRole('checkbox', { name: /Aceito receber a newsletter/ }).check();
   await page.getByRole('button', { name: 'Subscrever' }).click();
-  await expect(page.getByText(/O seu e-mail não foi guardado nem enviado/)).toBeVisible();
+  await expect(
+    page.getByText(/Se ainda não subscreveu, receberá um email para confirmar/),
+  ).toBeVisible();
   await page.locator('.blog-card').first().getByRole('heading').getByRole('link').click();
   await expect(page.getByRole('heading', { name: '1. Comece pelo objetivo' })).toBeVisible();
   await page.goto('/blog?q=presencas');
   await expect(page.locator('.blog-card')).toHaveCount(1);
 });
 
-test('rotas auxiliares, SEO e formulários sem envio', async ({ page }) => {
+test('rotas auxiliares, SEO e formulário de contacto', async ({ page }) => {
   for (const route of ['/entrar', '/comecar', '/contacto', '/privacidade', '/termos']) {
     await page.setViewportSize({ width: 375, height: 812 });
     expect((await page.goto(route))?.status()).toBe(200);
@@ -129,6 +139,13 @@ test('rotas auxiliares, SEO e formulários sem envio', async ({ page }) => {
     ).toBeTruthy();
   }
   await page.goto('/contacto');
+  await page.route('**/api/v1/marketing/contact', async (route) => {
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true }),
+    });
+  });
   await page.getByLabel('O seu nome').fill('Professor Demo');
   await page.getByLabel('O seu e-mail').fill('demo@example.com');
   await page.getByLabel('Como podemos ajudar?').fill('Conhecer a proposta para uma escola.');
@@ -136,12 +153,12 @@ test('rotas auxiliares, SEO e formulários sem envio', async ({ page }) => {
   page.on('request', (r) => {
     if (r.method() === 'POST') sent.push(r.url());
   });
-  await page.getByRole('button', { name: 'Pré-visualizar pedido' }).click();
-  await expect(page.getByRole('status')).toContainText('Pedido validado localmente');
-  expect(sent).toEqual([]);
+  await page.getByRole('button', { name: 'Enviar pedido' }).click();
+  await expect(page.locator('.form-feedback[role="alert"]')).toContainText('Mensagem enviada');
+  expect(sent).toHaveLength(1);
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('lang', 'pt-AO');
-  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', /AgendAI/);
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', /AgendAKI/);
   expect((await page.request.get('/sitemap.xml')).status()).toBe(200);
   expect((await page.request.get('/robots.txt')).status()).toBe(200);
   const health = await page.request.get('/health');

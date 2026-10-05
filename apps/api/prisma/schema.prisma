@@ -1,0 +1,335 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  COORDINATOR
+  TEACHER
+}
+
+enum StudentStatus {
+  ACTIVE
+  TRANSFERRED
+}
+
+enum DashboardCollection {
+  SUBJECTS
+  PLANS
+  ATTENDANCE
+  ASSESSMENTS
+  EVENTS
+  RESOURCES
+  LIBRARY
+  REPORTS
+  CONVERSATIONS
+  TASKS
+  SETTINGS
+  ONBOARDING
+  CLASSES
+  STUDENTS
+  FOLDERS
+  TEACHER_SUBJECTS
+}
+
+enum DashboardValueKind {
+  OBJECT
+  ARRAY
+  STRING
+  NUMBER
+  BOOLEAN
+  NULL
+}
+
+enum SubjectRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           String           @id @default(uuid()) @db.Uuid
+  name         String           @db.VarChar(120)
+  email        String           @unique @db.VarChar(254)
+  phone        String           @default("") @db.VarChar(40)
+  passwordHash String           @db.VarChar(100)
+  tokenVersion Int              @default(0)
+  emailVerifiedAt DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  memberships  SchoolMembership[]
+  sessions     RefreshSession[]
+  sentInvitations SchoolInvitation[] @relation("InvitationCreator")
+  auditEvents AuditEvent[]
+  subjectRequests SubjectRequest[] @relation("SubjectRequestRequester")
+  resolvedSubjectRequests SubjectRequest[] @relation("SubjectRequestResolver")
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model NewsletterSubscription {
+  id                     String    @id @default(uuid()) @db.Uuid
+  email                  String    @unique @db.VarChar(254)
+  consentAt              DateTime
+  confirmedAt            DateTime?
+  unsubscribedAt         DateTime?
+  confirmationTokenHash  String?   @unique @db.Char(64)
+  confirmationExpiresAt DateTime?
+  unsubscribeTokenHash  String    @unique @db.Char(64)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@index([confirmedAt, unsubscribedAt])
+}
+
+model RateLimitBucket {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique @db.Char(64)
+  hits      Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model School {
+  id          String             @id @default(uuid()) @db.Uuid
+  name        String             @db.VarChar(140)
+  address     String             @default("") @db.VarChar(200)
+  academicYear String            @default("") @db.VarChar(20)
+  timezone    String             @default("Africa/Luanda") @db.VarChar(64)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  memberships SchoolMembership[]
+  classes     SchoolClass[]
+  students    Student[]
+  subjects    Subject[]
+  dashboardRecords DashboardRecord[]
+  invitations SchoolInvitation[]
+  auditEvents AuditEvent[]
+  subjectRequests SubjectRequest[]
+}
+
+model SchoolMembership {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @db.Uuid
+  schoolId  String         @db.Uuid
+  role      MembershipRole @default(TEACHER)
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school    School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, schoolId])
+  @@index([schoolId, role])
+}
+
+model SchoolClass {
+  id        String    @id @default(uuid()) @db.Uuid
+  schoolId  String    @db.Uuid
+  name      String    @db.VarChar(100)
+  year      String    @db.VarChar(20)
+  level     String    @default("") @db.VarChar(80)
+  room      String    @default("") @db.VarChar(80)
+  shift     String    @default("") @db.VarChar(40)
+  director  String    @default("") @db.VarChar(120)
+  archived  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  students  Student[]
+  subjects  ClassSubject[]
+
+  @@unique([id, schoolId])
+  @@unique([schoolId, name, year])
+  @@index([schoolId, archived, year])
+}
+
+model Subject {
+  id        String         @id @default(uuid()) @db.Uuid
+  schoolId  String         @db.Uuid
+  name      String         @db.VarChar(100)
+  tone      String         @default("green") @db.VarChar(20)
+  createdAt DateTime       @default(now())
+  school    School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classes   ClassSubject[]
+
+  @@unique([id, schoolId])
+  @@unique([schoolId, name])
+}
+
+model ClassSubject {
+  schoolId String      @db.Uuid
+  classId  String      @db.Uuid
+  subjectId String     @db.Uuid
+  schoolClass SchoolClass @relation(fields: [classId, schoolId], references: [id, schoolId], onDelete: Cascade)
+  subject  Subject     @relation(fields: [subjectId, schoolId], references: [id, schoolId], onDelete: Cascade)
+
+  @@id([classId, subjectId])
+  @@index([schoolId])
+}
+
+model Student {
+  id        String        @id @default(uuid()) @db.Uuid
+  schoolId  String        @db.Uuid
+  classId   String        @db.Uuid
+  name      String        @db.VarChar(120)
+  contact   String        @default("") @db.VarChar(160)
+  status    StudentStatus @default(ACTIVE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  school    School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolClass SchoolClass @relation(fields: [classId, schoolId], references: [id, schoolId], onDelete: Cascade)
+
+  @@index([schoolId, classId, status])
+  @@index([schoolId, name])
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model SchoolInvitation {
+  id          String         @id @default(uuid()) @db.Uuid
+  schoolId    String         @db.Uuid
+  createdById String         @db.Uuid
+  email       String         @db.VarChar(254)
+  role        MembershipRole
+  tokenHash   String         @unique @db.Char(64)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime       @default(now())
+  school      School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdBy   User           @relation("InvitationCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, email, acceptedAt, revokedAt])
+}
+
+model DashboardRecord {
+  id         String             @id @default(uuid()) @db.Uuid
+  schoolId   String             @db.Uuid
+  collection DashboardCollection
+  recordId   String             @db.VarChar(120)
+  // Kept as the canonical write/read representation while DashboardValue is indexed for search.
+  payload    Json
+  createdById String            @db.Uuid
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  school     School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  attachments FileAttachment[]
+  values     DashboardValue[]
+
+  @@unique([schoolId, collection, recordId])
+  @@index([schoolId, collection, updatedAt])
+}
+
+// Each JSON-like dashboard value is represented as an indexed relational tree.
+// This keeps arbitrary nested form data without storing opaque JSON blobs.
+model DashboardValue {
+  id          String             @id @default(uuid()) @db.Uuid
+  recordDbId  String             @db.Uuid
+  path        String             @db.Text
+  parentPath  String?            @db.Text
+  propertyKey String?            @db.Text
+  position    Int?
+  kind        DashboardValueKind
+  stringValue String?            @db.Text
+  numberValue Float?
+  booleanValue Boolean?
+  record      DashboardRecord    @relation(fields: [recordDbId], references: [id], onDelete: Cascade)
+
+  @@unique([recordDbId, path])
+  @@index([recordDbId, parentPath, position])
+  @@index([propertyKey, stringValue])
+}
+
+model FileAttachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  schoolId     String   @db.Uuid
+  userId       String   @db.Uuid
+  collection   DashboardCollection
+  recordId     String   @db.VarChar(120)
+  objectKey    String   @unique @db.VarChar(500)
+  originalName String   @db.VarChar(255)
+  contentType  String   @db.VarChar(120)
+  size         Int
+  createdAt    DateTime @default(now())
+  uploadedAt   DateTime?
+  record       DashboardRecord @relation(fields: [schoolId, collection, recordId], references: [schoolId, collection, recordId], onDelete: Cascade)
+
+  @@index([schoolId, collection, recordId, createdAt])
+  @@index([userId, schoolId])
+}
+
+model AuditEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  schoolId  String   @db.Uuid
+  actorId   String   @db.Uuid
+  action    String   @db.VarChar(40)
+  entity    String   @db.VarChar(60)
+  recordId  String?  @db.VarChar(120)
+  details   Json?
+  createdAt DateTime @default(now())
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model SubjectRequest {
+  id          String               @id @default(uuid()) @db.Uuid
+  schoolId    String               @db.Uuid
+  requesterId String               @db.Uuid
+  resolvedById String?             @db.Uuid
+  name        String               @db.VarChar(100)
+  details     String               @default("") @db.VarChar(500)
+  status      SubjectRequestStatus @default(PENDING)
+  createdAt   DateTime             @default(now())
+  resolvedAt  DateTime?
+  school      School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  requester   User                 @relation("SubjectRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  resolver    User?                @relation("SubjectRequestResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, status, createdAt])
+  @@index([requesterId, schoolId])
+}

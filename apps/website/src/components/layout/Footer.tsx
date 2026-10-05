@@ -41,7 +41,7 @@ export function Footer() {
             ))}
             <span lang="pt">PT · Português</span>
           </div>
-          <small>© 2026 AgendAI. Todos os direitos reservados.</small>
+          <small>© 2026 AgendAKI. Todos os direitos reservados.</small>
         </div>
       </Container>
     </footer>

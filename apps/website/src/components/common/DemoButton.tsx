@@ -55,7 +55,7 @@ export function DemoButton({ schools = false }: { schools?: boolean }) {
         >
           <X />
         </button>
-        <p className="eyebrow">Conheça o AgendAI · Apresentação</p>
+        <p className="eyebrow">Conheça o AgendAKI · Apresentação</p>
         <div className="demo-step-icon">
           <Icon />
         </div>

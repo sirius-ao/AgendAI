@@ -32,7 +32,7 @@ export default async function Article({ params }: { params: Promise<{ slug: stri
     description: post.excerpt,
     datePublished: post.date,
     image: `${siteUrl}/images/blog/${post.image}.webp`,
-    author: { '@type': 'Organization', name: 'AgendAI' },
+    author: { '@type': 'Organization', name: 'AgendAKI' },
     mainEntityOfPage: `${siteUrl}/blog/${post.slug}`,
   };
   return (

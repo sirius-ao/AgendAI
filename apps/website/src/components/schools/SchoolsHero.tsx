@@ -24,7 +24,7 @@ export function SchoolsHero() {
             <span>Alunos mais preparados.</span>
           </h1>
           <p>
-            O AgendAI ajuda a sua escola a padronizar planos de aula, acompanhar presenças e
+            O AgendAKI ajuda a sua escola a padronizar planos de aula, acompanhar presenças e
             avaliações, com mais organização, transparência e menos burocracia.
           </p>
           <div className="button-row">

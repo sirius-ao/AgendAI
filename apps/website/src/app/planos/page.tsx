@@ -5,7 +5,7 @@ import { PricingExtras } from '@/components/pricing/PricingExtras';
 import { pageMetadata } from '@/lib/site';
 export const metadata = pageMetadata(
   'Planos',
-  'Encontre a proposta ideal para professores e escolas. Compare os planos AgendAI.',
+  'Encontre a proposta ideal para professores e escolas. Compare os planos AgendAKI.',
   '/planos',
 );
 export default function Pricing() {
@@ -20,7 +20,7 @@ export default function Pricing() {
             para a sua <span>jornada.</span>
           </h1>
           <p>
-            Do professor individual às grandes instituições, o AgendAI adapta-se às suas
+            Do professor individual às grandes instituições, o AgendAKI adapta-se às suas
             necessidades.
           </p>
         </div>

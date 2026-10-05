@@ -11,7 +11,8 @@ import { ClassForm, StudentImport, StudentProfile } from '../forms/ClassManageme
 import type { SchoolClass, Student } from '@/types/dashboard';
 
 export function ClassesPage({ id, initialQuery = '' }: { id?: string; initialQuery?: string }) {
-  const { state, update, notify, openModal } = useDashboard();
+  const { state, update, notify, openModal, apiMode } = useDashboard();
+  const canManageClasses = !apiMode || state.user.role !== 'Professor';
   const [query, setQuery] = useState(initialQuery);
   const [tab, setTab] = useState(initialQuery ? 'Alunos' : 'Resumo');
   const [page, setPage] = useState(1);
@@ -39,31 +40,31 @@ export function ClassesPage({ id, initialQuery = '' }: { id?: string; initialQue
   const missingGrades = assessments.filter((assessment) => assessment.date <= today && active.some((student) => gradePending(assessment, student.id)));
   const missingCalls = [...new Map(events.filter((event) => event.type === 'Aula' && active.length && (event.date < today || (event.date === today && event.start <= time)) && (!state.attendance.some((call) => call.classId === id && call.date === event.date && active.every((student) => call.records[student.id]?.status)) || Boolean(state.attendanceDrafts?.[`${id}:${event.date}`]))).map((event) => [event.date, event])).values()];
   const resume = (key: string) => openModal({ kind: 'plan', ...(key === 'new' ? {} : key.startsWith('copy-') ? { copyFrom: key.slice(5) } : key.startsWith('example-') ? { example: key.slice(8) as 'math' | 'portuguese' } : { id: key }) });
-  const classMenu = (schoolClass: SchoolClass) => <ActionMenu label={`Opções: ${schoolClass.name}`} items={[
+  const classMenu = (schoolClass: SchoolClass) => canManageClasses ? <ActionMenu label={`Opções: ${schoolClass.name}`} items={[
     { label: 'Editar turma', action: () => setForm({ source: schoolClass }) },
     { label: 'Preparar novo ano letivo', action: () => setForm({ source: schoolClass, rollover: true }) },
     { label: schoolClass.archived ? 'Reativar turma' : 'Arquivar turma', action: () => setArchiving(schoolClass) },
-  ]} />;
+  ]} /> : null;
   const studentMenu = (student: Student) => <ActionMenu label={`Opções: ${student.name}`} items={[
     { label: 'Abrir ficha', action: () => setProfile(student.id) },
     { label: student.status === 'Ativo' ? 'Marcar como transferido' : 'Reativar aluno', action: () => update((s) => ({ ...s, students: s.students.map((item) => item.id === student.id ? { ...item, status: item.status === 'Ativo' ? 'Transferido' : 'Ativo' } : item) })) },
   ]} />;
   const dialogs = <>
-    {form && <ClassForm source={form.source} rollover={form.rollover} onClose={() => setForm(null)} />}
+    {form && canManageClasses && <ClassForm source={form.source} rollover={form.rollover} onClose={() => setForm(null)} />}
     {importing && c && <StudentImport schoolClass={c} onClose={() => setImporting(false)} />}
     {profile && <StudentProfile key={profile} studentId={profile} onClose={() => setProfile(null)} />}
     {archiving && <ConfirmDialog title={archiving.archived ? 'Reativar turma?' : 'Arquivar turma?'} description="Os alunos, planos, presenças, notas e mensagens são preservados. Pode consultar a turma e reativá-la a qualquer momento." onClose={() => setArchiving(null)} onConfirm={() => { update((s) => ({ ...s, classes: s.classes.map((item) => item.id === archiving.id ? { ...item, archived: !item.archived } : item) })); notify(archiving.archived ? 'Turma reativada.' : 'Turma arquivada.'); }} />}
   </>;
   if (!id) {
     const classes = state.classes.filter((schoolClass) => normalize(schoolClass.name).includes(normalize(query)) && (!year || schoolClass.year === year) && (scope === 'Todas' || (scope === 'Arquivadas' ? schoolClass.archived : !schoolClass.archived)));
-    return <><PageHeader title="As minhas turmas" description="Organize os alunos e acompanhe a rotina de cada turma." actions={<button className="dash-btn" onClick={() => setForm({})}><Plus size={18} />Nova turma</button>} />
+    return <><PageHeader title="As minhas turmas" description="Organize os alunos e acompanhe a rotina de cada turma." actions={canManageClasses ? <button className="dash-btn" onClick={() => setForm({})}><Plus size={18} />Nova turma</button> : undefined} />
       <div className="dash-toolbar"><Tabs items={['Ativas', 'Arquivadas', 'Todas']} value={scope} onChange={setScope} /><SearchInput value={query} onChange={setQuery} placeholder="Pesquisar turmas..." /><SelectField label="Ano letivo" value={year} onChange={(e) => setYear(e.target.value)} options={[{ value: '', label: 'Todos' }, ...[...new Set(state.classes.map((schoolClass) => schoolClass.year))].sort().reverse().map((value) => ({ value, label: value }))]} /></div>
-      <div className="dash-class-grid">{classes.map((schoolClass) => <Panel key={schoolClass.id}><div className="dash-class-card-head"><span className="dash-icon green"><Users /></span>{classMenu(schoolClass)}</div><h2>{schoolClass.name}</h2><p>{schoolClass.level} · {schoolClass.year}</p><StatusBadge tone={schoolClass.archived ? 'gray' : 'green'}>{schoolClass.archived ? 'Arquivada' : 'Ativa'}</StatusBadge><p><strong>{state.students.filter((student) => student.classId === schoolClass.id && student.status === 'Ativo').length}</strong> alunos ativos</p><p>{schoolClass.subjectIds.map((subjectId) => state.subjects.find((subject) => subject.id === subjectId)?.name).filter(Boolean).join(' · ') || 'Sem disciplinas'}</p><p>{schoolClass.room || 'Sala por definir'} · {schoolClass.shift}</p><Link className="dash-btn secondary" href={`/dashboard/turmas/${schoolClass.id}`}>Abrir turma →</Link></Panel>)}</div>
+      <div className="dash-class-grid">{classes.map((schoolClass) => <Panel key={schoolClass.id}><div className="dash-class-card-head"><span className="dash-icon green"><Users /></span>{classMenu(schoolClass)}</div><h2>{schoolClass.name}</h2><p>{schoolClass.level} · {schoolClass.year}</p><StatusBadge tone={schoolClass.archived ? 'gray' : 'green'}>{schoolClass.archived ? 'Arquivada' : 'Ativa'}</StatusBadge><p><strong>{state.students.filter((student) => student.classId === schoolClass.id && student.status === 'Ativo').length}</strong> alunos ativos</p><p>{schoolClass.subjectIds.map((subjectId) => schoolClass.subjectTeacherNames?.[subjectId] || state.subjects.find((subject) => subject.id === subjectId)?.name).filter(Boolean).join(' · ') || 'Sem disciplinas'}</p><p>{schoolClass.room || 'Sala por definir'} · {schoolClass.shift}</p><Link className="dash-btn secondary" href={`/dashboard/turmas/${schoolClass.id}`}>Abrir turma →</Link></Panel>)}</div>
       {!classes.length && <EmptyState title="Nenhuma turma corresponde aos filtros" />}{dialogs}</>;
   }
   if (!c) return <EmptyState title="Turma não encontrada" action={<Link href="/dashboard/turmas">Voltar às turmas</Link>} />;
   return <>
-    <PageHeader eyebrow={<Link href="/dashboard/turmas">Turmas →</Link>} title={c.name} description={`${c.year} · ${c.level} · ${active.length} alunos ativos`} actions={<>{!c.archived && <button className="dash-btn" onClick={() => setImporting(true)}><Plus size={18} />Adicionar alunos</button>}{classMenu(c)}</>} />
+    <PageHeader eyebrow={<Link href="/dashboard/turmas">Turmas →</Link>} title={c.name} description={`${c.year} · ${c.level} · ${active.length} alunos ativos`} actions={<>{canManageClasses && !c.archived && <button className="dash-btn" onClick={() => setImporting(true)}><Plus size={18} />Adicionar alunos</button>}{classMenu(c)}</>} />
     {c.archived && <div className="dash-connection">Turma arquivada. O histórico permanece disponível. Reative a turma para adicionar alunos aqui.</div>}
     {c.previousClassId && <p><Link href={`/dashboard/turmas/${c.previousClassId}`}>Consultar turma do ano anterior →</Link></p>}
     <Tabs items={['Resumo', 'Alunos', 'Aulas', 'Resultados']} value={tab} onChange={setTab} />
@@ -77,7 +78,7 @@ export function ClassesPage({ id, initialQuery = '' }: { id?: string; initialQue
           {missingGrades.map((assessment) => <Link className="dash-list-row" key={assessment.id} href={`/dashboard/avaliacoes?turma=${c.id}&avaliacao=${assessment.id}`}>{assessment.title}<small>{active.filter((student) => gradePending(assessment, student.id)).length} notas por lançar →</small></Link>)}
           {!unfinished.length && !drafts.length && !missingCalls.length && !missingGrades.length && <p>Sem pendências identificadas nesta turma.</p>}
         </div></Panel>
-        <Panel title="Disciplinas">{state.subjects.filter((subject) => c.subjectIds.includes(subject.id)).map((subject) => <div className="dash-list-row" key={subject.id}><BookOpen size={18} /><strong>{subject.name}</strong></div>)}</Panel>
+        <Panel title="Disciplinas">{state.subjects.filter((subject) => c.subjectIds.includes(subject.id)).map((subject) => <div className="dash-list-row" key={subject.id}><BookOpen size={18} /><strong>{subject.name}</strong>{c.subjectTeacherNames?.[subject.id] && <small>{c.subjectTeacherNames[subject.id]}</small>}</div>)}</Panel>
       </>}
       {tab === 'Alunos' && <Panel title={`Alunos · ${students.length}`}><SearchInput value={query} onChange={(value) => { setQuery(value); setPage(1); }} placeholder="Pesquisar aluno..." />
         <div className="dash-table-scroll dash-students-desktop"><table className="dash-table"><thead><tr><th>Aluno</th><th>Contacto</th><th>Situação</th><th>Ações</th></tr></thead><tbody>{visible.map((student) => <tr key={student.id}><td><button className="dash-person" onClick={() => setProfile(student.id)}><Avatar src={student.avatar} name={student.name} />{student.name}</button></td><td>{student.contact || 'Não indicado'}</td><td><StatusBadge tone={student.status === 'Ativo' ? 'green' : 'gray'}>{student.status}</StatusBadge></td><td>{studentMenu(student)}</td></tr>)}</tbody></table></div>

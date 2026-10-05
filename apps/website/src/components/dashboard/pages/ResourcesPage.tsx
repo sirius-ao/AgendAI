@@ -229,7 +229,7 @@ export function ResourcesPage({
   return (
     <>
       <PageHeader
-        title={library ? 'Biblioteca' : 'Recursos Didáticos'}
+        title={library ? 'A minha biblioteca' : 'Explorar recursos'}
         description={
           library
             ? 'O seu espaço pessoal: organize os materiais guardados e use-os nas suas aulas.'
@@ -298,7 +298,7 @@ export function ResourcesPage({
                       />
                     ) : (
                       <div className="dash-document-preview">
-                        <small>AgendAI · Educação</small>
+                        <small>AgendAKI · Educação</small>
                         <strong>
                           {r.category === 'Fichas e Exercícios'
                             ? 'FICHA DE EXERCÍCIOS'
@@ -481,7 +481,7 @@ export function ResourcesPage({
               <div className="dash-tip">
                 <Lightbulb />
                 <div>
-                  <strong>Dica AgendAI</strong>
+                  <strong>Dica AgendAKI</strong>
                   <p>Associe materiais aos planos para encontrar tudo antes da aula.</p>
                 </div>
               </div>

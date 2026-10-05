@@ -1,4 +1,4 @@
-# AgendAI
+# AgendAKI
 
 Website e dashboard em português para professores e escolas, reconstruídos em componentes React a partir das referências fornecidas. O website público foi preservado e o dashboard foi integrado no mesmo app e container.
 
@@ -8,10 +8,10 @@ Requisitos: Node.js 22 ou superior e pnpm 11.0.9.
 
 ```sh
 pnpm install
-pnpm dev
+pnpm --filter @agendai/website dev
 ```
 
-Abrir **http://localhost:3000**. Usar `localhost` também nos testes: o servidor de desenvolvimento verifica a origem das ligações de atualização.
+Abrir **http://localhost:3000**. Para iniciar também a API localmente, copiar `apps/api/.env.example` para `apps/api/.env`, iniciar PostgreSQL com `docker compose up -d database` e executar `pnpm dev` na raiz. Usar `localhost` também nos testes: o servidor de desenvolvimento verifica a origem das ligações de atualização.
 
 ```sh
 pnpm build
@@ -23,18 +23,31 @@ pnpm --filter @agendai/website start
 O repositório inclui `Dockerfile` multi-stage, `.dockerignore`, `docker-compose.yml` e `/health`. O Next.js produz um servidor `standalone` para a imagem de produção.
 
 ```sh
-docker compose up --build -d
+cp .env.example .env
+# Definir JWT_ACCESS_SECRET em .env (gerar com openssl rand -hex 32).
+docker compose config --quiet
+docker compose up --build -d --wait
 ```
+
+O ficheiro `.env.example` reúne as variáveis da stack e um placeholder para o segredo exigido pela API. Troque-o por um segredo aleatório próprio antes de publicar. Para executar só a API e a base de dados localmente, consulte [docs/api.md](docs/api.md).
+
+Os serviços publicados ficam em `127.0.0.1` por omissão. Para acesso remoto, configure `API_BIND_ADDRESS` e `WEBSITE_BIND_ADDRESS` (por exemplo, `0.0.0.0`), bem como as URLs públicas e `WEB_ORIGIN`. Alterações a `NEXT_PUBLIC_API_URL` ou `NEXT_PUBLIC_SITE_URL` exigem novo build do website.
+
+A API aguarda pelo PostgreSQL saudável e pela criação do bucket; o website aguarda pela API saudável. As imagens de runtime ficam fixadas no `.env.example` para tornar os deploys reproduzíveis. Os logs rodam em três ficheiros de até 10 MB por container. Use `docker compose ps` e `docker compose logs --tail=100 api storage-init` para diagnosticar o arranque. `docker compose down` mantém os volumes; adicionar `-v` elimina a base de dados e os anexos.
+
+Com a stack Compose ativa, `scripts/backup-database.sh` e `scripts/backup-storage.sh` criam cópias da base de dados e dos anexos. Configure o cliente `mc`, agende os scripts e use um destino fora do servidor; instruções em [docs/api.md](docs/api.md).
 
 No Coolify, usar build pack **Dockerfile**, contexto `/`, Dockerfile `/Dockerfile` e porta `3000`. Definir `NEXT_PUBLIC_SITE_URL` como variável de build e de runtime. Instruções completas em [docs/coolify.md](docs/coolify.md).
 
 ## Dashboard
 
-Abrir **http://localhost:3000/dashboard**, ou usar a entrada de demonstração em `/entrar`.
+Abrir **http://localhost:3000/dashboard** para a demonstração, ou usar `/comecar` para criar uma conta ligada à API.
 
-Inclui início, planos de aula, turmas e alunos, presenças, avaliações, calendário, recursos, relatórios, biblioteca, mensagens e configurações. Os três formulários principais criam e editam registos. Notas e presenças alimentam os relatórios; recursos podem ser associados aos planos; alterações persistem em `localStorage`.
+Inclui início, planos de aula, turmas e alunos, presenças, avaliações, calendário, recursos, relatórios, biblioteca, mensagens e configurações. Os três formulários principais criam e editam registos. Notas e presenças alimentam os relatórios; recursos podem ser associados aos planos. Na demonstração, alterações persistem em `localStorage`; em contas autenticadas sincronizam pela API.
 
-Os exemplos são partilhados entre módulos: 6 turmas, 186 alunos, 24 planos e 24 avaliações. Não existe autenticação, API, envio externo de mensagens, upload para servidor ou serviço real de IA. A interface assinala essas limitações e permite exportar/repor os dados locais em Configurações.
+Os exemplos são partilhados entre módulos: 6 turmas, 186 alunos, 24 planos e 24 avaliações. O botão de demonstração continua a usar dados locais. Registo, login e dashboard autenticado usam a API NestJS para sincronizar dados por escola. Em produção, o login exige email confirmado. Recuperação, confirmação e convites usam Resend; os convites também disponibilizam um link partilhável.
+
+O modo de demonstração não tem autenticação e guarda dados apenas neste navegador; usa exclusivamente informação fictícia. Não introduza dados reais de alunos. Os valores na página de preços são ilustrativos e não há subscrições ou cobranças. Contacto, newsletter com confirmação dupla, confirmação de email, recuperação de palavra-passe e convites enviam mensagens através do Resend quando configurado.
 
 Arquitetura, rotas, ficheiros, componentes e dependências futuras: [docs/dashboard.md](docs/dashboard.md). Capturas da revisão: `artifacts/dashboard/`. Testes: `tests/dashboard.spec.ts`. Para auditar a acessibilidade com um servidor ativo, executar `node scripts/check-dashboard-accessibility.mjs`.
 
@@ -64,16 +77,16 @@ Os tokens de cor, tipografia, espaçamento, largura e raio estão em `apps/websi
 - Preços centralizados em `src/data/plans.ts`; a proposta anual aplica 20% de desconto e apresenta o total faturado anualmente. Valores e condições são explicitamente ilustrativos.
 - FAQ nativa e comparação de planos expansível.
 - Blog com pesquisa sem distinção de acentos, filtros, paginação local, categorias com contagens reais e oito artigos demonstrativos. Os dados tipados podem ser substituídos por uma integração CMS futura.
-- Dashboards e documentos reconstruídos em HTML/CSS. Os números pertencem à escola de demonstração; não são métricas públicas do AgendAI.
+- Dashboards e documentos reconstruídos em HTML/CSS. Os números pertencem à escola de demonstração; não são métricas públicas do AgendAKI.
 - Os testemunhos fictícios foram substituídos por mensagens institucionais sem atribuição a clientes.
-- `/entrar`, `/comecar` e `/contacto` são previews com validação local e feedback explícito. Não criam contas, enviam mensagens ou armazenam dados. A newsletter também não envia nem guarda o e-mail.
+- `/entrar` e `/comecar` autenticam pela API. `/contacto` envia pedidos para `CONTACT_EMAIL`; a newsletter exige consentimento e confirmação por email, com cancelamento por ligação.
 - Ícones sociais apresentados como “em breve”, sem URLs inventados. Inserir os endereços oficiais antes de disponibilizar ligações.
 
-Não há backend, base de dados, autenticação, pagamentos, analytics ou CMS.
+Ainda não há pagamentos, analytics ou CMS. Para iniciar o backend NestJS e consultar as rotas, ver [docs/api.md](docs/api.md).
 
 ## SEO
 
-Copiar `apps/website/.env.example` para `.env.local` e definir `NEXT_PUBLIC_SITE_URL` com o domínio oficial antes do build de publicação. O valor inicial é `http://localhost:3000`; não foi inventado um domínio de produção.
+Copiar `apps/website/.env.example` para `.env.local` e definir `NEXT_PUBLIC_SITE_URL` e `NEXT_PUBLIC_API_URL` antes do build de publicação. Os valores iniciais são locais; não foi inventado um domínio de produção.
 
 Inclui metadata por página, OpenGraph, Twitter, favicon SVG, sitemap, robots e JSON-LD nos artigos. As rotas de acesso não são indexáveis. As páginas de privacidade e termos explicam o âmbito demonstrativo; não substituem documentos comerciais finais.
 

@@ -277,6 +277,8 @@ export function createDashboardSeed(): DashboardState {
     })),
   );
   return {
+    schools: [{ id: 'school-demo', name: 'Escola Secundária Demonstração', address: 'Luanda, Angola', year: '2026 / 2027', role: 'Professor' }],
+    activeSchoolId: 'school-demo',
     user: {
       id: 'teacher',
       name: 'Adilson Futa',
@@ -286,7 +288,9 @@ export function createDashboardSeed(): DashboardState {
       phone: '',
     },
     subjects,
-    classes,
+    teacherSubjectIds: subjects.map((subject) => subject.id),
+    teacherDirectory: [{ id: 'teacher', name: 'Adilson Futa' }],
+    classes: classes.map((schoolClass) => ({ ...schoolClass, schoolId: 'school-demo' })),
     students,
     plans,
     assessments,
@@ -315,6 +319,7 @@ export function createDashboardSeed(): DashboardState {
       const date = new Date(Date.UTC(2026, 8, 28 + day)).toISOString().slice(0, 10);
       return {
         id: `event-${i}`,
+        schoolId: 'school-demo',
         title,
         description: 'Evento de demonstração.',
         type: subjectId ? 'Aula' : title === 'Reunião' ? 'Reunião' : 'Atividade',
@@ -388,6 +393,7 @@ export function createDashboardSeed(): DashboardState {
     conversations: [
       ...classes.map((c, i) => ({
         id: `chat-${c.id}`,
+        schoolId: 'school-demo',
         title: c.name,
         subtitle: `Turma · Ano letivo ${c.year}`,
         classId: c.id,
@@ -440,6 +446,7 @@ export function createDashboardSeed(): DashboardState {
       })),
       {
         id: 'chat-direct',
+        schoolId: 'school-demo',
         title: 'Helena Manuel',
         subtitle: 'Encarregada de Educação',
         avatar: avatar(2),

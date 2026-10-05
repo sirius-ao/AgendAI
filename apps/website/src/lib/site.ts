@@ -11,14 +11,14 @@ export function pageMetadata(title: string, description: string, path: string): 
       url: path,
       type: 'website',
       locale: 'pt_AO',
-      siteName: 'AgendAI',
-      images: [{ url: '/images/home/hero-teacher.webp', alt: 'Professora numa sala de aula' }],
+      siteName: 'AgendAKI',
+      images: [{ url: '/images/home/hero-teacher.jpg', alt: 'Professora numa sala de aula' }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: ['/images/home/hero-teacher.webp'],
+      images: ['/images/home/hero-teacher.jpg'],
     },
   };
 }

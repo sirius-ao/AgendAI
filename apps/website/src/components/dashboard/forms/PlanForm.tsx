@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FilePlus } from 'lucide-react';
 import { useDashboard } from '../state/DashboardProvider';
 import { Attachments, Field, Modal, Switch } from '../ui/Primitives';
+import { PlanFileAttachments } from './PlanFileAttachments';
 import { planModels, planRows } from '@/lib/dashboard/plan-models';
 import { printLessonPlan } from '@/lib/dashboard/print-lesson-plan';
 import { syncPlanEvent } from '@/lib/dashboard/plan-calendar';
@@ -13,7 +14,7 @@ import { DEMO_DATE } from '@/data/dashboard/seed';
 import type { LessonPlan } from '@/types/dashboard';
 
 export function PlanForm() {
-  const { state, modal, update, openModal, notify, error: storageError } = useDashboard();
+  const { state, modal, update, openModal, notify, error: storageError, apiMode } = useDashboard();
   const old = state.plans.find((p) => p.id === modal?.id);
   const source = state.plans.find((p) => p.id === modal?.copyFrom);
   const draftKey = modal?.id || (modal?.resourceId ? `resource-${modal.resourceId}` : modal?.copyFrom ? `copy-${modal.copyFrom}` : modal?.example ? `example-${modal.example}` : 'new');
@@ -154,7 +155,7 @@ export function PlanForm() {
         <details className="dash-plan-advanced"><summary>Mais opções: partilha, etiquetas e materiais</summary>
         <Field label="Visibilidade"><select value={plan.visibility} onChange={(e) => patch({ visibility: e.target.value })}>{['Apenas eu', 'Visível para os alunos', 'Visível para selecionados', 'Equipa pedagógica'].map((v) => <option key={v}>{v}</option>)}</select></Field>
         <Field label="Etiquetas"><input value={plan.tags} onChange={(e) => patch({ tags: e.target.value })} /></Field>
-        <Attachments initialNames={plan.attachments} onChange={(attachments) => patch({ attachments })} />
+        {apiMode ? <PlanFileAttachments schoolId={state.activeSchoolId} planId={old?.id} /> : <Attachments initialNames={plan.attachments} onChange={(attachments) => patch({ attachments })} />}
         </details>
         {error && <p role="alert" className="dash-error-text">{error}</p>}
         <div className="dash-form-actions"><button type="button" className="dash-btn secondary" onClick={close}>Fechar e continuar depois</button><button type="submit" className="dash-btn">{old ? 'Guardar alterações' : 'Criar plano de aula'}</button></div>
