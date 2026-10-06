@@ -38,14 +38,20 @@ export class AuthService {
 
   async verifyEmail(rawToken: string) {
     const tokenHash = digest(rawToken);
-    await this.prisma.$transaction(async (tx) => {
+    const user = await this.prisma.$transaction(async (tx) => {
       const token = await tx.emailVerificationToken.findUnique({ where: { tokenHash } });
       if (!token || token.usedAt || token.expiresAt <= new Date()) throw new BadRequestException('Ligação inválida ou expirada');
       const claimed = await tx.emailVerificationToken.updateMany({ where: { id: token.id, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
       if (!claimed.count) throw new BadRequestException('Ligação inválida ou expirada');
-      await tx.user.update({ where: { id: token.userId }, data: { emailVerifiedAt: new Date() } });
+      const verifiedUser = await tx.user.update({ where: { id: token.userId }, data: { emailVerifiedAt: new Date() } });
       await tx.emailVerificationToken.updateMany({ where: { userId: token.userId, usedAt: null }, data: { usedAt: new Date() } });
+      return verifiedUser;
     });
+    try {
+      await this.email.sendWelcome(user.email, user.name);
+    } catch (error) {
+      this.logger.error(`Welcome email delivery failed: ${error instanceof Error ? error.message : 'unknown error'}`);
+    }
     return { success: true };
   }
 

@@ -31,7 +31,7 @@ docker compose up --build -d --wait
 
 O ficheiro `.env.example` reúne as variáveis da stack e um placeholder para o segredo exigido pela API. Troque-o por um segredo aleatório próprio antes de publicar. Para executar só a API e a base de dados localmente, consulte [docs/api.md](docs/api.md).
 
-Os serviços publicados ficam em `127.0.0.1` por omissão. Para acesso remoto, configure `API_BIND_ADDRESS` e `WEBSITE_BIND_ADDRESS` (por exemplo, `0.0.0.0`), bem como as URLs públicas e `WEB_ORIGIN`. Alterações a `NEXT_PUBLIC_API_URL` ou `NEXT_PUBLIC_SITE_URL` exigem novo build do website.
+Os serviços publicados ficam em `127.0.0.1` por omissão. Para acesso remoto, configure `API_BIND_ADDRESS` e `WEBSITE_BIND_ADDRESS` (por exemplo, `0.0.0.0`), bem como a URL pública do website e `WEB_ORIGIN`. O website chama a API por `/api/v1` na mesma origem, encaminhada internamente pelo Next.js; alterações a `NEXT_PUBLIC_SITE_URL` exigem novo build.
 
 A API aguarda pelo PostgreSQL saudável e pela criação do bucket; o website aguarda pela API saudável. As imagens de runtime ficam fixadas no `.env.example` para tornar os deploys reproduzíveis. Os logs rodam em três ficheiros de até 10 MB por container. Use `docker compose ps` e `docker compose logs --tail=100 api storage-init` para diagnosticar o arranque. `docker compose down` mantém os volumes; adicionar `-v` elimina a base de dados e os anexos.
 
@@ -86,7 +86,7 @@ Ainda não há pagamentos, analytics ou CMS. Para iniciar o backend NestJS e con
 
 ## SEO
 
-Copiar `apps/website/.env.example` para `.env.local` e definir `NEXT_PUBLIC_SITE_URL` e `NEXT_PUBLIC_API_URL` antes do build de publicação. Os valores iniciais são locais; não foi inventado um domínio de produção.
+Copiar `apps/website/.env.example` para `.env.local` e definir `NEXT_PUBLIC_SITE_URL` antes do build de publicação. O website encaminha as chamadas da API pela mesma origem; não é preciso definir uma URL pública separada para a API.
 
 Inclui metadata por página, OpenGraph, Twitter, favicon SVG, sitemap, robots e JSON-LD nos artigos. As rotas de acesso não são indexáveis. As páginas de privacidade e termos explicam o âmbito demonstrativo; não substituem documentos comerciais finais.
 
