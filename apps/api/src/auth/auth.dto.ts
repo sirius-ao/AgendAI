@@ -30,3 +30,6 @@ export class VerifyEmailDto {
 export class ResendVerificationDto {
   @IsEmail() @MaxLength(254) email!: string;
 }
+export class MobileRefreshDto {
+  @IsString() @MinLength(40) @MaxLength(100) refreshToken!: string;
+}

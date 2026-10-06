@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "AgendAKI",
+    "slug": "agendaki-mobile",
+    "scheme": "agendaki",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#062f24",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ao.agendaki.mobile",
+      "config": { "usesNonExemptEncryption": false }
+    },
+    "android": { "package": "ao.agendaki.mobile" },
+    "plugins": ["expo-router", "expo-secure-store", ["expo-sqlite", { "useSQLCipher": true }]],
+    "experiments": { "typedRoutes": true }
+  }
+}

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
-import { ForgotPasswordDto, LoginDto, RegisterDto, ResendVerificationDto, ResetPasswordDto, UpdateProfileDto, VerifyEmailDto } from './auth.dto.js';
+import { ForgotPasswordDto, LoginDto, MobileRefreshDto, RegisterDto, ResendVerificationDto, ResetPasswordDto, UpdateProfileDto, VerifyEmailDto } from './auth.dto.js';
 import { AuthGuard } from './auth.guard.js';
 import { CurrentUser } from './current-user.decorator.js';
 import type { AccessPayload } from './auth.types.js';
@@ -22,7 +22,11 @@ export class AuthController {
     if ('verificationRequired' in result) return res.status(202).json(result);
     return this.send(res, result);
   }
+  @UseGuards(AuthRateLimitGuard) @Post('mobile/register') mobileRegister(@Body() dto: RegisterDto) { return this.auth.register(dto); }
   @UseGuards(AuthRateLimitGuard) @Post('login') async login(@Body() dto: LoginDto, @Res() res: Response) { return this.send(res, await this.auth.login(dto)); }
+  @UseGuards(AuthRateLimitGuard) @Post('mobile/login') mobileLogin(@Body() dto: LoginDto) { return this.auth.login(dto); }
+  @UseGuards(AuthRateLimitGuard) @Post('mobile/refresh') mobileRefresh(@Body() dto: MobileRefreshDto) { return this.auth.refresh(dto.refreshToken); }
+  @UseGuards(AuthRateLimitGuard) @Post('mobile/logout') mobileLogout(@Body() dto: MobileRefreshDto) { return this.auth.logout(dto.refreshToken); }
   @UseGuards(AuthRateLimitGuard) @Post('password/forgot') forgotPassword(@Body() dto: ForgotPasswordDto) { return this.auth.forgotPassword(dto); }
   @UseGuards(AuthRateLimitGuard) @Post('password/reset') resetPassword(@Body() dto: ResetPasswordDto) { return this.auth.resetPassword(dto); }
   @UseGuards(AuthRateLimitGuard) @Post('verify-email') verifyEmail(@Body() dto: VerifyEmailDto) { return this.auth.verifyEmail(dto.token); }
