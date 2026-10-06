@@ -1,13 +1,26 @@
+import { BRAND } from '@/config';
 import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { Text } from 'react-native';
-import { Button, Card, Empty, Field, Heading, Notice, Page, styles } from '@/components/ui';
+import { useMemo, useState } from 'react';
+import { Alert, Text } from 'react-native';
+import {
+  Button,
+  Card,
+  ChoiceField,
+  Empty,
+  Field,
+  Heading,
+  Notice,
+  Page,
+  styles,
+} from '@/components/ui';
 import { useDashboard } from '@/providers/dashboard-provider';
 
 export default function Assessments() {
   const { classId: selectedClass } = useLocalSearchParams<{ classId?: string }>();
   const { snapshot, saveRecord } = useDashboard();
-  const classId = String(selectedClass || snapshot?.data.classes[0]?.recordId || '');
+  const [classId, setClassId] = useState(
+    String(selectedClass || snapshot?.data.classes[0]?.recordId || ''),
+  );
   const students = (snapshot?.data.students || []).filter(
     (s) => !classId || s.payload.classId === classId,
   );
@@ -16,8 +29,35 @@ export default function Assessments() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const id = `mobile-assessment-${classId}-${Date.now()}`;
+  const id = useMemo(
+    () => `mobile-assessment-${classId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    [classId],
+  );
   const save = async () => {
+    if (!classId || !students.length) {
+      setError('Selecione uma turma com alunos.');
+      return;
+    }
+    const invalid = students.find((student) => {
+      const value = scores[student.recordId]?.trim().replace(',', '.');
+      const score = Number(value);
+      return !value || !Number.isFinite(score) || score < 0 || score > 20;
+    });
+    if (invalid) {
+      setError('Preencha uma nota válida entre 0 e 20 para cada aluno.');
+      return;
+    }
+    Alert.alert('Guardar avaliação?', `Será registada para ${students.length} alunos.`, [
+      { text: 'Rever', style: 'cancel' },
+      {
+        text: 'Guardar',
+        onPress: () => {
+          void persist();
+        },
+      },
+    ]);
+  };
+  const persist = async () => {
     setBusy(true);
     setError('');
     try {
@@ -25,10 +65,10 @@ export default function Assessments() {
         id,
         title: title.trim() || 'Avaliação',
         classId,
-        date: new Date().toISOString().slice(0, 10),
-        scores: Object.entries(scores).map(([studentId, score]) => ({
-          studentId,
-          score: Number(score),
+        date: localDate(),
+        scores: students.map((student) => ({
+          studentId: student.recordId,
+          score: Number(scores[student.recordId].trim().replace(',', '.')),
         })),
       });
       setNotice(
@@ -45,11 +85,25 @@ export default function Assessments() {
       <Heading title="Lançar avaliação" subtitle="Registe notas por aluno." back />
       <Card>
         <Field label="Nome da avaliação" value={title} onChangeText={setTitle} />
+        <ChoiceField
+          label="Turma"
+          value={classId}
+          options={(snapshot?.data.classes || []).map((item) => ({
+            id: item.recordId,
+            label: String(item.payload.name || 'Turma'),
+          }))}
+          onSelect={(value) => {
+            setClassId(value);
+            setScores({});
+            setError('');
+            setNotice('');
+          }}
+        />
       </Card>
       {students.length ? (
         students.map((s) => (
           <Card key={s.recordId}>
-            <Text style={{ color: '#11251d', fontWeight: '700' }}>
+            <Text style={{ color: BRAND.ink, fontWeight: '700' }}>
               {String(s.payload.name || 'Aluno')}
             </Text>
             <Field
@@ -74,4 +128,9 @@ export default function Assessments() {
       </Text>
     </Page>
   );
+}
+
+function localDate() {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }

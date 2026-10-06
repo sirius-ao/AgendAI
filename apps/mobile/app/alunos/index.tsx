@@ -1,11 +1,13 @@
+import { BRAND } from '@/config';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Text } from 'react-native';
-import { Button, Card, Empty, Field, Page, styles } from '@/components/ui';
+import { Button, Card, Empty, Field, Heading, Page, styles } from '@/components/ui';
+import { SchoolDataStatus } from '@/components/school-data-status';
 import { useDashboard } from '@/providers/dashboard-provider';
 
 export default function Students() {
-  const { snapshot } = useDashboard();
+  const { snapshot, syncState } = useDashboard();
   const [query, setQuery] = useState('');
   const students = (snapshot?.data.students || []).filter((s) =>
     String(s.payload.name || '')
@@ -14,6 +16,8 @@ export default function Students() {
   );
   return (
     <Page>
+      <Heading title="Alunos" back />
+      <SchoolDataStatus />
       <Field
         label="Pesquisar aluno"
         value={query}
@@ -26,17 +30,23 @@ export default function Students() {
             key={s.recordId}
             onPress={() => router.push({ pathname: '/alunos/[id]', params: { id: s.recordId } })}
           >
-            <Text style={{ color: '#11251d', fontWeight: '800' }}>
+            <Text style={{ color: BRAND.ink, fontWeight: '800' }}>
               {String(s.payload.name || 'Aluno')}
             </Text>
             <Text style={styles.subtitle}>
-              {String(s.payload.className || s.payload.classId || '')}
+              {String(
+                s.payload.className ||
+                  snapshot?.data.classes.find(
+                    (schoolClass) => schoolClass.recordId === s.payload.classId,
+                  )?.payload.name ||
+                  '',
+              )}
             </Text>
           </Card>
         ))
       ) : (
         <Empty
-          title="Nenhum aluno encontrado"
+          title={syncState === 'loading' ? 'A carregar alunos…' : 'Nenhum aluno encontrado'}
           text="Tente outra pesquisa ou sincronize os dados."
         />
       )}

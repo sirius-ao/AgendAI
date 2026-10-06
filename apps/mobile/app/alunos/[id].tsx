@@ -1,3 +1,4 @@
+import { BRAND } from '@/config';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Text } from 'react-native';
 import { Button, Card, Heading, Page, styles } from '@/components/ui';
@@ -24,7 +25,7 @@ export default function StudentProfile() {
         back
       />
       <Card>
-        <Text style={{ fontSize: 18, fontWeight: '800', color: '#11251d' }}>
+        <Text style={{ fontSize: 18, fontWeight: '800', color: BRAND.ink }}>
           {String(p?.name || 'Aluno')}
         </Text>
         <Text style={styles.subtitle}>Contacto · {String(p?.contact || 'Não informado')}</Text>
@@ -32,7 +33,7 @@ export default function StudentProfile() {
           Presenças e média estarão disponíveis conforme os dados sincronizados da escola.
         </Text>
       </Card>
-      <Text style={{ fontSize: 17, color: '#11251d', fontWeight: '800' }}>Avaliações</Text>
+      <Text style={{ fontSize: 17, color: BRAND.ink, fontWeight: '800' }}>Avaliações</Text>
       {records.length ? (
         records.map((r, i) => (
           <Card key={i}>

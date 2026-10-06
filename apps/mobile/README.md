@@ -11,7 +11,7 @@ pnpm install
 pnpm --filter @agendai/mobile dev
 ```
 
-Defina `EXPO_PUBLIC_API_URL` se a API estiver noutro endereço. O padrão aponta para `https://www.agendaki.net/api/v1`. Para desenvolvimento local use o endereço da máquina acessível pelo telemóvel/emulador; `localhost` dentro do dispositivo não aponta para o computador.
+O app liga por padrão à API publicada em `https://apibackend.agendaki.net/api/v1`. Defina `EXPO_PUBLIC_API_URL` apenas se precisar de usar outro endereço. Para desenvolvimento local use o endereço da máquina acessível pelo telemóvel/emulador; `localhost` dentro do dispositivo não aponta para o computador. Credenciais de banco de dados, MinIO, Resend e JWT pertencem somente ao servidor e nunca devem ser incluídas no app.
 
 ## Dados e modo offline
 

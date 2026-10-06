@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import { BRAND } from '@/config';
 import { router } from 'expo-router';
 import { Text, View } from 'react-native';
 import { Card, Page, styles } from '@/components/ui';
@@ -14,11 +16,11 @@ export default function More() {
   return (
     <Page>
       <Card>
-        <Text style={{ fontSize: 18, color: '#11251d', fontWeight: '800' }}>{user?.name}</Text>
+        <Text style={{ fontSize: 18, color: BRAND.ink, fontWeight: '800' }}>{user?.name}</Text>
         <Text style={styles.subtitle}>{user?.email}</Text>
         <Text style={styles.subtitle}>{user?.schools[0]?.name || 'Conta AgendAKI'}</Text>
       </Card>
-      <View style={{ gap: 10 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
         {[
           ['Meus planos', '/(tabs)/planos'],
           ['Minhas turmas', '/(tabs)/turmas'],
@@ -28,14 +30,40 @@ export default function More() {
           ['Configurações', '/configuracoes'],
           ['Modo offline', '/offline'],
           ['Detalhes da sincronização', '/sincronizacao'],
-        ].map(([title, path]) => (
-          <Card key={path} onPress={() => router.push(path as never)}>
-            <Text style={{ color: '#11251d', fontWeight: '700' }}>{title} →</Text>
-          </Card>
+        ].map(([title, path], index) => (
+          <View key={path} style={{ width: '48%' }}>
+            <Card onPress={() => router.push(path as never)}>
+              <Ionicons
+                name={
+                  (
+                    [
+                      'document-text-outline',
+                      'people-outline',
+                      'person-outline',
+                      'stats-chart-outline',
+                      'checkbox-outline',
+                      'settings-outline',
+                      'cloud-offline-outline',
+                      'sync-outline',
+                    ] as const
+                  )[index]
+                }
+                size={24}
+                color={
+                  index === 3
+                    ? BRAND.purpleInk
+                    : index === 1 || index === 2
+                      ? BRAND.blue
+                      : BRAND.green
+                }
+              />
+              <Text style={{ color: BRAND.ink, fontWeight: '700' }}>{title}</Text>
+            </Card>
+          </View>
         ))}
       </View>
       <Card>
-        <Text style={{ color: '#11251d', fontWeight: '800' }}>Sincronização</Text>
+        <Text style={{ color: BRAND.ink, fontWeight: '800' }}>Sincronização</Text>
         <Text style={styles.subtitle}>
           {syncState === 'synced'
             ? 'Tudo atualizado'
@@ -45,7 +73,7 @@ export default function More() {
         </Text>
         <Text
           onPress={() => void syncNow()}
-          style={{ color: '#0b5239', fontWeight: '700', paddingVertical: 4 }}
+          style={{ color: BRAND.forestSoft, fontWeight: '700', paddingVertical: 4 }}
         >
           Sincronizar agora
         </Text>
@@ -54,7 +82,7 @@ export default function More() {
         <Text style={{ fontWeight: '700' }}>Ajuda e suporte →</Text>
       </Card>
       <Card onPress={() => void exit()}>
-        <Text style={{ color: '#d83b4b', fontWeight: '800' }}>Sair da conta</Text>
+        <Text style={{ color: BRAND.red, fontWeight: '800' }}>Sair da conta</Text>
       </Card>
     </Page>
   );

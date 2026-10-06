@@ -1,3 +1,4 @@
+import { BRAND } from '@/config';
 import { router } from 'expo-router';
 import { Text } from 'react-native';
 import { Card, Empty, Page, styles } from '@/components/ui';
@@ -22,13 +23,13 @@ export default function Lessons() {
                 })
               }
             >
-              <Text style={{ color: '#11251d', fontWeight: '800', fontSize: 16 }}>
+              <Text style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>
                 {String(p.subject || p.title || 'Aula')}
               </Text>
               <Text style={styles.subtitle}>
                 {[p.date, p.startTime, p.className || p.classId].filter(Boolean).join(' · ')}
               </Text>
-              <Text style={{ color: '#0b5239', fontWeight: '700' }}>Abrir presenças →</Text>
+              <Text style={{ color: BRAND.forestSoft, fontWeight: '700' }}>Abrir presenças →</Text>
             </Card>
           );
         })

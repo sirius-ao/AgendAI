@@ -1,3 +1,4 @@
+import { BRAND } from '@/config';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Text } from 'react-native';
@@ -37,7 +38,7 @@ export default function VerifyEmail() {
     <Page>
       <Heading title="Confirmar email" subtitle="Proteja o acesso à sua conta." />
       <Card>
-        <Text style={{ color: '#11251d', fontSize: 20, fontWeight: '800' }}>
+        <Text style={{ color: BRAND.ink, fontSize: 20, fontWeight: '800' }}>
           {status === 'loading'
             ? 'A validar ligação'
             : status === 'success'

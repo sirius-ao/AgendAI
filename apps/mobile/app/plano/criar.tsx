@@ -5,21 +5,31 @@ import { Button, Card, ChoiceField, Field, Heading, Notice, Page, styles } from 
 import { useDashboard } from '@/providers/dashboard-provider';
 
 const id = () => `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+const localDate = () => {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+};
 export default function CreatePlan() {
   const { snapshot, saveRecord } = useDashboard();
   const classes = snapshot?.data.classes || [];
   const subjects = snapshot?.data.subjects || [];
   const [title, setTitle] = useState('');
   const [objectives, setObjectives] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(localDate());
   const [classId, setClassId] = useState(classes[0]?.recordId || '');
   const [subjectId, setSubjectId] = useState(subjects[0]?.recordId || '');
   const [time, setTime] = useState('08:00');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const submit = async () => {
-    if (!title.trim() || !classId || !subjectId) {
-      setError('Preencha o título, a turma e a disciplina.');
+    if (
+      !title.trim() ||
+      !classId ||
+      !subjectId ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)
+    ) {
+      setError('Preencha o título, a turma, a disciplina e uma data e hora válidas.');
       return;
     }
     setBusy(true);

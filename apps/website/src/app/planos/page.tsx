@@ -15,13 +15,12 @@ export default function Pricing() {
         <div>
           <p className="eyebrow muted">Planos</p>
           <h1>
-            Escolha o plano ideal
-            <br />
-            para a sua <span>jornada.</span>
+            Poupe tempo a preparar aulas
+            <br />e organizar <span>avaliações.</span>
           </h1>
           <p>
-            Do professor individual às grandes instituições, o AgendAKI adapta-se às suas
-            necessidades.
+            Comece grátis e organize o seu trabalho diário. Escolha o Pro para ganhar mais
+            produtividade ou uma proposta adaptada à sua escola.
           </p>
         </div>
         <div className="handwritten">

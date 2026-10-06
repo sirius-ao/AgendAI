@@ -1,3 +1,4 @@
+import { BRAND } from '@/config';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Text } from 'react-native';
 import { Button, Card, Empty, Heading, Page, styles } from '@/components/ui';
@@ -19,7 +20,7 @@ export default function ClassDetail() {
         <Text style={styles.subtitle}>
           {String(group?.payload.year || group?.payload.grade || '')}
         </Text>
-        <Text style={{ color: '#11251d', fontWeight: '700' }}>
+        <Text style={{ color: BRAND.ink, fontWeight: '700' }}>
           Presenças: acompanhe as aulas e os registos desta turma.
         </Text>
       </Card>
@@ -32,14 +33,14 @@ export default function ClassDetail() {
         secondary
         onPress={() => router.push({ pathname: '/avaliacoes', params: { classId: id } })}
       />
-      <Text style={{ fontSize: 17, fontWeight: '800', color: '#11251d' }}>Alunos</Text>
+      <Text style={{ fontSize: 17, fontWeight: '800', color: BRAND.ink }}>Alunos</Text>
       {students.length ? (
         students.map((s) => (
           <Card
             key={s.recordId}
             onPress={() => router.push({ pathname: '/alunos/[id]', params: { id: s.recordId } })}
           >
-            <Text style={{ color: '#11251d', fontWeight: '700' }}>
+            <Text style={{ color: BRAND.ink, fontWeight: '700' }}>
               {String(s.payload.name || 'Aluno')}
             </Text>
           </Card>

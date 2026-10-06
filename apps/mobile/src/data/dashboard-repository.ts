@@ -1,9 +1,10 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { DashboardSnapshot, QueuedOperation } from '@/types/api';
 
-export async function readSnapshot(db: SQLiteDatabase, schoolId: string) {
+export async function readSnapshot(db: SQLiteDatabase, accountId: string, schoolId: string) {
   const row = await db.getFirstAsync<{ snapshot: string }>(
-    'SELECT snapshot FROM dashboard_cache WHERE school_id = ?',
+    'SELECT snapshot FROM dashboard_cache_v2 WHERE account_id = ? AND school_id = ?',
+    accountId,
     schoolId,
   );
   return row ? (JSON.parse(row.snapshot) as DashboardSnapshot) : null;
@@ -11,11 +12,13 @@ export async function readSnapshot(db: SQLiteDatabase, schoolId: string) {
 
 export async function writeSnapshot(
   db: SQLiteDatabase,
+  accountId: string,
   schoolId: string,
   snapshot: DashboardSnapshot,
 ) {
   await db.runAsync(
-    'INSERT INTO dashboard_cache (school_id, snapshot, updated_at) VALUES (?, ?, ?) ON CONFLICT(school_id) DO UPDATE SET snapshot = excluded.snapshot, updated_at = excluded.updated_at',
+    'INSERT INTO dashboard_cache_v2 (account_id, school_id, snapshot, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(account_id, school_id) DO UPDATE SET snapshot = excluded.snapshot, updated_at = excluded.updated_at',
+    accountId,
     schoolId,
     JSON.stringify(snapshot),
     new Date().toISOString(),
@@ -24,8 +27,9 @@ export async function writeSnapshot(
 
 export async function enqueueOperation(db: SQLiteDatabase, operation: QueuedOperation) {
   await db.runAsync(
-    'INSERT INTO sync_queue (id, school_id, collection, record_id, method, payload, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(school_id, collection, record_id) DO UPDATE SET id = excluded.id, method = excluded.method, payload = excluded.payload, created_at = excluded.created_at',
+    'INSERT INTO sync_queue_v2 (id, account_id, school_id, collection, record_id, method, payload, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(account_id, school_id, collection, record_id) DO UPDATE SET id = excluded.id, method = excluded.method, payload = excluded.payload, created_at = excluded.created_at',
     operation.id,
+    operation.accountId,
     operation.schoolId,
     operation.collection,
     operation.recordId,
@@ -35,9 +39,14 @@ export async function enqueueOperation(db: SQLiteDatabase, operation: QueuedOper
   );
 }
 
-export async function getQueue(db: SQLiteDatabase, schoolId: string): Promise<QueuedOperation[]> {
+export async function getQueue(
+  db: SQLiteDatabase,
+  accountId: string,
+  schoolId: string,
+): Promise<QueuedOperation[]> {
   const rows = await db.getAllAsync<{
     id: string;
+    account_id: string;
     school_id: string;
     collection: string;
     record_id: string;
@@ -45,11 +54,13 @@ export async function getQueue(db: SQLiteDatabase, schoolId: string): Promise<Qu
     payload: string | null;
     created_at: string;
   }>(
-    'SELECT id, school_id, collection, record_id, method, payload, created_at FROM sync_queue WHERE school_id = ? ORDER BY created_at ASC',
+    'SELECT id, account_id, school_id, collection, record_id, method, payload, created_at FROM sync_queue_v2 WHERE account_id = ? AND school_id = ? ORDER BY created_at ASC',
+    accountId,
     schoolId,
   );
   return rows.map((row) => ({
     id: row.id,
+    accountId: row.account_id,
     schoolId: row.school_id,
     collection: row.collection,
     recordId: row.record_id,
@@ -59,13 +70,14 @@ export async function getQueue(db: SQLiteDatabase, schoolId: string): Promise<Qu
   }));
 }
 
-export async function removeQueuedOperation(db: SQLiteDatabase, id: string) {
-  await db.runAsync('DELETE FROM sync_queue WHERE id = ?', id);
+export async function removeQueuedOperation(db: SQLiteDatabase, accountId: string, id: string) {
+  await db.runAsync('DELETE FROM sync_queue_v2 WHERE account_id = ? AND id = ?', accountId, id);
 }
 
-export async function queueSize(db: SQLiteDatabase, schoolId: string) {
+export async function queueSize(db: SQLiteDatabase, accountId: string, schoolId: string) {
   const row = await db.getFirstAsync<{ count: number }>(
-    'SELECT COUNT(*) AS count FROM sync_queue WHERE school_id = ?',
+    'SELECT COUNT(*) AS count FROM sync_queue_v2 WHERE account_id = ? AND school_id = ?',
+    accountId,
     schoolId,
   );
   return row?.count ?? 0;

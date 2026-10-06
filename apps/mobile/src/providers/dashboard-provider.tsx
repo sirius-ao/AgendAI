@@ -1,3 +1,4 @@
+import { normalizeDashboardSnapshot } from '@/data/dashboard-snapshot';
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 import { useSQLiteContext } from 'expo-sqlite';
 import {
@@ -27,6 +28,7 @@ export type SyncState = 'loading' | 'synced' | 'pending' | 'offline' | 'error';
 interface DashboardContextValue {
   snapshot: DashboardSnapshot | null;
   schoolId: string;
+  selectSchool(id: string): Promise<void>;
   syncState: SyncState;
   pendingCount: number;
   online: boolean;
@@ -50,19 +52,24 @@ export function DashboardProvider({ children }: PropsWithChildren) {
   const [message, setMessage] = useState('');
   const snapshotRef = useRef<DashboardSnapshot | null>(null);
   const schoolRef = useRef('');
+  const accountRef = useRef('');
+  const refreshPromise = useRef<Promise<void> | null>(null);
+  const refreshAgain = useRef(false);
 
   const publishSnapshot = useCallback(
-    async (next: DashboardSnapshot, id: string) => {
-      snapshotRef.current = next;
-      setSnapshot(next);
-      await writeSnapshot(db, id, next);
+    async (next: DashboardSnapshot, accountId: string, id: string) => {
+      await writeSnapshot(db, accountId, id, next);
+      if (accountRef.current === accountId && schoolRef.current === id) {
+        snapshotRef.current = next;
+        setSnapshot(next);
+      }
     },
     [db],
   );
 
   const flushQueue = useCallback(
-    async (id: string) => {
-      const operations = await getQueue(db, id);
+    async (accountId: string, id: string) => {
+      const operations = await getQueue(db, accountId, id);
       for (const operation of operations) {
         const path = `/schools/${encodeURIComponent(id)}/data/${encodeURIComponent(operation.collection)}/${encodeURIComponent(operation.recordId)}`;
         await request(
@@ -74,60 +81,69 @@ export function DashboardProvider({ children }: PropsWithChildren) {
                 body: JSON.stringify({ id: operation.recordId, payload: operation.payload }),
               },
         );
-        await removeQueuedOperation(db, operation.id);
+        await removeQueuedOperation(db, accountId, operation.id);
       }
-      setPendingCount(await queueSize(db, id));
+      setPendingCount(await queueSize(db, accountId, id));
     },
     [db, request],
   );
 
   const loadFromServer = useCallback(
-    async (id: string) => {
+    async (accountId: string, id: string) => {
       const raw = await request<ApiDashboardSnapshot>(
         `/schools/${encodeURIComponent(id)}/dashboard`,
       );
-      const data: DashboardSnapshot['data'] = Object.fromEntries(
-        Object.entries(raw.data || {}).map(([collection, rows]) => [
-          collection,
-          rows.map((row) => ({
-            recordId: row.recordId || row.id || '',
-            payload: row.payload || {},
-            updatedAt: row.updatedAt,
-          })),
-        ]),
-      );
-      if (raw.classes)
-        data.classes = raw.classes.map((item) => ({ recordId: item.id, payload: item }));
-      if (raw.students)
-        data.students = raw.students.map((item) => ({ recordId: item.id, payload: item }));
-      const serverSnapshot: DashboardSnapshot = { school: raw.school, data };
-      const pending = await getQueue(db, id);
+      const serverSnapshot = normalizeDashboardSnapshot(raw);
+      const pending = await getQueue(db, accountId, id);
       const merged = applyQueue(serverSnapshot, pending);
-      await publishSnapshot(merged, id);
+      await publishSnapshot(merged, accountId, id);
       return merged;
     },
     [db, publishSnapshot, request],
   );
 
   const refresh = useCallback(async () => {
-    const id = schoolRef.current;
-    if (!id || !online) {
+    if (refreshPromise.current) {
+      refreshAgain.current = true;
+      return refreshPromise.current;
+    }
+    if (!schoolRef.current || !accountRef.current || !online) {
       setSyncState('offline');
       return;
     }
-    setSyncState('loading');
-    setMessage('');
-    try {
-      await flushQueue(id);
-      await loadFromServer(id);
-      setPendingCount(await queueSize(db, id));
-      setSyncState((await queueSize(db, id)) ? 'pending' : 'synced');
-    } catch (cause) {
-      const count = await queueSize(db, id);
-      setPendingCount(count);
-      setMessage(cause instanceof Error ? cause.message : 'Não foi possível sincronizar agora.');
-      setSyncState(online ? 'error' : count ? 'pending' : 'offline');
-    }
+    refreshPromise.current = (async () => {
+      do {
+        refreshAgain.current = false;
+        const id = schoolRef.current;
+        const accountId = accountRef.current;
+        if (!id || !accountId || !online) break;
+        setSyncState('loading');
+        setMessage('');
+        try {
+          let queueError: unknown;
+          try {
+            await flushQueue(accountId, id);
+          } catch (cause) {
+            queueError = cause;
+          }
+          await loadFromServer(accountId, id);
+          if (queueError) throw queueError;
+          const count = await queueSize(db, accountId, id);
+          setPendingCount(count);
+          setSyncState(count ? 'pending' : 'synced');
+        } catch (cause) {
+          const count = await queueSize(db, accountId, id);
+          setPendingCount(count);
+          setMessage(
+            cause instanceof Error ? cause.message : 'Não foi possível sincronizar agora.',
+          );
+          setSyncState(online ? 'error' : count ? 'pending' : 'offline');
+        }
+      } while (refreshAgain.current && online);
+    })().finally(() => {
+      refreshPromise.current = null;
+    });
+    return refreshPromise.current;
   }, [db, flushQueue, loadFromServer, online]);
 
   useEffect(() => {
@@ -140,11 +156,25 @@ export function DashboardProvider({ children }: PropsWithChildren) {
     });
     const start = async () => {
       if (!authenticated || !user) {
+        accountRef.current = '';
+        schoolRef.current = '';
+        snapshotRef.current = null;
         setSnapshot(null);
+        setSchoolId('');
+        setPendingCount(0);
+        setMessage('');
         setSyncState('loading');
         return;
       }
-      const id = user.schools[0]?.id;
+      if (accountRef.current && accountRef.current !== user.id) {
+        snapshotRef.current = null;
+        setSnapshot(null);
+        setSchoolId('');
+        setPendingCount(0);
+      }
+      accountRef.current = user.id;
+      const id =
+        user.schools.find((school) => school.id === schoolRef.current)?.id || user.schools[0]?.id;
       if (!id) {
         setMessage('A sua conta ainda não pertence a uma escola.');
         setSyncState('error');
@@ -152,7 +182,10 @@ export function DashboardProvider({ children }: PropsWithChildren) {
       }
       schoolRef.current = id;
       setSchoolId(id);
-      const [cached, queue] = await Promise.all([readSnapshot(db, id), getQueue(db, id)]);
+      const [cached, queue] = await Promise.all([
+        readSnapshot(db, user.id, id),
+        getQueue(db, user.id, id),
+      ]);
       if (!active) return;
       setPendingCount(queue.length);
       if (cached) {
@@ -169,10 +202,16 @@ export function DashboardProvider({ children }: PropsWithChildren) {
         return;
       }
       try {
-        await flushQueue(id);
-        await loadFromServer(id);
+        let queueError: unknown;
+        try {
+          await flushQueue(user.id, id);
+        } catch (cause) {
+          queueError = cause;
+        }
+        await loadFromServer(user.id, id);
+        if (queueError) throw queueError;
         if (!active) return;
-        const remaining = await queueSize(db, id);
+        const remaining = await queueSize(db, user.id, id);
         setPendingCount(remaining);
         setSyncState(remaining ? 'pending' : 'synced');
       } catch (cause) {
@@ -192,15 +231,37 @@ export function DashboardProvider({ children }: PropsWithChildren) {
     };
   }, [authenticated, db, flushQueue, loadFromServer, refresh, user]);
 
+  const selectSchool = useCallback(
+    async (id: string) => {
+      if (!user?.schools.some((school) => school.id === id)) throw new Error('Escola inválida.');
+      schoolRef.current = id;
+      setSchoolId(id);
+      setMessage('');
+      const [cached, queue] = await Promise.all([
+        readSnapshot(db, user.id, id),
+        getQueue(db, user.id, id),
+      ]);
+      const next = cached ? applyQueue(cached, queue) : null;
+      snapshotRef.current = next;
+      setSnapshot(next);
+      setPendingCount(queue.length);
+      setSyncState(queue.length ? 'pending' : next ? 'offline' : 'loading');
+      if (online) await refresh();
+    },
+    [db, online, refresh, user],
+  );
+
   const saveRecord = useCallback(
     async (collection: string, recordId: string, payload: Record<string, unknown>) => {
       const id = schoolRef.current;
+      const accountId = accountRef.current;
       const current = snapshotRef.current;
-      if (!id || !current)
+      if (!id || !accountId || !current)
         throw new Error('Os dados da escola ainda não foram carregados neste dispositivo.');
       const next = updateCachedRecord(current, collection, recordId, payload);
       const operation: QueuedOperation = {
         id: makeOperationId(),
+        accountId,
         schoolId: id,
         collection,
         recordId,
@@ -208,9 +269,9 @@ export function DashboardProvider({ children }: PropsWithChildren) {
         payload,
         createdAt: new Date().toISOString(),
       };
-      await publishSnapshot(next, id);
       await enqueueOperation(db, operation);
-      const count = await queueSize(db, id);
+      await publishSnapshot(next, accountId, id);
+      const count = await queueSize(db, accountId, id);
       setPendingCount(count);
       setSyncState(online ? 'pending' : 'offline');
       setMessage('');
@@ -223,6 +284,7 @@ export function DashboardProvider({ children }: PropsWithChildren) {
     () => ({
       snapshot,
       schoolId,
+      selectSchool,
       syncState,
       pendingCount,
       online,
@@ -231,7 +293,17 @@ export function DashboardProvider({ children }: PropsWithChildren) {
       syncNow: refresh,
       refresh,
     }),
-    [message, online, pendingCount, refresh, saveRecord, schoolId, snapshot, syncState],
+    [
+      message,
+      online,
+      pendingCount,
+      refresh,
+      saveRecord,
+      schoolId,
+      selectSchool,
+      snapshot,
+      syncState,
+    ],
   );
   return <DashboardContext.Provider value={value}>{children}</DashboardContext.Provider>;
 }
