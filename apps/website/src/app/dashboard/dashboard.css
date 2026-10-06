@@ -3739,6 +3739,13 @@
   .dash-demo { display: none; }
 }
 @media (min-width: 701px) {
+  .sidebar-collapsed .dash-nav-group { width: 100%; align-items: center; margin: 7px 0; }
+  .sidebar-collapsed .dash-nav-section-label { display: none; }
+  .sidebar-collapsed .dash-sidebar nav > .dash-nav-group > a {
+    width: 100%; justify-content: center; gap: 0; padding: 13px; min-width: 0;
+  }
+  .sidebar-collapsed .dash-sidebar nav > .dash-nav-group > a > span:not(.dash-nav-unread) { display: none; }
+  .sidebar-expanded .dash-sidebar nav > .dash-nav-group > a > span:not(.dash-nav-unread) { display: block; }
   .sidebar-collapsed .dash-sidebar { width: 78px; padding: 20px 10px; }
   .sidebar-collapsed .dash-workspace { margin-left: 78px; }
   .sidebar-collapsed .dash-logo { justify-content: center; padding: 0 2px 22px; }
