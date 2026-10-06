@@ -7,7 +7,7 @@ import { Button, Input } from '@agendai/ui';
 import { Logo } from './Logo';
 import { apiResendVerification, apiVerifyEmail } from '@/lib/api/client';
 
-export function EmailVerification({ token }: { token?: string }) {
+export function EmailVerification({ token, initialEmail }: { token?: string; initialEmail?: string }) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -28,7 +28,7 @@ export function EmailVerification({ token }: { token?: string }) {
             setError(true); setMessage(cause instanceof Error ? cause.message : 'Não foi possível concluir o pedido.');
           } finally { setBusy(false); }
         }}>
-          {!token && <label>O seu e-mail<Input name="email" type="email" autoComplete="email" required /></label>}
+          {!token && <label>O seu e-mail<Input name="email" type="email" autoComplete="email" defaultValue={initialEmail} required /></label>}
           <Button type="submit" disabled={busy}>{busy ? 'Aguarde…' : token ? 'Confirmar email' : 'Enviar nova ligação'}<ArrowRight size={17} /></Button>
           {message && <p role={error ? 'alert' : 'status'} className="form-feedback">{message}</p>}
         </form>

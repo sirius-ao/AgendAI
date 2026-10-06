@@ -26,6 +26,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [bell, setBell] = useState(false);
   const unreadConversations = state.conversations.filter((conversation) => conversation.unread > 0).length;
   const activeSchool = state.schools?.find((school) => school.id === state.activeSchoolId);
+  const accountRequired = process.env.NODE_ENV === 'production';
+  useEffect(() => {
+    if (accountRequired && ready && (!apiMode || !hasApiSession())) window.location.replace('/entrar');
+  }, [accountRequired, ready, apiMode]);
   const logout = async () => {
     if (hasApiSession()) await apiLogout().catch(() => undefined);
     window.location.assign('/entrar');
@@ -58,6 +62,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   ]
     .filter((r) => normalize(r.title).includes(normalize(query)))
     .slice(0, 12);
+  if (accountRequired && ready && (!apiMode || !hasApiSession())) {
+    return <main className="dash-loading" role="status">A encaminhar para iniciar sessão…</main>;
+  }
   const renderNavigationLink = ({ href, label, icon: Icon }: DashboardNavigationItem) => (
     <Link
       onClick={() => setMenu(false)}
