@@ -1,6 +1,6 @@
 const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 
-export const API_BASE_URL = (configuredApiUrl || 'https://www.agendaki.net/api/v1').replace(
+export const API_BASE_URL = (configuredApiUrl || 'https://apibackend.agendaki.net/api/v1').replace(
   /\/$/,
   '',
 );

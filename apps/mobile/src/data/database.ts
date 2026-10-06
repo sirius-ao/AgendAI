@@ -19,20 +19,23 @@ export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
-    CREATE TABLE IF NOT EXISTS dashboard_cache (
-      school_id TEXT PRIMARY KEY NOT NULL,
+    CREATE TABLE IF NOT EXISTS dashboard_cache_v2 (
+      account_id TEXT NOT NULL,
+      school_id TEXT NOT NULL,
       snapshot TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY(account_id, school_id)
     );
-    CREATE TABLE IF NOT EXISTS sync_queue (
+    CREATE TABLE IF NOT EXISTS sync_queue_v2 (
       id TEXT PRIMARY KEY NOT NULL,
+      account_id TEXT NOT NULL,
       school_id TEXT NOT NULL,
       collection TEXT NOT NULL,
       record_id TEXT NOT NULL,
       method TEXT NOT NULL,
       payload TEXT,
       created_at TEXT NOT NULL,
-      UNIQUE(school_id, collection, record_id)
+      UNIQUE(account_id, school_id, collection, record_id)
     );
   `);
 }

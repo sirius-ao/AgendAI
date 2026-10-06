@@ -45,6 +45,7 @@ export interface ApiDashboardSnapshot {
 
 export interface QueuedOperation {
   id: string;
+  accountId: string;
   schoolId: string;
   collection: string;
   recordId: string;

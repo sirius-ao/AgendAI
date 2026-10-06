@@ -2,15 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Text, View } from 'react-native';
 import { BRAND } from '@/config';
-import { Card, Empty, Page, styles } from '@/components/ui';
+import { Card, ChoiceField, Empty, Page, styles } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
 import { useDashboard } from '@/providers/dashboard-provider';
 
 export default function Home() {
   const { user } = useAuth();
-  const { snapshot, syncState, pendingCount, message, syncNow } = useDashboard();
+  const { snapshot, schoolId, selectSchool, syncState, pendingCount, message, syncNow } =
+    useDashboard();
   const plans = snapshot?.data.plans || [];
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const nextRow =
     plans.find(
       (row) => String(row.payload.date || row.payload.lessonDate || '').slice(0, 10) >= today,
@@ -24,7 +26,7 @@ export default function Home() {
         <Text style={{ color: BRAND.muted }}>{greeting},</Text>
         <Text style={styles.title}>{user?.name?.split(' ')[0] || 'Professor'} 👋</Text>
         <Text style={styles.subtitle}>
-          {new Date().toLocaleDateString('pt-PT', {
+          {now.toLocaleDateString('pt-PT', {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
@@ -87,8 +89,20 @@ export default function Home() {
       </View>
       <Card>
         <Text style={{ fontWeight: '800', color: BRAND.ink }}>Hoje na escola</Text>
+        {user && user.schools.length > 1 ? (
+          <ChoiceField
+            label="Escola"
+            value={schoolId}
+            options={user.schools.map((school) => ({ id: school.id, label: school.name }))}
+            onSelect={(id) => {
+              void selectSchool(id);
+            }}
+          />
+        ) : null}
         <Text style={styles.subtitle}>
-          {snapshot?.school.name || user?.schools[0]?.name || 'A sua escola'}
+          {snapshot?.school.name ||
+            user?.schools.find((school) => school.id === schoolId)?.name ||
+            'A sua escola'}
         </Text>
         <Text style={{ color: BRAND.muted }}>
           {(snapshot?.data.classes || []).length} turmas · {(snapshot?.data.students || []).length}{' '}
