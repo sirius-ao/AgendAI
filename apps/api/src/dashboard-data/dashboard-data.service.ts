@@ -278,8 +278,7 @@ export class DashboardDataService {
     const result = await this.prisma.dashboardRecord.deleteMany({
       where: { schoolId, collection, recordId },
     });
-    if (!result.count) throw new NotFoundException('Registo não encontrado');
-    await this.audit.write({ schoolId, actorId: userId, action: 'DELETE', entity: name, recordId });
+    if (result.count) await this.audit.write({ schoolId, actorId: userId, action: 'DELETE', entity: name, recordId });
     return { success: true };
   }
   async snapshot(userId: string, schoolId: string) {

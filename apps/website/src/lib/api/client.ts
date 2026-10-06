@@ -1,4 +1,6 @@
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1').replace(/\/$/, '');
+// Use the website's origin so browsers never call a server-only host such as
+// localhost or a container name. next.config.ts proxies this path to the API.
+const API_URL = '/api/v1';
 const TOKEN_KEY = 'agendai_access_token';
 let refreshPromise: Promise<boolean> | null = null;
 
