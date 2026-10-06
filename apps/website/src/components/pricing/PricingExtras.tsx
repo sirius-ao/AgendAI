@@ -76,11 +76,17 @@ export function PricingExtras() {
             </thead>
             <tbody>
               {[
-                ['Escolas', '1', 'Ilimitadas', '1', 'Várias'],
+                ['Escolas', '1', 'Ilimitadas', '1', '1'],
                 ['Turmas', '2', 'Ilimitadas', 'Ilimitadas', 'Ilimitadas'],
-                ['Planos de aula', 'Até 10', 'Ilimitados', 'Ilimitados', 'Ilimitados'],
-                ['Professores', '1', '1', 'Até 20', 'Ilimitados'],
-                ['Assistente com IA', 'Não', 'Sim', 'Sim', 'Sim'],
+                ['Planos de aula', 'Ilimitados', 'Ilimitados', 'Ilimitados', 'Ilimitados'],
+                ['Professores', '1', '1', 'Até 10', 'Até 30'],
+                [
+                  'Assistente com IA (previsto)',
+                  'Não',
+                  '30 utilizações/mês',
+                  'Franquia sob consulta',
+                  'Franquia sob consulta',
+                ],
                 ['Exportação', 'PDF', 'PDF e Excel', 'Em lote', 'Em lote'],
                 ['Suporte', 'Básico', 'Prioritário', 'Dedicado', 'Prioritário'],
               ].map((row) => (

@@ -1,3 +1,4 @@
+import { BRAND } from '@/config';
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
@@ -85,10 +86,12 @@ export default function Attendance() {
       />
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <Card style={{ flex: 1 }}>
-          <Text style={{ color: '#0b5239', fontWeight: '800' }}>{presentCount} Presentes</Text>
+          <Text style={{ color: BRAND.forestSoft, fontWeight: '800' }}>
+            {presentCount} Presentes
+          </Text>
         </Card>
         <Card style={{ flex: 1 }}>
-          <Text style={{ color: '#d83b4b', fontWeight: '800' }}>{absentCount} Ausentes</Text>
+          <Text style={{ color: BRAND.red, fontWeight: '800' }}>{absentCount} Ausentes</Text>
         </Card>
       </View>
       <Card>
@@ -127,7 +130,7 @@ export default function Attendance() {
                   justifyContent: 'space-between',
                 }}
               >
-                <Text style={{ color: '#11251d', fontWeight: '700', flex: 1 }}>
+                <Text style={{ color: BRAND.ink, fontWeight: '700', flex: 1 }}>
                   {String(s.payload.name || 'Aluno')}
                 </Text>
                 <Text
@@ -135,10 +138,10 @@ export default function Attendance() {
                     fontSize: 16,
                     color:
                       typeof statuses[s.recordId] !== 'boolean'
-                        ? '#64726b'
+                        ? BRAND.muted
                         : isPresent
-                          ? '#07964e'
-                          : '#d83b4b',
+                          ? BRAND.green
+                          : BRAND.red,
                   }}
                 >
                   {typeof statuses[s.recordId] !== 'boolean'

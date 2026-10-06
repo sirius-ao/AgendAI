@@ -1563,7 +1563,8 @@ textarea {
 }
 .price {
   font-size: 15px;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   color: var(--color-text-primary);
 }
 .price strong {

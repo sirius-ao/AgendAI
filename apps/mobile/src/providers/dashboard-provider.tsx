@@ -1,3 +1,4 @@
+import { normalizeDashboardSnapshot } from '@/data/dashboard-snapshot';
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 import { useSQLiteContext } from 'expo-sqlite';
 import {
@@ -92,21 +93,7 @@ export function DashboardProvider({ children }: PropsWithChildren) {
       const raw = await request<ApiDashboardSnapshot>(
         `/schools/${encodeURIComponent(id)}/dashboard`,
       );
-      const data: DashboardSnapshot['data'] = Object.fromEntries(
-        Object.entries(raw.data || {}).map(([collection, rows]) => [
-          collection,
-          rows.map((row) => ({
-            recordId: row.recordId || row.id || '',
-            payload: row.payload || {},
-            updatedAt: row.updatedAt,
-          })),
-        ]),
-      );
-      if (raw.classes)
-        data.classes = raw.classes.map((item) => ({ recordId: item.id, payload: item }));
-      if (raw.students)
-        data.students = raw.students.map((item) => ({ recordId: item.id, payload: item }));
-      const serverSnapshot: DashboardSnapshot = { school: raw.school, data };
+      const serverSnapshot = normalizeDashboardSnapshot(raw);
       const pending = await getQueue(db, accountId, id);
       const merged = applyQueue(serverSnapshot, pending);
       await publishSnapshot(merged, accountId, id);
@@ -133,8 +120,14 @@ export function DashboardProvider({ children }: PropsWithChildren) {
         setSyncState('loading');
         setMessage('');
         try {
-          await flushQueue(accountId, id);
+          let queueError: unknown;
+          try {
+            await flushQueue(accountId, id);
+          } catch (cause) {
+            queueError = cause;
+          }
           await loadFromServer(accountId, id);
+          if (queueError) throw queueError;
           const count = await queueSize(db, accountId, id);
           setPendingCount(count);
           setSyncState(count ? 'pending' : 'synced');
@@ -180,7 +173,8 @@ export function DashboardProvider({ children }: PropsWithChildren) {
         setPendingCount(0);
       }
       accountRef.current = user.id;
-      const id = user.schools[0]?.id;
+      const id =
+        user.schools.find((school) => school.id === schoolRef.current)?.id || user.schools[0]?.id;
       if (!id) {
         setMessage('A sua conta ainda não pertence a uma escola.');
         setSyncState('error');
@@ -208,8 +202,14 @@ export function DashboardProvider({ children }: PropsWithChildren) {
         return;
       }
       try {
-        await flushQueue(user.id, id);
+        let queueError: unknown;
+        try {
+          await flushQueue(user.id, id);
+        } catch (cause) {
+          queueError = cause;
+        }
         await loadFromServer(user.id, id);
+        if (queueError) throw queueError;
         if (!active) return;
         const remaining = await queueSize(db, user.id, id);
         setPendingCount(remaining);

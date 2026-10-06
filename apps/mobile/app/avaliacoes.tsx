@@ -1,3 +1,4 @@
+import { BRAND } from '@/config';
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Text } from 'react-native';
@@ -102,7 +103,7 @@ export default function Assessments() {
       {students.length ? (
         students.map((s) => (
           <Card key={s.recordId}>
-            <Text style={{ color: '#11251d', fontWeight: '700' }}>
+            <Text style={{ color: BRAND.ink, fontWeight: '700' }}>
               {String(s.payload.name || 'Aluno')}
             </Text>
             <Field

@@ -6,7 +6,7 @@ import { buttonClass } from '@agendai/ui';
 import { plans, billing, formatKz } from '@/data/plans';
 const icons = [UserRound, Crown, School, Star];
 export function PricingGrid({ insideDashboard = false }: { insideDashboard?: boolean }) {
-  const [annual, setAnnual] = useState(false);
+  const [annual, setAnnual] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState('');
   return (
     <>
@@ -25,15 +25,18 @@ export function PricingGrid({ insideDashboard = false }: { insideDashboard?: boo
         >
           Anual
         </button>
-        <span>Poupe até 20%</span>
+        <span>Pro anual: 7.500 Kz no primeiro ano</span>
       </div>
       <p className="prototype-note" role="note">
-        Preços e condições ilustrativos da proposta de lançamento. Não há subscrições nem cobranças nesta demonstração.
+        Preços e condições ilustrativos da proposta de lançamento. Não há subscrições nem cobranças
+        nesta demonstração.
       </p>
       <div className="pricing-grid">
         {plans.map((plan, i) => {
           const Icon = icons[i];
-          const monthly = plan.price * (annual ? 1 - billing.annualDiscount : 1);
+          const yearlyOnly = plan.id === 'escola' || plan.id === 'escola30';
+          const isAnnual = annual || yearlyOnly;
+          const price = isAnnual ? (plan.launchPrice ?? plan.annualPrice ?? 0) : plan.price;
           return (
             <article className={`pricing-card ${plan.popular ? 'popular' : ''}`} key={plan.id}>
               {plan.popular && <span className="popular-badge">Mais Popular</span>}
@@ -47,28 +50,35 @@ export function PricingGrid({ insideDashboard = false }: { insideDashboard?: boo
                 </div>
               </div>
               <div className="price" aria-live="polite">
-                <strong>{formatKz(monthly)}</strong> Kz/mês
+                <strong>{formatKz(price)}</strong> Kz/{isAnnual ? 'ano' : 'mês'}
               </div>
               <div className="plan-detail">
-                {annual && plan.price > 0
-                  ? `${formatKz(monthly * billing.annualMonths)} Kz faturados por ano`
-                  : plan.detail || '\u00a0'}
+                {plan.id === 'pro'
+                  ? isAnnual
+                    ? `Equivale a ${formatKz(price / billing.annualMonths)} Kz/mês. Primeiro ano: ${formatKz(price)} Kz; renovação: ${formatKz(billing.proAnnualPrice)} Kz/ano.`
+                    : `Pagamento mensal. Ou ${formatKz(billing.proLaunchPrice)} Kz no primeiro ano no plano anual.`
+                  : plan.detail || 'Grátis para começar e continuar a usar.'}
               </div>
               <p className="plan-description">{plan.description}</p>
               {insideDashboard ? (
-                <button className={buttonClass(i === 1 || i === 3 ? 'primary' : 'outline')} onClick={() => setSelectedPlan(plan.id)}>
+                <button
+                  className={buttonClass(plan.popular ? 'primary' : 'outline')}
+                  onClick={() => setSelectedPlan(plan.id)}
+                >
                   {plan.cta}
                 </button>
               ) : (
                 <Link
-                  className={buttonClass(i === 1 || i === 3 ? 'primary' : 'outline')}
-                  href={`${plan.href}&periodo=${annual ? 'anual' : 'mensal'}`}
+                  className={buttonClass(plan.popular ? 'primary' : 'outline')}
+                  href={`${plan.href}&periodo=${isAnnual ? 'anual' : 'mensal'}`}
                 >
                   {plan.cta}
                 </Link>
               )}
               {insideDashboard && selectedPlan === plan.id && (
-                <p className="dash-pricing-action-note" role="status">A adesão ao plano ainda não está disponível nesta demonstração.</p>
+                <p className="dash-pricing-action-note" role="status">
+                  A adesão ao plano ainda não está disponível nesta demonstração.
+                </p>
               )}
               <ul className="check-list">
                 {plan.features.map((feature) => (
@@ -92,6 +102,10 @@ export function PricingGrid({ insideDashboard = false }: { insideDashboard?: boo
           );
         })}
       </div>
+      <p className="prototype-note">
+        Escola Premium — preço sob consulta para 31+ professores, várias unidades e integrações.{' '}
+        <Link href="/contacto?plano=plus">Pedir proposta para a escola →</Link>
+      </p>
     </>
   );
 }

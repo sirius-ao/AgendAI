@@ -2,7 +2,7 @@ import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { BRAND } from '@/config';
-import { Button, Card, Field, Notice, Page, styles } from '@/components/ui';
+import { BrandLogo, Button, Card, Field, Notice, Page, styles } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
 
 export default function SignIn() {
@@ -26,11 +26,7 @@ export default function SignIn() {
   return (
     <Page>
       <View style={{ alignItems: 'center', gap: 5, paddingVertical: 20 }}>
-        <Text style={{ color: BRAND.green, fontSize: 48, fontWeight: '900' }}>◈</Text>
-        <Text style={{ color: BRAND.forest, fontSize: 30, fontWeight: '900' }}>
-          Agend<Text style={{ color: BRAND.green }}>AKI</Text>
-        </Text>
-        <Text style={styles.subtitle}>Planear hoje. Ensinar melhor.</Text>
+        <BrandLogo />
       </View>
       <Card>
         <Text style={styles.title}>Entrar na conta</Text>

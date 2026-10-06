@@ -33,7 +33,7 @@ export default function Plans() {
                   })
                 }
               >
-                <Text style={{ color: BRAND.forestSoft, fontWeight: '700' }}>Avaliar</Text>
+                <Text style={{ color: BRAND.purpleInk, fontWeight: '700' }}>Avaliar</Text>
               </Pressable>
             </View>
             <Text style={styles.subtitle}>

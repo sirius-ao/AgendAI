@@ -1,8 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Text, View } from 'react-native';
 import { BRAND } from '@/config';
-import { Card, ChoiceField, Empty, Page, styles } from '@/components/ui';
+import { Button, Card, ChoiceField, Empty, Page, styles } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
 import { useDashboard } from '@/providers/dashboard-provider';
 
@@ -51,7 +50,7 @@ export default function Home() {
         </Card>
       ) : null}
       {next ? (
-        <Card style={{ backgroundColor: '#eefaf3' }}>
+        <Card style={{ backgroundColor: BRAND.greenPale }}>
           <Text style={{ color: BRAND.forestSoft, fontWeight: '800' }}>◉ PRÓXIMA AULA</Text>
           <Text style={{ fontSize: 20, fontWeight: '800', color: BRAND.ink }}>
             {String(next.subject || next.title || 'Aula')}
@@ -68,25 +67,11 @@ export default function Home() {
       )}
       <Text style={{ fontSize: 16, fontWeight: '800', color: BRAND.ink }}>Acesso rápido</Text>
       <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Quick
-          title="Presenças"
-          icon="checkmark-done-outline"
-          onPress={() => router.push('/(tabs)/aulas')}
-        />
-        <Quick
-          title="Avaliações"
-          icon="stats-chart-outline"
-          onPress={() => router.push('/avaliacoes')}
-        />
+        <Quick title="Presenças" onPress={() => router.push('/(tabs)/aulas')} />
+        <Quick title="Avaliações" tone="purple" onPress={() => router.push('/avaliacoes')} />
       </View>
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Quick
-          title="Criar plano"
-          icon="add-circle-outline"
-          onPress={() => router.push('/plano/criar')}
-        />
-        <Quick title="Alunos" icon="people-outline" onPress={() => router.push('/alunos')} />
-      </View>
+      <Button title="＋ Criar plano" tone="soft" onPress={() => router.push('/plano/criar')} />
+      <Button title="Consultar alunos" secondary onPress={() => router.push('/alunos')} />
       <Card>
         <Text style={{ fontWeight: '800', color: BRAND.ink }}>Hoje na escola</Text>
         {user && user.schools.length > 1 ? (
@@ -120,17 +105,16 @@ export default function Home() {
 }
 function Quick({
   title,
-  icon,
   onPress,
+  tone = 'green',
 }: {
   title: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  tone?: 'green' | 'purple' | 'soft';
   onPress: () => void;
 }) {
   return (
-    <Card onPress={onPress} style={{ flex: 1, alignItems: 'center', paddingVertical: 18 }}>
-      <Ionicons name={icon} size={25} color={BRAND.forestSoft} />
-      <Text style={{ fontSize: 13, fontWeight: '700', color: BRAND.ink }}>{title}</Text>
-    </Card>
+    <View style={{ flex: 1 }}>
+      <Button title={`＋ ${title}`} onPress={onPress} tone={tone} />
+    </View>
   );
 }

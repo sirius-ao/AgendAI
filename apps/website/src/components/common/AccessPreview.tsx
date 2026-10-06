@@ -6,7 +6,7 @@ import { Button, Input } from '@agendai/ui';
 import { Logo } from './Logo';
 import { useRouter } from 'next/navigation';
 import { apiContact, apiLogin, apiRegister, apiRequest } from '@/lib/api/client';
-const planLabels: Record<string, string> = { pro: 'Professor Pro', escola: 'Escola', plus: 'Escola Plus' };
+const planLabels: Record<string, string> = { pro: 'Professor Pro', escola: 'Escola Start', escola30: 'Escola Plus', plus: 'Escola Premium' };
 export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto' }) {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);

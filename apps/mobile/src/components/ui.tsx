@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Image,
   FlatList,
   Modal,
   Pressable,
@@ -17,13 +18,47 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BRAND } from '@/config';
 
+export function BrandLogo({
+  dark = false,
+  compact = false,
+}: {
+  dark?: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <View style={{ alignItems: 'center', gap: 6 }}>
+      <Image
+        source={require('../../assets/logo-basico.png')}
+        accessibilityLabel="Logotipo AgendAKI: livro aberto verde"
+        style={{
+          width: compact ? 42 : 104,
+          height: compact ? 42 : 100,
+          borderRadius: compact ? 10 : 20,
+        }}
+        resizeMode="contain"
+      />
+      {!compact && (
+        <>
+          <Text style={{ color: dark ? BRAND.white : BRAND.ink, fontSize: 30, fontWeight: '900' }}>
+            Agend<Text style={{ color: dark ? BRAND.greenBright : BRAND.green }}>AKI</Text>
+          </Text>
+          <Text style={{ color: dark ? '#d8e9df' : BRAND.muted, fontSize: 13 }}>
+            Planear hoje. Ensinar melhor.
+          </Text>
+        </>
+      )}
+    </View>
+  );
+}
+
 export function Page({
   children,
   scroll = true,
+  dark = false,
   ...props
-}: ViewProps & { children: ReactNode; scroll?: boolean }) {
+}: ViewProps & { children: ReactNode; scroll?: boolean; dark?: boolean }) {
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, dark && { backgroundColor: BRAND.forest }]} edges={['top']}>
       <View style={styles.page} {...props}>
         {scroll ? (
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -48,7 +83,12 @@ export function Heading({
   return (
     <View style={styles.heading}>
       {back && (
-        <Pressable onPress={() => router.back()} style={styles.back}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+          style={styles.back}
+        >
           <Ionicons name="arrow-back" size={22} color={BRAND.ink} />
         </Pressable>
       )}
@@ -63,12 +103,14 @@ export function Button({
   title,
   onPress,
   secondary = false,
+  tone = 'green',
   disabled = false,
   loading = false,
 }: {
   title: string;
   onPress: () => void;
   secondary?: boolean;
+  tone?: 'green' | 'purple' | 'soft';
   disabled?: boolean;
   loading?: boolean;
 }) {
@@ -79,14 +121,24 @@ export function Button({
       disabled={disabled || loading}
       style={({ pressed }) => [
         styles.button,
+        tone === 'purple' && { backgroundColor: BRAND.purple },
+        tone === 'soft' && { backgroundColor: BRAND.greenSoft },
         secondary && styles.buttonSecondary,
         (disabled || pressed) && styles.buttonDisabled,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={secondary ? BRAND.forest : BRAND.white} />
+        <ActivityIndicator color={secondary || tone === 'soft' ? BRAND.forestSoft : BRAND.white} />
       ) : (
-        <Text style={[styles.buttonText, secondary && styles.buttonSecondaryText]}>{title}</Text>
+        <Text
+          style={[
+            styles.buttonText,
+            tone === 'soft' && { color: BRAND.forestSoft },
+            secondary && styles.buttonSecondaryText,
+          ]}
+        >
+          {title}
+        </Text>
       )}
     </Pressable>
   );
@@ -96,7 +148,7 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
-        placeholderTextColor="#94a39a"
+        placeholderTextColor={BRAND.muted}
         {...props}
         style={[
           styles.input,
@@ -131,7 +183,7 @@ export function ChoiceField({
         onPress={() => setVisible(true)}
         style={styles.choice}
       >
-        <Text style={{ color: selected ? BRAND.ink : '#94a39a', flex: 1 }}>
+        <Text style={{ color: selected ? BRAND.ink : BRAND.muted, flex: 1 }}>
           {selected?.label || placeholder}
         </Text>
         <Ionicons name="chevron-down" size={18} color={BRAND.muted} />
@@ -238,10 +290,10 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 18,
     marginTop: 4,
   },
-  buttonSecondary: { backgroundColor: BRAND.white, borderWidth: 1, borderColor: BRAND.line },
+  buttonSecondary: { backgroundColor: BRAND.white, borderWidth: 1, borderColor: BRAND.green },
   buttonDisabled: { opacity: 0.68 },
   buttonText: { color: BRAND.white, fontSize: 15, fontWeight: '800' },
-  buttonSecondaryText: { color: BRAND.forest },
+  buttonSecondaryText: { color: BRAND.forestSoft },
   field: { gap: 7 },
   label: { color: BRAND.ink, fontSize: 13, fontWeight: '700' },
   input: {
