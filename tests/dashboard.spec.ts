@@ -226,10 +226,10 @@ test('presenças e notas atualizam os relatórios; aluno pertence à turma', asy
   await expect(page.locator('tbody tr')).toHaveCount(29);
   await expect(page.getByLabel('Presença de Aluno Teste E2E')).toHaveValue('Presente');
 });
-test('biblioteca, mensagens locais, preferências e entrada demonstrativa', async ({ page }) => {
+test('biblioteca, mensagens locais, preferências e remoção do acesso demonstrativo', async ({ page }) => {
   await page.goto('/entrar');
-  await page.getByRole('link', { name: 'Explorar dashboard de demonstração' }).click();
-  await expect(page).toHaveURL('/dashboard');
+  await expect(page.getByRole('link', { name: /dashboard de demonstração/i })).toHaveCount(0);
+  await page.goto('/dashboard');
   await page.goto('/dashboard/biblioteca');
   await page
     .getByRole('button', { name: 'Favoritar: Apresentação — Revolução Industrial', exact: true })

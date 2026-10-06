@@ -1,7 +1,7 @@
 import { pageMetadata } from '@/lib/site';
 export const metadata = pageMetadata(
   'Privacidade',
-  'Informação sobre os dados neste protótipo do website AgendAKI.',
+  'Informação sobre os dados no website e serviço AgendAKI.',
   '/privacidade',
 );
 export default function Privacy() {
@@ -10,20 +10,18 @@ export default function Privacy() {
       <p className="eyebrow">Website e serviço AgendAKI</p>
       <h1>Privacidade</h1>
       <p>
-        A demonstração pública guarda os seus dados no navegador. Quando cria uma conta, os dados
-        de perfil e da escola são enviados à API e guardados na base de dados do serviço para
-        autenticação e sincronização. O formulário de contacto envia o nome, email, escola, plano
-        e mensagem para a equipa AgendAKI. O envio de email transacional e de marketing é feito pelo
-        fornecedor Resend. Não envie dados pessoais de alunos nesta versão.
+        O acesso ao dashboard requer uma conta. Os dados de perfil e da escola são enviados à API e
+        guardados na base de dados do serviço para autenticação e sincronização. O formulário de
+        contacto envia o nome, email, escola, plano e mensagem para a equipa AgendAKI. O envio de
+        email transacional e de marketing é feito pelo fornecedor Resend. Não envie dados pessoais
+        de alunos nesta versão.
       </p>
       <h2>Dados locais do dashboard</h2>
       <p>
-        O dashboard guarda planos, notas, presenças, mensagens e preferências no armazenamento local
-        deste navegador (localStorage). As alterações permanecem após fechar a página, mas não são
-        sincronizadas entre dispositivos. Em Configurações → Privacidade pode exportar os dados ou
-        repor os exemplos. Limpar os dados do site no navegador remove este armazenamento. Em contas
-        autenticadas, os dados da escola são sincronizados com a API; os anexos usam armazenamento
-        de objetos configurado pelo operador.
+        Os planos, notas, presenças, mensagens e outros registos da escola são sincronizados com a
+        API. A sessão do website usa armazenamento do navegador; limpá-lo termina a sessão, mas não
+        apaga os dados guardados na conta. Em Configurações → Privacidade pode exportar ou remover
+        os dados da escola. Os anexos usam o armazenamento de objetos configurado pelo operador.
       </p>
       <h2>Emails, newsletter e análise</h2>
       <p>

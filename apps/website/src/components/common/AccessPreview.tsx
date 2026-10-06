@@ -10,6 +10,8 @@ const planLabels: Record<string, string> = { pro: 'Professor Pro', escola: 'Esco
 export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto' }) {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [verificationPending, setVerificationPending] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
   const [invitationToken, setInvitationToken] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('');
   const router = useRouter();
@@ -74,8 +76,11 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
                 await apiLogin(String(data.get('email')), String(data.get('password')));
                 if (inviteToken) await apiRequest('/invitations/accept', { method: 'POST', body: JSON.stringify({ token: inviteToken }) });
               } else {
-                const result = await apiRegister({ name: String(data.get('name')), email: String(data.get('email')), password: String(data.get('password')), ...(inviteToken ? { invitationToken: inviteToken } : { schoolName: String(data.get('schoolName')) }) });
+                const email = String(data.get('email'));
+                const result = await apiRegister({ name: String(data.get('name')), email, password: String(data.get('password')), ...(inviteToken ? { invitationToken: inviteToken } : { schoolName: String(data.get('schoolName')) }) });
                 if (result.verificationRequired) {
+                  setVerificationPending(true);
+                  setVerificationEmail(email);
                   setMessage(result.emailSent ? 'Conta criada. Enviámos uma ligação para confirmar o seu email antes de entrar.' : 'Conta criada, mas o email não foi enviado. Peça uma nova ligação de confirmação.');
                   return;
                 }
@@ -144,18 +149,20 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
           {message && <p role="alert" className="form-feedback">{message}</p>}
         </form>
         {!contact && (
-          <Link className="button button-outline demo-access-link" href="/dashboard">
-            Explorar dashboard de demonstração <ArrowRight size={16} />
-          </Link>
-        )}
-        {!contact && (
           <p className="access-switch">
             {login ? 'Ainda não tem conta?' : 'Já tem uma conta?'}{' '}
             <Link href={login ? '/comecar' : '/entrar'}>{login ? 'Começar grátis' : 'Entrar'}</Link>
           </p>
         )}
         {login && <p className="access-switch"><Link href="/recuperar-palavra-passe">Esqueceu-se da palavra-passe?</Link></p>}
-        {!contact && <p className="access-switch"><Link href="/verificar-email">Reenviar confirmação de email</Link></p>}
+        {(login || verificationPending) && (
+          <p className="access-switch">
+            {login ? 'Ainda não confirmou o email?' : 'Não recebeu a ligação?'}{' '}
+            <Link href={verificationEmail ? `/verificar-email?email=${encodeURIComponent(verificationEmail)}` : '/verificar-email'}>
+              {login ? 'Reenviar confirmação' : 'Pedir novo envio'}
+            </Link>
+          </p>
+        )}
       </div>
     </section>
   );
