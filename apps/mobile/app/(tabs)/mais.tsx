@@ -35,6 +35,10 @@ export default function More() {
           ['Relatórios', '/relatorios'],
           ['Notificações', '/notificacoes'],
           ['Mensagens', '/mensagens'],
+          ['Tarefas', '/tarefas'],
+          ['Progresso dos alunos', '/progresso'],
+          ['Diário de turma', '/diario'],
+          ['Comunicados', '/comunicados'],
         ].map(([title, path], index) => (
           <View key={path} style={{ width: '48%' }}>
             <Card onPress={() => router.push(path as never)}>
@@ -55,6 +59,10 @@ export default function More() {
                       'bar-chart-outline',
                       'notifications-outline',
                       'chatbubbles-outline',
+                      'checkmark-done-outline',
+                      'trending-up-outline',
+                      'book-outline',
+                      'megaphone-outline',
                     ] as const
                   )[index]
                 }

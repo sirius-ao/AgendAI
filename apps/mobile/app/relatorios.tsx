@@ -1,5 +1,6 @@
 import { Share, Text, View } from 'react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { Button, Card, ChoiceField, Empty, Heading, Page, styles } from '@/components/ui';
 import { BRAND } from '@/config';
 import { useDashboard } from '@/providers/dashboard-provider';
@@ -7,7 +8,15 @@ import { useDashboard } from '@/providers/dashboard-provider';
 export default function Reports() {
   const { snapshot } = useDashboard();
   const classes = snapshot?.data.classes || [];
-  const [classId, setClassId] = useState(classes[0]?.recordId || '');
+  const { classId: requestedClassId } = useLocalSearchParams<{ classId?: string }>();
+  const [classId, setClassId] = useState(requestedClassId || classes[0]?.recordId || '');
+  useEffect(() => {
+    if (requestedClassId && classes.some((row) => row.recordId === requestedClassId)) {
+      setClassId(requestedClassId);
+    } else if (!classId && classes.length) {
+      setClassId(classes[0].recordId);
+    }
+  }, [classId, classes, requestedClassId]);
   const students = (snapshot?.data.students || []).filter((row) => row.payload.classId === classId);
   const attendance = (snapshot?.data.attendance || []).filter(
     (row) => row.payload.classId === classId,

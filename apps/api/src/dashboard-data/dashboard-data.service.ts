@@ -29,6 +29,8 @@ const collections = new Map<string, DashboardCollection>([
   ['classes', DashboardCollection.CLASSES],
   ['students', DashboardCollection.STUDENTS],
   ['folders', DashboardCollection.FOLDERS],
+  ['diary', DashboardCollection.DIARY],
+  ['announcements', DashboardCollection.ANNOUNCEMENTS],
 ]);
 const ids = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
@@ -68,6 +70,7 @@ export class DashboardDataService {
           DashboardCollection.CLASSES,
           DashboardCollection.STUDENTS,
           DashboardCollection.SETTINGS,
+          DashboardCollection.ANNOUNCEMENTS,
         ] as DashboardCollection[]
       ).includes(collection)
     )
@@ -83,6 +86,8 @@ export class DashboardDataService {
             DashboardCollection.PLANS,
             DashboardCollection.ASSESSMENTS,
             DashboardCollection.EVENTS,
+            DashboardCollection.TASKS,
+            DashboardCollection.DIARY,
           ] as DashboardCollection[]
         ).includes(collection)
       ) {
