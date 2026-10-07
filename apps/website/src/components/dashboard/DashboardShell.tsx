@@ -88,7 +88,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     </Link>
   );
   return (
-    <div className={`dash-app dash-theme-${state.settings.theme} ${collapsed ? 'sidebar-collapsed' : 'sidebar-expanded'}`}>
+    <div data-clarity-mask="true" className={`dash-app dash-theme-${state.settings.theme} ${collapsed ? 'sidebar-collapsed' : 'sidebar-expanded'}`}>
       <aside id="dashboard-sidebar" className={`dash-sidebar ${menu ? 'is-open' : ''}`}>
         <Link href="/dashboard" className="dash-logo" aria-label="AgendAKI — Início">
           <BookOpen />

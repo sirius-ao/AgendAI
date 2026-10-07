@@ -27,9 +27,11 @@ export default function Privacy() {
       <p>
         A subscrição da newsletter só é ativada após confirmação por email. A ligação de cancelamento
         remove o endereço e os tokens associados. Os emails de recuperação e confirmação contêm
-        ligações temporárias. O website usa Google Analytics 4 para medir visitas e interações,
-        recolhendo também informações técnicas do navegador e dispositivo. Esta medição pode usar
-        cookies ou identificadores do Google. Os pagamentos não estão ativos.
+        ligações temporárias. O website usa Google Analytics 4 e Microsoft Clarity para medir visitas
+        e interações em páginas públicas, recolhendo informações técnicas do navegador e dispositivo.
+        A análise é desativada nas páginas de conta, dashboard, convites e partilhas privadas; os
+        campos com dados pessoais são marcados para ocultação. Estes fornecedores podem usar cookies
+        ou identificadores próprios. Os pagamentos não estão ativos.
       </p>
       <h2>Antes do lançamento</h2>
       <p>

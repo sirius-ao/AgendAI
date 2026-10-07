@@ -18,7 +18,7 @@ export class AuthGuard implements CanActivate {
       if (typeof payload.sub !== 'string' || typeof payload.email !== 'string') throw new Error('Token inválido');
       const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, select: { tokenVersion: true, emailVerifiedAt: true } });
       if (!user || user.tokenVersion !== (typeof payload.ver === 'number' ? payload.ver : 0)) throw new Error('Sessão revogada');
-      if (process.env.NODE_ENV === 'production' && process.env.REQUIRE_EMAIL_CONFIG !== 'false' && !user.emailVerifiedAt) throw new Error('Email não verificado');
+      if (process.env.NODE_ENV === 'production' && !user.emailVerifiedAt) throw new Error('Email não verificado');
       request.user = { sub: payload.sub, email: payload.email };
       return true;
     } catch { throw new UnauthorizedException('Sessão inválida ou expirada'); }

@@ -21,12 +21,21 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
   const contact = mode === 'contacto';
   const login = mode === 'entrar';
   useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    setInvitationToken(query.get('convite') || '');
+    const url = new URL(window.location.href);
+    const query = url.searchParams;
+    const fragment = new URLSearchParams(url.hash.slice(1));
+    const invite = query.get('convite') || fragment.get('convite') || sessionStorage.getItem('agendai_invitation_token') || '';
+    setInvitationToken(invite);
     setSelectedPlan(query.get('plano') || '');
+    if (query.has('convite') || fragment.has('convite')) {
+      sessionStorage.setItem('agendai_invitation_token', invite);
+      query.delete('convite');
+      url.hash = '';
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
   }, []);
   return (
-    <section className="access-page container">
+    <section data-clarity-mask="true" className="access-page container">
       <div className="access-copy">
         <p className="eyebrow">Planear hoje. Ensinar melhor.</p>
         <h1>
@@ -78,10 +87,14 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
                 setMessage('Mensagem enviada. A equipa AgendAKI entrará em contacto consigo.');
               } else if (login) {
                 await apiLogin(String(data.get('email')), String(data.get('password')));
-                if (inviteToken) await apiRequest('/invitations/accept', { method: 'POST', body: JSON.stringify({ token: inviteToken }) });
+                if (inviteToken) {
+                  await apiRequest('/invitations/accept', { method: 'POST', body: JSON.stringify({ token: inviteToken }) });
+                  sessionStorage.removeItem('agendai_invitation_token');
+                }
               } else {
                 const email = String(data.get('email'));
                 const result = await apiRegister({ name: String(data.get('name')), email, password: String(data.get('password')), turnstileToken, ...(inviteToken ? { invitationToken: inviteToken } : { schoolName: String(data.get('schoolName')) }) });
+                if (inviteToken) sessionStorage.removeItem('agendai_invitation_token');
                 if (result.verificationRequired) {
                   setTurnstileToken(''); setCaptchaResetKey((key) => key + 1);
                   setVerificationPending(true);

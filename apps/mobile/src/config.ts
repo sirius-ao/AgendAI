@@ -4,6 +4,7 @@ export const API_BASE_URL = (configuredApiUrl || 'https://apibackend.agendaki.ne
   /\/$/,
   '',
 );
+export const WEBSITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || 'https://agendaki.net').replace(/\/$/, '');
 // Palette matched to the supplied AgendAKI mobile storyboard and original logo.
 export const BRAND = {
   forest: '#002416',

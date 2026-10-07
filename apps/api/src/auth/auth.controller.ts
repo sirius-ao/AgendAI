@@ -25,7 +25,11 @@ export class AuthController {
     if ('verificationRequired' in result) return res.status(202).json(result);
     return this.send(res, result);
   }
-  @UseGuards(AuthRateLimitGuard) @Post('mobile/register') mobileRegister(@Body() dto: RegisterDto) { return this.auth.register(dto); }
+  @UseGuards(AuthRateLimitGuard) @Post('mobile/register') async mobileRegister(@Body() dto: RegisterDto, @Req() req: Request) {
+    await this.turnstile.verify(dto.turnstileToken, 'register', req.ip);
+    const { turnstileToken: _turnstileToken, ...input } = dto;
+    return this.auth.register(input);
+  }
   @UseGuards(AuthRateLimitGuard) @Post('login') async login(@Body() dto: LoginDto, @Res() res: Response) { return this.send(res, await this.auth.login(dto)); }
   @UseGuards(AuthRateLimitGuard) @Post('mobile/login') mobileLogin(@Body() dto: LoginDto) { return this.auth.login(dto); }
   @UseGuards(AuthRateLimitGuard) @Post('mobile/refresh') mobileRefresh(@Body() dto: MobileRefreshDto) { return this.auth.refresh(dto.refreshToken); }

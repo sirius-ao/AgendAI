@@ -12,6 +12,11 @@ export class TurnstileService {
     }
     if (!token) throw new BadRequestException('Confirme que não é um robô e tente novamente.');
 
+    const allowedHosts = process.env.TURNSTILE_HOSTNAMES?.split(',').map((host) => host.trim().toLowerCase()).filter(Boolean);
+    if (process.env.NODE_ENV === 'production' && !allowedHosts?.length) {
+      throw new ServiceUnavailableException('A lista de domínios Turnstile não está configurada.');
+    }
+
     let result: TurnstileResponse;
     try {
       const body = new URLSearchParams({ secret, response: token });
@@ -28,8 +33,7 @@ export class TurnstileService {
       throw new ServiceUnavailableException('Não foi possível validar o desafio. Tente novamente.');
     }
 
-    const allowedHosts = process.env.TURNSTILE_HOSTNAMES?.split(',').map((host) => host.trim()).filter(Boolean);
-    if (!result.success || result.action !== action || (allowedHosts?.length && (!result.hostname || !allowedHosts.includes(result.hostname)))) {
+    if (!result.success || result.action !== action || (allowedHosts?.length && (!result.hostname || !allowedHosts.includes(result.hostname.toLowerCase())))) {
       throw new BadRequestException('A validação anti-robô falhou. Tente novamente.');
     }
   }
