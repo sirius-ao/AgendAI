@@ -86,6 +86,8 @@ services:
       PORT: '3001'
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      TURNSTILE_HOSTNAMES: ${TURNSTILE_HOSTNAMES:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
       CONTACT_EMAIL: ${CONTACT_EMAIL:-}
@@ -115,6 +117,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
     ports:
       # Host port defaults to 3003 because 3000 is already used on the production server.
       - '${WEBSITE_BIND_ADDRESS:-127.0.0.1}:${WEBSITE_PORT:-3003}:3000'
@@ -123,6 +126,7 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: '3000'
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
     depends_on:
       api:
         condition: service_healthy

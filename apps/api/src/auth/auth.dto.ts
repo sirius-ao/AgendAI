@@ -6,6 +6,7 @@ export class RegisterDto {
   @IsString() @MinLength(10) @MaxLength(72) password!: string;
   @IsOptional() @IsString() @MinLength(2) @MaxLength(140) schoolName?: string;
   @IsOptional() @IsString() @MinLength(40) @MaxLength(100) invitationToken?: string;
+  @IsOptional() @IsString() @MaxLength(2048) turnstileToken?: string;
 }
 
 export class LoginDto {

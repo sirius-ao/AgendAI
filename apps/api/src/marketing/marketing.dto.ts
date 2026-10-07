@@ -6,11 +6,13 @@ export class ContactDto {
   @IsOptional() @IsString() @MaxLength(140) school?: string;
   @IsOptional() @IsString() @MaxLength(40) plan?: string;
   @IsString() @MinLength(10) @MaxLength(4000) message!: string;
+  @IsOptional() @IsString() @MaxLength(2048) turnstileToken?: string;
 }
 
 export class NewsletterSubscribeDto {
   @IsEmail() @MaxLength(254) email!: string;
   @IsBoolean() @Equals(true) consent!: boolean;
+  @IsOptional() @IsString() @MaxLength(2048) turnstileToken?: string;
 }
 
 export class NewsletterTokenDto {

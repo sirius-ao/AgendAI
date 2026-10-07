@@ -4048,3 +4048,15 @@
 @media (prefers-reduced-motion: reduce) {
   .dash-connection-spinner { animation: none; }
 }
+
+.dash-share-plan { display: grid; gap: 14px; color: var(--dash-muted, #526458); }
+.dash-share-plan > p { margin: 0; line-height: 1.55; }
+.dash-share-plan > small { line-height: 1.5; }
+.dash-share-url { display: grid; gap: 6px; color: var(--dash-ink, #17271d); font-size: 13px; font-weight: 700; }
+.dash-share-url input { width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid #d9e3dc; border-radius: 8px; color: #16753c; font: inherit; }
+.dash-share-error { color: #b42318; }
+.dash-share-links { display: grid; gap: 8px; }
+.dash-share-links h3 { margin: 0; color: var(--dash-ink, #17271d); font-size: 14px; }
+.dash-share-links > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; background: #edf5ef; font-size: 13px; }
+.dash-share-links button { border: 0; background: transparent; color: #b42318; font: inherit; font-weight: 700; cursor: pointer; }
+.dash-share-links button:disabled { opacity: .55; cursor: wait; }

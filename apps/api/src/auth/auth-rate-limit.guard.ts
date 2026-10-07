@@ -14,7 +14,13 @@ export class AuthRateLimitGuard implements CanActivate {
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<Request>();
     const route = `${request.method}:${request.route?.path || request.path}`;
-    const policy = route.includes('register') ? 5 : route.includes('refresh') ? 30 : 12;
+    const policy = route.includes('register')
+      ? 5
+      : route.includes('refresh')
+        ? 30
+        : route.includes('public/shared/plans')
+          ? 120
+          : 12;
     const now = Date.now();
     const window = Math.floor(now / WINDOW_MS);
     const key = createHash('sha256').update(`${request.ip || 'unknown'}:${route}:${window}`).digest('hex');

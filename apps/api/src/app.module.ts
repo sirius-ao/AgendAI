@@ -10,6 +10,22 @@ import { AuditModule } from './audit/audit.module.js';
 import { TeachingModule } from './teaching/teaching.module.js';
 import { FilesModule } from './files/files.module.js';
 import { MarketingModule } from './marketing/marketing.module.js';
+import { PlanSharesModule } from './plan-shares/plan-shares.module.js';
 
-@Module({ imports: [PrismaModule, AuthModule, SchoolsModule, ClassesModule, MembersModule, DashboardDataModule, AuditModule, TeachingModule, FilesModule, MarketingModule], controllers: [HealthController] })
+@Module({
+  imports: [
+    PrismaModule,
+    AuthModule,
+    SchoolsModule,
+    ClassesModule,
+    MembersModule,
+    DashboardDataModule,
+    AuditModule,
+    TeachingModule,
+    FilesModule,
+    MarketingModule,
+    PlanSharesModule,
+  ],
+  controllers: [HealthController],
+})
 export class AppModule {}

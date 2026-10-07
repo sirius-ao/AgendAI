@@ -5,9 +5,12 @@ import { useState } from 'react';
 import { Mail, BookOpen, ChevronRight, Clock } from 'lucide-react';
 import { posts } from '@/data/posts';
 import { apiNewsletterSubscribe } from '@/lib/api/client';
+import { Turnstile } from '@/components/common/Turnstile';
 export function BlogSidebar({ onCategory }: { onCategory: (category: string) => void }) {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   return (
     <aside className="blog-sidebar">
       <section className="newsletter">
@@ -27,10 +30,12 @@ export function BlogSidebar({ onCategory }: { onCategory: (category: string) => 
             const data = new FormData(form);
             setBusy(true); setNotice('');
             try {
-              await apiNewsletterSubscribe(String(data.get('email')), data.get('consent') === 'on');
+              await apiNewsletterSubscribe(String(data.get('email')), data.get('consent') === 'on', turnstileToken);
               form.reset();
+              setTurnstileToken(''); setCaptchaResetKey((key) => key + 1);
               setNotice('Se ainda não subscreveu, receberá um email para confirmar.');
             } catch (error) {
+              setTurnstileToken(''); setCaptchaResetKey((key) => key + 1);
               setNotice(error instanceof Error ? error.message : 'Não foi possível enviar o pedido. Tente novamente.');
             } finally { setBusy(false); }
           }}
@@ -50,6 +55,7 @@ export function BlogSidebar({ onCategory }: { onCategory: (category: string) => 
             <input name="consent" type="checkbox" required />
             Aceito receber a newsletter e posso cancelar a qualquer momento. <Link href="/privacidade">Privacidade</Link>
           </label>
+          <Turnstile action="newsletter" onToken={setTurnstileToken} resetKey={captchaResetKey} />
           <button className="button button-primary" type="submit" disabled={busy}>
             {busy ? 'Aguarde…' : 'Subscrever'}
           </button>
