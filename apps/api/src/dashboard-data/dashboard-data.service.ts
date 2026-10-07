@@ -12,6 +12,7 @@ import type { Prisma } from '../generated/prisma/client.js';
 import { AuditService } from '../audit/audit.service.js';
 import { TeachingService } from '../teaching/teaching.service.js';
 import { deriveTeacherScope, teacherCanReadRecord } from './teacher-access.js';
+import { randomUUID } from 'node:crypto';
 
 const collections = new Map<string, DashboardCollection>([
   ['subjects', DashboardCollection.SUBJECTS],
@@ -48,6 +49,47 @@ export class DashboardDataService {
     const collection = collections.get(value);
     if (!collection) throw new NotFoundException('Módulo não encontrado');
     return collection;
+  }
+  async messagingParticipants(userId: string, schoolId: string) {
+    await this.schools.assertMembership(userId, schoolId);
+    return this.prisma.schoolMembership.findMany({
+      where: { schoolId, role: 'TEACHER', userId: { not: userId }, user: { isActive: true } },
+      select: { user: { select: { id: true, name: true, email: true } } },
+      orderBy: { user: { name: 'asc' } },
+    }).then((rows) => rows.map(({ user }) => user));
+  }
+  async createDirectConversation(userId: string, schoolId: string, recipientId: string) {
+    await this.schools.assertMembership(userId, schoolId);
+    if (recipientId === userId) throw new BadRequestException('Escolha outro professor');
+    const recipient = await this.prisma.schoolMembership.findFirst({
+      where: { schoolId, userId: recipientId, role: 'TEACHER', user: { isActive: true } },
+      select: { user: { select: { id: true, name: true } } },
+    });
+    if (!recipient) throw new NotFoundException('Professor não encontrado nesta escola');
+    const participantIds = [userId, recipientId].sort();
+    const existing = await this.prisma.dashboardRecord.findMany({
+      where: { schoolId, collection: DashboardCollection.CONVERSATIONS },
+      select: { recordId: true, payload: true },
+    });
+    const match = existing.find((row) => {
+      const payload = row.payload as RecordPayload;
+      return payload.direct === true && Array.isArray(payload.participantIds) &&
+        [...payload.participantIds].sort().join(':') === participantIds.join(':');
+    });
+    if (match) return match.payload;
+    const recordId = `chat-${randomUUID()}`;
+    const payload: RecordPayload = {
+      id: recordId, schoolId, direct: true, participantIds,
+      title: recipient.user.name, subtitle: 'Conversa direta · Professor',
+      tone: 'green', memberIds: participantIds, unread: 0,
+      favorite: false, archived: false, notifications: true, messages: [],
+    };
+    await this.prisma.dashboardRecord.create({ data: {
+      schoolId, collection: DashboardCollection.CONVERSATIONS, recordId,
+      payload: payload as Prisma.InputJsonValue, createdById: userId,
+    } });
+    await this.audit.write({ schoolId, actorId: userId, action: 'CREATE', entity: 'direct-conversation', recordId });
+    return payload;
   }
   private async teacherScope(userId: string, schoolId: string) {
     const classes = await this.prisma.dashboardRecord.findMany({
@@ -182,12 +224,18 @@ export class DashboardDataService {
         });
         if (existing) {
           const oldPayload = existing.payload as Record<string, unknown>;
+          if (oldPayload.direct === true) {
+            const oldParticipants = ids(oldPayload.participantIds).sort();
+            const newParticipants = ids(dto.payload.participantIds).sort();
+            if (dto.payload.direct !== true || !oldParticipants.includes(userId) || oldParticipants.join(':') !== newParticipants.join(':'))
+              throw new ForbiddenException('Não pode alterar os participantes desta conversa');
+          }
           const incoming = Array.isArray(dto.payload.messages) ? dto.payload.messages : [];
           const original = Array.isArray(oldPayload.messages) ? oldPayload.messages : [];
           const isSameMessage = (left: unknown, right: unknown) =>
             JSON.stringify(left) === JSON.stringify(right);
           if (
-            incoming.length <= original.length ||
+            incoming.length < original.length ||
             !original.every((message, index) => isSameMessage(message, incoming[index]))
           )
             throw new ForbiddenException('Só pode acrescentar mensagens à conversa');
@@ -207,6 +255,8 @@ export class DashboardDataService {
               'As mensagens devem ser enviadas pelo utilizador autenticado',
             );
           dto.payload = { ...oldPayload, messages: [...original, ...added] };
+        } else if (dto.payload.direct === true) {
+          throw new ForbiddenException('As conversas diretas devem ser criadas pela área de mensagens');
         }
       }
     }
@@ -318,6 +368,14 @@ export class DashboardDataService {
       throw new ForbiddenException('Apenas a administração pode alterar o catálogo e as turmas');
     if (membership.role === 'TEACHER')
       await this.assertTeacherWrite(userId, schoolId, collection, recordId);
+    if (membership.role === 'TEACHER' && collection === DashboardCollection.CONVERSATIONS) {
+      const record = await this.prisma.dashboardRecord.findUnique({
+        where: { schoolId_collection_recordId: { schoolId, collection, recordId } },
+        select: { payload: true },
+      });
+      if ((record?.payload as Record<string, unknown> | undefined)?.direct === true)
+        throw new ForbiddenException('As conversas diretas não podem ser removidas');
+    }
     const result = await this.prisma.dashboardRecord.deleteMany({
       where: { schoolId, collection, recordId },
     });

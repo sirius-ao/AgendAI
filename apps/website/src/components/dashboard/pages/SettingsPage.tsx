@@ -12,12 +12,12 @@ import { localId } from '@/lib/dashboard/selectors';
 import { apiRequest } from '@/lib/api/client';
 
 const sections = [
-  ['profile', 'Perfil', 'Os seus dados pessoais', User],
-  ['school', 'Escola', 'Dados da instituição', School],
-  ['schools', 'As minhas escolas', 'Vínculos e espaços de trabalho', School],
-  ['activity', 'Atividade', 'Alterações na escola', ShieldCheck],
-  ['preferences', 'Preferências', 'Aparência e alertas', Palette],
-  ['privacy', 'Dados e privacidade', 'Exportar ou repor dados', ShieldCheck],
+  ['profile', 'Conta pessoal', 'Nome, email e telefone', User],
+  ['school', 'Escola ativa', 'Dados e disciplinas', School],
+  ['schools', 'Escolas e equipa', 'Membros e convites', School],
+  ['activity', 'Registo de atividade', 'Alterações da escola', ShieldCheck],
+  ['preferences', 'Preferências', 'Aparência e notificações', Palette],
+  ['privacy', 'Privacidade e dados', 'Exportar ou repor dados', ShieldCheck],
 ] as const;
 
 export function SettingsPage() {
@@ -25,30 +25,95 @@ export function SettingsPage() {
   const [active, setActive] = useState('profile');
   const [confirm, setConfirm] = useState(false);
   const [members, setMembers] = useState<{ id: string; user: { id: string; name: string; email: string }; role: string }[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
   const [inviteUrl, setInviteUrl] = useState('');
   const [inviteEmailSent, setInviteEmailSent] = useState(false);
   const [memberError, setMemberError] = useState('');
   const [audit, setAudit] = useState<{ id: string; action: string; entity: string; recordId?: string | null; createdAt: string; actor: { name: string } }[]>([]);
+  const [auditNextCursor, setAuditNextCursor] = useState<string | null>(null);
+  const [auditCursors, setAuditCursors] = useState<(string | null)[]>([null]);
+  const [auditPage, setAuditPage] = useState(0);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState('');
   const [subjectRequests, setSubjectRequests] = useState<{ id: string; name: string; details: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; createdAt: string; requester: { name: string; email: string } }[]>([]);
   const [subjectRequestError, setSubjectRequestError] = useState('');
 
+  useEffect(() => {
+    const syncSectionFromHash = () => {
+      const section = window.location.hash.replace('#settings-', '');
+      if (sections.some(([id]) => id === section)) setActive(section);
+    };
+    const timer = window.setTimeout(syncSectionFromHash, 0);
+    window.addEventListener('hashchange', syncSectionFromHash);
+    return () => { window.clearTimeout(timer); window.removeEventListener('hashchange', syncSectionFromHash); };
+  }, []);
+
   const loadMembers = useCallback(() => {
     if (!apiMode || !state.activeSchoolId || state.user.role === 'Professor') return;
+    setMembersLoading(true);
     void apiRequest<typeof members>(`/schools/${encodeURIComponent(state.activeSchoolId)}/members`)
-      .then((result) => { setMembers(result); setMemberError(''); }).catch((error) => setMemberError(error instanceof Error ? error.message : 'Não foi possível carregar os membros.'));
+      .then((result) => { setMembers(result); setMemberError(''); }).catch((error) => setMemberError(error instanceof Error ? error.message : 'Não foi possível carregar os membros.')).finally(() => setMembersLoading(false));
   }, [apiMode, state.activeSchoolId, state.user.role]);
-  useEffect(() => { loadMembers(); }, [loadMembers]);
+  useEffect(() => {
+    const timer = window.setTimeout(loadMembers, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadMembers]);
   const loadSubjectRequests = useCallback(() => {
     if (!apiMode || !state.activeSchoolId) return;
     void apiRequest<typeof subjectRequests>(`/schools/${encodeURIComponent(state.activeSchoolId)}/subject-requests`).then(setSubjectRequests).catch((error) => setSubjectRequestError(error instanceof Error ? error.message : 'Não foi possível carregar os pedidos.'));
   }, [apiMode, state.activeSchoolId]);
   useEffect(() => { loadSubjectRequests(); }, [loadSubjectRequests]);
   const canManageSchool = !apiMode || state.user.role !== 'Professor';
-  const canManageMembers = !apiMode || state.user.role !== 'Professor';
-  useEffect(() => {
+  const canViewMembers = !apiMode || state.user.role !== 'Professor';
+  const canInviteMembers = !apiMode || ['Diretor', 'Administrador'].includes(state.user.role);
+  const canRemoveMembers = !apiMode || ['Diretor', 'Administrador'].includes(state.user.role);
+  const loadAudit = useCallback(async (cursor: string | null, page: number) => {
     if (!apiMode || !state.activeSchoolId || state.user.role === 'Professor') return;
-    void apiRequest<typeof audit>(`/schools/${encodeURIComponent(state.activeSchoolId)}/audit?limit=50`).then(setAudit).catch(() => setAudit([]));
+    setAuditLoading(true);
+    setAuditError('');
+    try {
+      const params = new URLSearchParams({ limit: '10' });
+      if (cursor) params.set('cursor', cursor);
+      const result = await apiRequest<{ items: typeof audit; total: number; nextCursor: string | null }>(`/schools/${encodeURIComponent(state.activeSchoolId)}/audit?${params}`);
+      setAudit(result.items);
+      setAuditTotal(result.total);
+      setAuditNextCursor(result.nextCursor);
+      setAuditPage(page);
+    } catch (error) {
+      setAudit([]);
+      setAuditNextCursor(null);
+      setAuditError(error instanceof Error ? error.message : 'Não foi possível carregar a atividade.');
+    } finally {
+      setAuditLoading(false);
+    }
   }, [apiMode, state.activeSchoolId, state.user.role]);
+
+  const nextAuditPage = () => {
+    if (!auditNextCursor) return;
+    const cursor = auditNextCursor;
+    const nextPage = auditPage + 1;
+    setAuditCursors((current) => [...current.slice(0, nextPage), cursor]);
+    void loadAudit(cursor, nextPage);
+  };
+
+  const previousAuditPage = () => {
+    if (auditPage < 1) return;
+    const previousPage = auditPage - 1;
+    void loadAudit(auditCursors[previousPage] || null, previousPage);
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setAuditCursors([null]);
+      setAuditPage(0);
+      setAuditNextCursor(null);
+      setAudit([]);
+      setAuditTotal(0);
+      void loadAudit(null, 0);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadAudit]);
 
   function saveProfile(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -179,11 +244,11 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Configurações" description="Ajuste o seu perfil, os dados da escola e as preferências do AgendAKI." />
+      <PageHeader title="Configurações" description="Escolha uma área. Só os respetivos controlos aparecem, para manter cada tarefa simples." />
       <div className="dash-settings-layout">
         <nav className="dash-settings-nav" aria-label="Secções das configurações">
           {sections.map(([id, title, description, Icon]) => (
-            <a href={`#settings-${id}`} key={id} className={active === id ? 'active' : ''} onClick={() => setActive(id)}>
+            <a href={`#settings-${id}`} key={id} className={active === id ? 'active' : ''} aria-current={active === id ? 'location' : undefined} onClick={() => setActive(id)}>
               <Icon size={20} />
               <span><strong>{title}</strong><small>{description}</small></span>
             </a>
@@ -192,7 +257,7 @@ export function SettingsPage() {
 
         <div className="dash-settings-content">
           <div className="dash-settings-grid">
-            <div id="settings-profile">
+            <div id="settings-profile" hidden={active !== 'profile'}>
               <Panel title={<><User /> Perfil</>}>
                 <p className="dash-settings-intro">Informações usadas no seu espaço de trabalho.</p>
                 <Avatar src={state.user.avatar} name={state.user.name} size={72} />
@@ -208,7 +273,7 @@ export function SettingsPage() {
               </Panel>
             </div>
 
-            <div id="settings-school">
+            <div id="settings-school" hidden={active !== 'school'}>
               <Panel title={<><School /> Escola</>}>
                 <p className="dash-settings-intro">Dados da escola ativa. O seletor no topo permite alternar entre instituições.</p>
                 <form key={`${state.settings.school}-${state.settings.address}-${state.settings.year}-${state.schools?.find((school) => school.id === state.activeSchoolId)?.role}`} onSubmit={saveSchool}>
@@ -230,7 +295,7 @@ export function SettingsPage() {
               </Panel>
             </div>
 
-            <div id="settings-schools">
+            <div id="settings-schools" hidden={active !== 'schools'}>
               <Panel title={<><School /> As minhas escolas <span className="dash-settings-count">{state.schools?.length || 0}</span></>}>
                 <p className="dash-settings-intro">Cada escola tem o seu próprio conjunto de dados e membros. {apiMode ? 'Os convites criam links que pode partilhar com a pessoa convidada.' : 'Os espaços desta demonstração são locais ao navegador.'}</p>
                 <div className="dash-school-memberships">
@@ -242,13 +307,26 @@ export function SettingsPage() {
                     </div>
                   ))}
                 </div>
-                  {apiMode && canManageMembers && <>
-                  <h3>Membros da escola</h3>
-                  {members.map((member) => <div className="dash-list-row" key={member.id}><span><strong>{member.user.name}</strong><small>{member.user.email}</small></span>{state.user.role === 'Diretor' ? <select aria-label={`Função de ${member.user.name}`} value={member.role} onChange={(event) => void updateMemberRole(member.user.id, event.target.value)}><option value="OWNER" disabled>Proprietário</option><option value="ADMIN">Administrador</option><option value="COORDINATOR">Coordenador</option><option value="TEACHER">Professor</option></select> : <small>{member.role}</small>}{member.role !== 'OWNER' && member.user.id !== state.user.id && <button type="button" className="dash-btn secondary" onClick={() => void removeMember(member.user.id)}>Remover</button>}</div>)}
-                  <form onSubmit={inviteMember} className="dash-modal-simple"><h3>Convidar membro</h3><Field label="Email"><input name="email" type="email" required /></Field><Field label="Função"><select name="role" defaultValue="TEACHER"><option value="TEACHER">Professor</option><option value="COORDINATOR">Coordenador</option><option value="ADMIN">Administrador</option></select></Field><button className="dash-btn secondary">Criar convite</button></form>
-                  {inviteUrl && <div className="dash-list-row"><label>{inviteEmailSent ? 'Convite enviado por email. Também pode partilhar este link' : 'Email não enviado. Partilhe este link com o convidado'}<input readOnly value={inviteUrl} onFocus={(event) => event.currentTarget.select()} /></label></div>}
-                  {memberError && <p role="alert">{memberError}</p>}
-                </>}
+                  {apiMode && canViewMembers && <section className="dash-settings-team">
+                    <header className="dash-settings-team-heading">
+                      <div><h3>Membros desta escola</h3><p>Consulte quem tem acesso e ajuste as funções da equipa.</p></div>
+                      <span>{members.length} {members.length === 1 ? 'membro' : 'membros'}</span>
+                    </header>
+                    {memberError && <p className="dash-settings-feedback" role="alert">{memberError}</p>}
+                    {membersLoading ? <p className="dash-settings-empty">A carregar membros…</p> : members.length ? <div className="dash-settings-member-list">
+                      {members.map((member) => <article className="dash-settings-member" key={member.id}>
+                        <span className="dash-settings-member-avatar" aria-hidden="true">{member.user.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}</span>
+                        <div className="dash-settings-member-identity"><strong>{member.user.name}</strong><span>{member.user.email}</span></div>
+                        {state.user.role === 'Diretor' ? <select aria-label={`Função de ${member.user.name}`} value={member.role} onChange={(event) => void updateMemberRole(member.user.id, event.target.value)}><option value="OWNER" disabled>Proprietário</option><option value="ADMIN">Administrador</option><option value="COORDINATOR">Coordenador</option><option value="TEACHER">Professor</option></select> : <span className="dash-settings-role">{member.role === 'OWNER' ? 'Proprietário' : member.role === 'ADMIN' ? 'Administrador' : member.role === 'COORDINATOR' ? 'Coordenador' : 'Professor'}</span>}
+                        {canRemoveMembers && member.role !== 'OWNER' && member.user.id !== state.user.id && <button type="button" className="dash-btn secondary" onClick={() => void removeMember(member.user.id)}>Remover</button>}
+                      </article>)}
+                    </div> : <p className="dash-settings-empty">Ainda não há membros nesta escola.</p>}
+                    {canInviteMembers && <div className="dash-settings-invite">
+                      <h4>Convidar alguém para a equipa</h4>
+                      <form onSubmit={inviteMember} className="dash-settings-invite-form"><Field label="Email da pessoa"><input name="email" type="email" required placeholder="nome@escola.ao" /></Field><Field label="Função na escola"><select name="role" defaultValue="TEACHER"><option value="TEACHER">Professor</option><option value="COORDINATOR">Coordenador</option><option value="ADMIN">Administrador</option></select></Field><button className="dash-btn secondary">Criar convite</button></form>
+                    </div>}
+                    {inviteUrl && <div className="dash-settings-invite-link"><strong>{inviteEmailSent ? 'Convite enviado por email' : 'O email não foi enviado'}</strong><label>Também pode partilhar este link<input readOnly value={inviteUrl} onFocus={(event) => event.currentTarget.select()} /></label></div>}
+                  </section>}
                 <details className="dash-add-school">
                   <summary>Adicionar outra escola</summary>
                   <form onSubmit={addSchool}>
@@ -265,13 +343,18 @@ export function SettingsPage() {
               </Panel>
             </div>
 
-            <div id="settings-activity" className="dash-settings-span">
+            <div id="settings-activity" className="dash-settings-span" hidden={active !== 'activity'}>
               <Panel title={<><ShieldCheck /> Atividade da escola</>}>
-                {apiMode ? state.user.role === 'Professor' ? <p>O registo de atividade está disponível para a administração da escola.</p> : audit.length ? audit.map((event) => <div className="dash-list-row" key={event.id}><span><strong>{event.actor.name}</strong><small>{event.action} · {event.entity}{event.recordId ? ` · ${event.recordId}` : ''}</small></span><time>{new Date(event.createdAt).toLocaleString('pt-AO', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Africa/Luanda' })}</time></div>) : <p>Não há alterações administrativas registadas ainda.</p> : <p>O registo de atividade fica disponível na conta ligada ao backend.</p>}
+                {apiMode ? state.user.role === 'Professor' ? <p>O registo de atividade está disponível para a administração da escola.</p> : <>
+                  <p className="dash-settings-intro">Alterações recentes feitas por membros com acesso administrativo.</p>
+                  {auditError && <p className="dash-settings-feedback" role="alert">{auditError}</p>}
+                  {auditLoading && !audit.length ? <p className="dash-settings-empty">A carregar atividade…</p> : audit.length ? <div className="dash-settings-activity-list">{audit.map((event) => <article className="dash-settings-activity" key={event.id}><span className="dash-settings-activity-icon"><ShieldCheck size={17} /></span><div><strong>{event.action.replaceAll('_', ' ')}</strong><span>{event.actor.name} · {event.entity}{event.recordId ? ` · ${event.recordId}` : ''}</span></div><time>{new Date(event.createdAt).toLocaleString('pt-AO', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Luanda' })}</time></article>)}</div> : !auditError ? <p className="dash-settings-empty">Ainda não há alterações administrativas registadas.</p> : null}
+                  {auditTotal > 0 && <div className="dash-settings-pagination"><span>A mostrar {auditPage * 10 + 1}–{auditPage * 10 + audit.length} de {auditTotal} registos · página {auditPage + 1}</span><div><button className="dash-btn secondary" type="button" disabled={auditLoading || auditPage === 0} onClick={previousAuditPage}>Anterior</button><button className="dash-btn secondary" type="button" disabled={auditLoading || !auditNextCursor} onClick={nextAuditPage}>Próxima</button></div></div>}
+                </> : <p>O registo de atividade fica disponível na conta ligada ao backend.</p>}
               </Panel>
             </div>
 
-            <div id="settings-preferences">
+            <div id="settings-preferences" hidden={active !== 'preferences'}>
               <Panel title={<><Palette /> Preferências</>}>
                 <p className="dash-settings-subtitle">Aparência</p>
                 <div className="dash-theme-picker">
@@ -285,7 +368,7 @@ export function SettingsPage() {
               </Panel>
             </div>
 
-            <div id="settings-notifications">
+            <div id="settings-notifications" hidden={active !== 'preferences'}>
               <Panel title={<><Bell /> Notificações</>}>
                 <p className="dash-settings-intro">Escolha os alertas que pretende ver neste navegador.</p>
                 {Object.entries(state.settings.notifications).map(([label, value]) => (
@@ -295,7 +378,7 @@ export function SettingsPage() {
               </Panel>
             </div>
 
-            <div id="settings-privacy" className="dash-settings-span">
+            <div id="settings-privacy" className="dash-settings-span" hidden={active !== 'privacy'}>
               <Panel title={<><ShieldCheck /> Dados e privacidade</>}>
                 <p className="dash-settings-intro">{apiMode ? 'Os dados estão guardados na base de dados da escola ativa. Pode exportar uma cópia ou remover os registos desta escola.' : 'Esta demonstração guarda os dados neste navegador. Pode exportá-los ou repor os exemplos iniciais.'}</p>
                 <div className="dash-settings-actions">
@@ -307,7 +390,7 @@ export function SettingsPage() {
             </div>
           </div>
 
-          <details className="dash-settings-advanced">
+          <details className="dash-settings-advanced" hidden={active !== 'preferences'}>
             <summary><Settings size={18} /> Opções avançadas e funcionalidades em desenvolvimento</summary>
             <div className="dash-settings-advanced-grid">
               <Panel title={<><LockKeyhole /> Segurança e acesso</>}>

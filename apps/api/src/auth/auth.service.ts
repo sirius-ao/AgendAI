@@ -7,6 +7,7 @@ import type { AuthUser } from './auth.types.js';
 import type { RegisterDto, LoginDto } from './auth.dto.js';
 import type { ForgotPasswordDto, ResetPasswordDto } from './auth.dto.js';
 import { EmailService } from './email.service.js';
+import { decryptTotpSecret, isAdminMfaRequired, verifyTotpCode } from '../admin/admin-mfa.js';
 
 const REFRESH_DAYS = 30;
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -62,6 +63,15 @@ export class AuthService {
     return { success: true };
   }
 
+  async resendVerificationForAdmin(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('Utilizador não encontrado');
+    if (user.emailVerifiedAt) throw new ConflictException('Este email já está confirmado');
+    if (!(await this.sendVerification(user)))
+      throw new ServiceUnavailableException('Não foi possível enviar o email de confirmação');
+    return { success: true };
+  }
+
   async forgotPassword(input: ForgotPasswordDto) {
     if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) throw new ServiceUnavailableException('O envio de email de recuperação não está configurado');
     const email = input.email.trim().toLowerCase();
@@ -103,8 +113,9 @@ export class AuthService {
       const user = await this.prisma.$transaction(async (tx) => {
         const created = await tx.user.create({ data: { name: input.name.trim(), email, passwordHash } });
         if (input.invitationToken) {
-          const invitation = await tx.schoolInvitation.findUnique({ where: { tokenHash: digest(input.invitationToken) } });
+          const invitation = await tx.schoolInvitation.findUnique({ where: { tokenHash: digest(input.invitationToken) }, include: { school: { select: { isActive: true } } } });
           if (!invitation || invitation.email !== email || invitation.revokedAt || invitation.acceptedAt || invitation.expiresAt <= new Date()) throw new BadRequestException('Convite inválido, expirado ou destinado a outro email');
+          if (!invitation.school.isActive) throw new BadRequestException('Esta escola está suspensa e não pode aceitar novos membros');
           const accepted = await tx.schoolInvitation.updateMany({ where: { id: invitation.id, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } }, data: { acceptedAt: new Date() } });
           if (!accepted.count) throw new BadRequestException('Este convite já foi utilizado');
           await tx.schoolMembership.create({ data: { userId: created.id, schoolId: invitation.schoolId, role: invitation.role } });
@@ -128,17 +139,28 @@ export class AuthService {
   async login(input: LoginDto) {
     const user = await this.prisma.user.findUnique({ where: { email: input.email.trim().toLowerCase() } });
     if (!user || !(await compare(input.password, user.passwordHash))) throw new UnauthorizedException('Email ou palavra-passe incorretos');
+    if (!user.isActive) throw new UnauthorizedException('Esta conta está desativada. Contacte a administração do AgendAKI.');
+    const configuredAdmins = (process.env.SUPER_ADMIN_EMAILS || '').split(',').map((email) => email.trim().toLowerCase());
+    const isAdmin = user.isSuperAdmin || user.platformAdminRole !== 'NONE' || configuredAdmins.includes(user.email.toLowerCase());
+    if (isAdmin && isAdminMfaRequired() && user.adminMfaEnabled) {
+      let validCode = false;
+      try {
+        validCode = Boolean(user.adminMfaSecret && input.mfaCode && verifyTotpCode(decryptTotpSecret(user.adminMfaSecret), input.mfaCode));
+      } catch { validCode = false; }
+      if (!validCode) throw new UnauthorizedException('MFA_REQUIRED: indique o código de seis dígitos da sua aplicação autenticadora.');
+    }
     if (this.emailVerificationRequired() && !user.emailVerifiedAt) {
       await this.sendVerification(user);
       throw new UnauthorizedException('Confirme o seu endereço de email antes de entrar. Se necessário, peça uma nova ligação.');
     }
+    await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     return this.issue(user);
   }
 
   async refresh(rawToken?: string) {
     if (!rawToken) throw new UnauthorizedException('Sessão expirada');
     const old = await this.prisma.refreshSession.findUnique({ where: { tokenHash: digest(rawToken) }, include: { user: true } });
-    if (!old || old.revokedAt || old.expiresAt <= new Date()) throw new UnauthorizedException('Sessão expirada');
+    if (!old || !old.user.isActive || old.revokedAt || old.expiresAt <= new Date()) throw new UnauthorizedException('Sessão expirada');
     if (this.emailVerificationRequired() && !old.user.emailVerifiedAt) {
       await this.sendVerification(old.user);
       throw new UnauthorizedException('Confirme o seu endereço de email antes de continuar');
@@ -161,7 +183,7 @@ export class AuthService {
   async me(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, include: { memberships: { include: { school: true } } } });
     if (!user) throw new UnauthorizedException('Utilizador não encontrado');
-    return { ...this.publicUser(user), schools: user.memberships.map(({ role, school }) => ({ id: school.id, name: school.name, address: school.address, academicYear: school.academicYear, role })) };
+    return { ...this.publicUser(user), schools: user.memberships.filter(({ school }) => school.isActive).map(({ role, school }) => ({ id: school.id, name: school.name, address: school.address, academicYear: school.academicYear, role })) };
   }
 
   async updateProfile(userId: string, input: { name?: string; phone?: string }) {
@@ -188,5 +210,9 @@ export class AuthService {
     if (!secret || secret.length < 32) throw new BadRequestException('JWT_ACCESS_SECRET deve ter pelo menos 32 caracteres');
     return new SignJWT({ email: user.email, ver: user.tokenVersion ?? 0 }).setProtectedHeader({ alg: 'HS256' }).setSubject(user.id).setIssuedAt().setExpirationTime('15m').sign(new TextEncoder().encode(secret));
   }
-  private publicUser(user: AuthUser) { return { id: user.id, name: user.name, email: user.email, phone: user.phone ?? '' }; }
+  private publicUser(user: AuthUser) {
+    const configuredAdmins = (process.env.SUPER_ADMIN_EMAILS || '').split(',').map((email) => email.trim().toLowerCase());
+    const isRoot = Boolean(user.isSuperAdmin || user.platformAdminRole === 'SUPER_ADMIN' || configuredAdmins.includes(user.email.toLowerCase()));
+    return { id: user.id, name: user.name, email: user.email, phone: user.phone ?? '', isSuperAdmin: isRoot, adminRole: isRoot ? 'SUPER_ADMIN' : user.platformAdminRole || 'NONE', adminMfaEnabled: Boolean(user.adminMfaEnabled) };
+  }
 }

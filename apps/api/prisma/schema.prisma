@@ -49,6 +49,25 @@ enum DashboardValueKind {
   NULL
 }
 
+enum AdminBackupStatus {
+  QUEUED
+  RUNNING
+  READY
+  FAILED
+}
+
+enum PlatformAdminRole {
+  NONE
+  SUPPORT
+  SUPER_ADMIN
+}
+
+enum BackupIntegrityStatus {
+  NOT_CHECKED
+  VALID
+  INVALID
+}
+
 enum SubjectRequestStatus {
   PENDING
   APPROVED
@@ -62,6 +81,12 @@ model User {
   phone                   String                   @default("") @db.VarChar(40)
   passwordHash            String                   @db.VarChar(100)
   tokenVersion            Int                      @default(0)
+  isActive                Boolean                  @default(true)
+  isSuperAdmin            Boolean                  @default(false)
+  platformAdminRole       PlatformAdminRole        @default(NONE)
+  adminMfaSecret           String?                  @db.VarChar(255)
+  adminMfaEnabled          Boolean                  @default(false)
+  lastLoginAt              DateTime?
   emailVerifiedAt         DateTime?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
@@ -74,6 +99,9 @@ model User {
   sharedPlanLinks         SharedPlanLink[]         @relation("SharedPlanLinkCreator")
   passwordResetTokens     PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  adminAuditAsActor       AdminAuditEvent[]         @relation("AdminAuditActor")
+  adminAuditAsTarget      AdminAuditEvent[]         @relation("AdminAuditTarget")
+  requestedBackups        AdminBackup[]             @relation("BackupRequester")
 }
 
 model EmailVerificationToken {
@@ -132,6 +160,7 @@ model School {
   address          String             @default("") @db.VarChar(200)
   academicYear     String             @default("") @db.VarChar(20)
   timezone         String             @default("Africa/Luanda") @db.VarChar(64)
+  isActive         Boolean            @default(true)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   memberships      SchoolMembership[]
@@ -239,6 +268,8 @@ model SchoolInvitation {
   role        MembershipRole
   tokenHash   String         @unique @db.Char(64)
   expiresAt   DateTime
+  integrityStatus BackupIntegrityStatus @default(NOT_CHECKED)
+  verifiedAt  DateTime?
   acceptedAt  DateTime?
   revokedAt   DateTime?
   createdAt   DateTime       @default(now())
@@ -334,6 +365,40 @@ model AuditEvent {
 
   @@index([schoolId, createdAt])
   @@index([actorId, createdAt])
+}
+
+model AdminAuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String   @db.Uuid
+  targetId   String?  @db.Uuid
+  action     String   @db.VarChar(60)
+  entity     String   @db.VarChar(40)
+  recordId   String?  @db.VarChar(120)
+  details    Json?
+  createdAt  DateTime @default(now())
+  actor      User     @relation("AdminAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  target     User?    @relation("AdminAuditTarget", fields: [targetId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([entity, recordId, createdAt])
+}
+
+model AdminBackup {
+  id          String            @id @default(uuid()) @db.Uuid
+  requesterId String            @db.Uuid
+  status      AdminBackupStatus @default(QUEUED)
+  sizeBytes   BigInt?
+  checksum    String?           @db.Char(64)
+  error       String?           @db.VarChar(500)
+  createdAt   DateTime          @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  expiresAt   DateTime
+  requester   User              @relation("BackupRequester", fields: [requesterId], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([expiresAt])
 }
 
 model SubjectRequest {

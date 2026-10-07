@@ -21,18 +21,21 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
   const contact = mode === 'contacto';
   const login = mode === 'entrar';
   useEffect(() => {
-    const url = new URL(window.location.href);
-    const query = url.searchParams;
-    const fragment = new URLSearchParams(url.hash.slice(1));
-    const invite = query.get('convite') || fragment.get('convite') || sessionStorage.getItem('agendai_invitation_token') || '';
-    setInvitationToken(invite);
-    setSelectedPlan(query.get('plano') || '');
-    if (query.has('convite') || fragment.has('convite')) {
-      sessionStorage.setItem('agendai_invitation_token', invite);
-      query.delete('convite');
-      url.hash = '';
-      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-    }
+    const timer = window.setTimeout(() => {
+      const url = new URL(window.location.href);
+      const query = url.searchParams;
+      const fragment = new URLSearchParams(url.hash.slice(1));
+      const invite = query.get('convite') || fragment.get('convite') || sessionStorage.getItem('agendai_invitation_token') || '';
+      setInvitationToken(invite);
+      setSelectedPlan(query.get('plano') || '');
+      if (query.has('convite') || fragment.has('convite')) {
+        sessionStorage.setItem('agendai_invitation_token', invite);
+        query.delete('convite');
+        url.hash = '';
+        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
   return (
     <section data-clarity-mask="true" className="access-page container">
@@ -80,13 +83,15 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
             setBusy(true);
             setMessage('');
             try {
+              let destination = '/dashboard';
               if (contact) {
                 await apiContact({ name: String(data.get('name')), email: String(data.get('email')), school: String(data.get('school') || ''), plan: planLabels[selectedPlan] || selectedPlan, message: String(data.get('message')), turnstileToken });
                 formElement.reset();
                 setTurnstileToken(''); setCaptchaResetKey((key) => key + 1);
                 setMessage('Mensagem enviada. A equipa AgendAKI entrará em contacto consigo.');
               } else if (login) {
-                await apiLogin(String(data.get('email')), String(data.get('password')));
+                const result = await apiLogin(String(data.get('email')), String(data.get('password')), String(data.get('mfaCode') || '') || undefined);
+                if ((result.user as { isSuperAdmin?: boolean; adminRole?: string } | undefined)?.isSuperAdmin || (result.user as { adminRole?: string } | undefined)?.adminRole === 'SUPPORT') destination = '/admin';
                 if (inviteToken) {
                   await apiRequest('/invitations/accept', { method: 'POST', body: JSON.stringify({ token: inviteToken }) });
                   sessionStorage.removeItem('agendai_invitation_token');
@@ -103,7 +108,7 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
                   return;
                 }
               }
-              router.push('/dashboard');
+              router.push(destination);
             } catch (error) {
               if (!login) { setTurnstileToken(''); setCaptchaResetKey((key) => key + 1); }
               setMessage(error instanceof Error ? error.message : 'Não foi possível entrar. Tente novamente.');
@@ -161,6 +166,7 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
               />
             </label>
           )}
+          {login && <label>Código autenticador — quando exigido pelo servidor<Input name="mfaCode" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" placeholder="6 dígitos" /></label>}
           {!login && <Turnstile action={contact ? 'contact' : 'register'} onToken={setTurnstileToken} resetKey={captchaResetKey} />}
           <Button type="submit">
             {busy ? 'Aguarde…' : contact ? 'Enviar pedido' : login ? 'Entrar' : 'Criar conta'}

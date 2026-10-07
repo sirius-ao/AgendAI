@@ -117,7 +117,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             }
             return renderNavigationLink(item);
           })}
-          <button type="button" onClick={() => void logout()} className="dash-sidebar-exit" aria-label="Sair" title={hasApiSession() ? 'Terminar sessão' : 'Sair da demonstração. Os dados locais ficam guardados.'}>
+          {(state.user.isSuperAdmin || state.user.adminRole === 'SUPPORT') && <Link href="/admin" onClick={() => setMenu(false)} aria-current={pathname.startsWith('/admin') ? 'page' : undefined}><Crown size={21} /><span>Administração</span></Link>}
+          <button type="button" onClick={() => void logout()} className="dash-sidebar-exit" aria-label="Sair" title="Terminar sessão">
             <LogOut size={21} />
             <span>Sair</span>
           </button>
@@ -216,7 +217,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             onClick={() => void logout()}
             className="dash-exit"
             aria-label="Sair do dashboard"
-            title={hasApiSession() ? 'Terminar sessão' : 'Sair da demonstração. Os dados locais ficam guardados.'}
+            title="Terminar sessão"
           >
             <LogOut size={19} />
             <span>Sair</span>

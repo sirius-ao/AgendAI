@@ -1,6 +1,11 @@
 FROM node:22-bookworm-slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openssl \
+    && apt-get install -y --no-install-recommends ca-certificates curl gnupg openssl \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main' > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client-17 \
     && rm -rf /var/lib/apt/lists/*
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -16,6 +21,8 @@ COPY apps/api ./apps/api
 RUN pnpm --filter @agendai/api build
 WORKDIR /app/apps/api
 ENV NODE_ENV=production
+ENV ADMIN_BACKUP_DIR=/var/lib/agendai/backups
+RUN mkdir -p /var/lib/agendai/backups && chown -R node:node /var/lib/agendai && chmod 700 /var/lib/agendai/backups
 EXPOSE 3001
 USER node
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

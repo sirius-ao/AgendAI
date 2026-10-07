@@ -5,7 +5,7 @@ import { apiRequest, type ApiUser } from './client';
 type StoredRecord = { id: string; payload: Record<string, unknown> };
 type Snapshot = {
   school: { id: string; name: string; address: string; academicYear: string; timezone: string };
-  data: Record<string, { recordId: string; payload: Record<string, unknown> }[]>;
+  data: Record<string, { id?: string; recordId?: string; payload: Record<string, unknown> }[]>;
 };
 export type RecordIndex = Record<string, Map<string, string>>;
 const collections = ['subjects', 'classes', 'students', 'plans', 'attendance', 'assessments', 'events', 'resources', 'library', 'reports', 'conversations', 'tasks', 'folders', 'planDrafts', 'assessmentDrafts', 'attendanceDrafts', 'settings', 'onboarding'] as const;
@@ -15,7 +15,7 @@ function roleName(role: string) {
   return ({ OWNER: 'Diretor', ADMIN: 'Administrador', COORDINATOR: 'Coordenador', TEACHER: 'Professor' } as Record<string, string>)[role] || role;
 }
 function fromRows(snapshot: Snapshot) {
-  return Object.fromEntries(Object.entries(snapshot.data).map(([key, rows]) => [key, rows.map((row) => ({ ...row.payload, id: row.recordId }))])) as Record<string, Record<string, unknown>[]>;
+  return Object.fromEntries(Object.entries(snapshot.data).map(([key, rows]) => [key, rows.map((row) => ({ ...row.payload, id: row.id ?? row.recordId }))])) as Record<string, Record<string, unknown>[]>;
 }
 function savedRecords(state: DashboardState, schoolId: string): Record<Collection, StoredRecord[]> {
   const record = <T extends { id: string }>(items: T[]) => items.map((item) => ({ id: item.id, payload: item as unknown as Record<string, unknown> }));
@@ -52,7 +52,7 @@ export async function loadApiDashboard(user: ApiUser, schoolId: string) {
     ...seed,
     teacherSubjectIds: teacherSubjects.subjectIds,
     teacherDirectory,
-    user: { id: user.id, name: user.name, email: user.email, role: roleName(school?.role || ''), avatar: '', phone: user.phone || '' },
+    user: { id: user.id, name: user.name, email: user.email, role: roleName(school?.role || ''), avatar: '', phone: user.phone || '', isSuperAdmin: user.isSuperAdmin, adminRole: user.adminRole, adminMfaEnabled: user.adminMfaEnabled },
     schools: user.schools.map((item) => ({ id: item.id, name: item.name, address: item.address || '', year: item.academicYear || '', role: roleName(item.role) })),
     activeSchoolId: schoolId,
     settings: { ...seed.settings, ...(data.settings?.[0]?.settings as Partial<DashboardState['settings']> || {}), school: snapshot.school.name, address: snapshot.school.address, year: snapshot.school.academicYear, timezone: snapshot.school.timezone },
@@ -77,7 +77,10 @@ export async function loadApiDashboard(user: ApiUser, schoolId: string) {
     onboardingBySchool: data.onboarding?.[0] ? { [schoolId]: Object.fromEntries(Object.entries(data.onboarding[0]).filter(([key]) => key !== 'id')) as unknown as NonNullable<DashboardState['onboarding']> } : {},
   };
   const index: RecordIndex = {};
-  for (const collection of collections) index[collection] = new Map((snapshot.data[collection] || []).map((row) => [row.recordId, JSON.stringify(row.payload)]));
+  for (const collection of collections) index[collection] = new Map((snapshot.data[collection] || []).flatMap((row) => {
+    const id = row.id ?? row.recordId;
+    return typeof id === 'string' ? [[id, JSON.stringify(row.payload)] as const] : [];
+  }));
   index.teacherSubjects = new Map([[user.id, JSON.stringify(teacherSubjects.subjectIds)]]);
   return { state, index, school: snapshot.school };
 }

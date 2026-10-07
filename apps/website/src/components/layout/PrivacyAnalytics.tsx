@@ -15,7 +15,7 @@ declare global {
 function privateRoute(pathname: string) {
   return pathname === '/dashboard' || pathname.startsWith('/dashboard/') || [
     '/entrar', '/comecar', '/contacto', '/convites/aceitar', '/verificar-email',
-    '/redefinir-palavra-passe', '/recuperar-palavra-passe', '/partilha/plano',
+    '/redefinir-palavra-passe', '/recuperar-palavra-passe', '/partilha/plano', '/admin',
     '/newsletter/confirmar', '/newsletter/cancelar', '/turnstile/register',
   ].some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }

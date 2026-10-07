@@ -8,11 +8,14 @@ import { DEMO_DATE } from '@/data/dashboard/seed';
 
 export function GettingStarted() {
   const { state, update, error, apiMode } = useDashboard();
-  const guide: NonNullable<DashboardState['onboarding']> = state.onboarding || { step: 0, name: '', year: '2026', subjectId: state.subjects[0]?.id || '', names: '', title: '', date: DEMO_DATE, objectives: '', time: '08:00' };
+  const subjects = state.subjects.filter((subject, index, all) =>
+    typeof subject.id === 'string' && subject.id.trim() && all.findIndex((item) => item.id === subject.id) === index,
+  );
+  const guide: NonNullable<DashboardState['onboarding']> = state.onboarding || { step: 0, name: '', year: '2026', subjectId: subjects[0]?.id || '', names: '', title: '', date: DEMO_DATE, objectives: '', time: '08:00' };
   const change = (patch: Partial<typeof guide>) => update((s) => ({ ...s, onboarding: { ...guide, ...patch } }));
   const names = [...new Set(guide.names.split(/\r?\n/).map((name) => name.trim()).filter(Boolean))];
   const currentClass = state.classes.find((c) => c.id === guide.classId);
-  if (!state.subjects.length && guide.step === 0) return <Panel title="Prepare a sua escola">
+  if (!subjects.length && guide.step === 0) return <Panel title="Prepare a sua escola">
     <p>Adicione pelo menos uma disciplina antes de criar a primeira turma.</p>
     <Link className="dash-btn" href="/dashboard/configuracoes#settings-school">Adicionar disciplina</Link>
   </Panel>;
@@ -53,7 +56,7 @@ export function GettingStarted() {
       {guide.step === 0 && <>
         <Field label="Nome e classe da turma" required><input required placeholder="Ex.: 10ª Classe A" value={guide.name} onChange={(e) => change({ name: e.target.value })} /></Field>
         <Field label="Ano letivo" required><input required value={guide.year} onChange={(e) => change({ year: e.target.value })} /></Field>
-        <Field label="Disciplina" required><select required value={guide.subjectId} onChange={(e) => change({ subjectId: e.target.value })}>{state.subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+        <Field label="Disciplina" required><select required value={guide.subjectId} onChange={(e) => change({ subjectId: e.target.value })}>{subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
       </>}
       {guide.step === 1 && <Field label="Nomes dos alunos — um por linha" required><textarea required rows={5} placeholder={'Ana Costa\nCarlos Manuel'} value={guide.names} onChange={(e) => change({ names: e.target.value })} /><small>{names.length} alunos. Nomes iguais são incluídos uma vez; homónimos podem ser adicionados na turma.</small></Field>}
       {guide.step === 2 && <>

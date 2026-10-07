@@ -73,6 +73,7 @@ export function teacherCanReadRecord(input: {
     case 'ONBOARDING':
       return authored;
     case 'CONVERSATIONS':
+      if (item.direct === true) return ids(item.participantIds).includes(userId);
       return authored || classAllowed;
     case 'TASKS':
       return authored || classAllowed;

@@ -7,6 +7,9 @@ export interface User {
   role: string;
   avatar: string;
   phone: string;
+  isSuperAdmin?: boolean;
+  adminRole?: 'NONE' | 'SUPPORT' | 'SUPER_ADMIN';
+  adminMfaEnabled?: boolean;
 }
 export interface Subject {
   id: Id;
@@ -196,6 +199,8 @@ export interface Message {
 export interface Conversation {
   schoolId?: Id;
   id: Id;
+  direct?: boolean;
+  participantIds?: Id[];
   title: string;
   subtitle: string;
   classId?: Id;

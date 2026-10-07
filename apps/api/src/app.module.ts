@@ -11,6 +11,7 @@ import { TeachingModule } from './teaching/teaching.module.js';
 import { FilesModule } from './files/files.module.js';
 import { MarketingModule } from './marketing/marketing.module.js';
 import { PlanSharesModule } from './plan-shares/plan-shares.module.js';
+import { AdminModule } from './admin/admin.module.js';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { PlanSharesModule } from './plan-shares/plan-shares.module.js';
     FilesModule,
     MarketingModule,
     PlanSharesModule,
+    AdminModule,
   ],
   controllers: [HealthController],
 })
