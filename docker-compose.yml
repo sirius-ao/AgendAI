@@ -15,8 +15,8 @@ services:
     image: ${STORAGE_IMAGE:-elestio/minio@sha256:25348a257f1ece1b192f25f6cd9854618fa86422ac87b494b5d4e629c556d4bd}
     command: server /data --console-address ':9001'
     environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-agendai-local}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-agendai-local-secret-change-me}
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?Define S3_ACCESS_KEY with a unique value}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?Define S3_SECRET_KEY with at least 32 random characters}
     ports:
       - '${S3_BIND_ADDRESS:-127.0.0.1}:${S3_PORT:-9000}:9000'
       - '${S3_CONSOLE_BIND_ADDRESS:-127.0.0.1}:${S3_CONSOLE_PORT:-9001}:9001'
@@ -46,8 +46,8 @@ services:
       RCLONE_CONFIG_LOCAL_TYPE: s3
       RCLONE_CONFIG_LOCAL_PROVIDER: Minio
       RCLONE_CONFIG_LOCAL_ENDPOINT: http://storage:9000
-      RCLONE_CONFIG_LOCAL_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-agendai-local}
-      RCLONE_CONFIG_LOCAL_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-agendai-local-secret-change-me}
+      RCLONE_CONFIG_LOCAL_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?Define S3_ACCESS_KEY with a unique value}
+      RCLONE_CONFIG_LOCAL_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?Define S3_SECRET_KEY with at least 32 random characters}
       RCLONE_CONFIG_LOCAL_REGION: ${S3_REGION:-us-east-1}
       S3_BUCKET: ${S3_BUCKET:-agendai-local}
     restart: 'no'
@@ -58,7 +58,7 @@ services:
     environment:
       POSTGRES_DB: agendai
       POSTGRES_USER: agendai
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agendai-local}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD with at least 32 URL-safe random characters}
     ports:
       - '${POSTGRES_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432'
     volumes:
@@ -84,21 +84,23 @@ services:
     environment:
       NODE_ENV: production
       PORT: '3001'
-      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
-      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      WEB_ORIGIN: ${WEB_ORIGIN:?Define WEB_ORIGIN}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?Define NEXT_PUBLIC_SITE_URL}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:?Define TURNSTILE_SECRET_KEY}
+      TURNSTILE_HOSTNAMES: ${TURNSTILE_HOSTNAMES:?Define TURNSTILE_HOSTNAMES}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
       CONTACT_EMAIL: ${CONTACT_EMAIL:-}
-      REQUIRE_EMAIL_CONFIG: ${REQUIRE_EMAIL_CONFIG:-true}
+      REQUIRE_EMAIL_CONFIG: 'true'
       TRUST_PROXY: ${TRUST_PROXY:-false}
-      DATABASE_URL: postgresql://agendai:${POSTGRES_PASSWORD:-agendai-local}@database:5432/agendai?schema=public
+      DATABASE_URL: postgresql://agendai:${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}@database:5432/agendai?schema=public
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Define JWT_ACCESS_SECRET com pelo menos 32 caracteres}
       S3_ENDPOINT: ${S3_ENDPOINT:-http://storage:9000}
-      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:?Define S3_PUBLIC_ENDPOINT accessible to browsers}
       S3_BUCKET: ${S3_BUCKET:-agendai-local}
       S3_REGION: ${S3_REGION:-us-east-1}
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-agendai-local}
-      S3_SECRET_KEY: ${S3_SECRET_KEY:-agendai-local-secret-change-me}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?Define S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?Define S3_SECRET_KEY}
     depends_on:
       database:
         condition: service_healthy
@@ -114,7 +116,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?Define NEXT_PUBLIC_SITE_URL}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:?Define NEXT_PUBLIC_TURNSTILE_SITE_KEY}
     ports:
       # Host port defaults to 3003 because 3000 is already used on the production server.
       - '${WEBSITE_BIND_ADDRESS:-127.0.0.1}:${WEBSITE_PORT:-3003}:3000'
@@ -122,7 +125,8 @@ services:
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
       PORT: '3000'
-      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?Define NEXT_PUBLIC_SITE_URL}
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:?Define NEXT_PUBLIC_TURNSTILE_SITE_KEY}
     depends_on:
       api:
         condition: service_healthy

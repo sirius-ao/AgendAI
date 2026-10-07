@@ -22,6 +22,7 @@ interface RegisterInput {
   email: string;
   password: string;
   schoolName: string;
+  turnstileToken: string;
 }
 interface RegisterResult {
   verificationRequired?: boolean;

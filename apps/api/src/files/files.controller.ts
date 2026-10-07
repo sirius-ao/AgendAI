@@ -1,11 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
+import { AuthRateLimitGuard } from '../auth/auth-rate-limit.guard.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import type { AccessPayload } from '../auth/auth.types.js';
 import { CreatePlanUploadDto } from './files.dto.js';
 import { FilesService } from './files.service.js';
 
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, AuthRateLimitGuard)
 @Controller('schools/:schoolId/plans/:planId/attachments')
 export class FilesController {
   constructor(private readonly files: FilesService) {}

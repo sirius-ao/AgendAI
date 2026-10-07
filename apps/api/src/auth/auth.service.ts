@@ -17,7 +17,7 @@ export class AuthService {
   constructor(private readonly prisma: PrismaService, private readonly email: EmailService) {}
 
   private emailVerificationRequired() {
-    return process.env.NODE_ENV === 'production' && process.env.REQUIRE_EMAIL_CONFIG !== 'false';
+    return process.env.NODE_ENV === 'production';
   }
 
   private async sendVerification(user: AuthUser) {

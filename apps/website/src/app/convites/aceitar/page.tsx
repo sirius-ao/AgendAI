@@ -7,11 +7,13 @@ export default function AcceptInvitationPage() {
   const [status, setStatus] = useState('A verificar o convite…');
   const [links, setLinks] = useState<{ login: string; register: string } | null>(null);
   useEffect(() => {
-    const token = new URLSearchParams(window.location.search).get('token');
+    const url = new URL(window.location.href);
+    const token = new URLSearchParams(url.hash.slice(1)).get('token') || url.searchParams.get('token');
+    if (token) window.history.replaceState({}, '', url.pathname);
     if (!token) { setStatus('O link de convite não contém um token válido.'); return; }
     if (!hasApiSession()) {
-      const query = `?convite=${encodeURIComponent(token)}`;
-      setLinks({ login: `/entrar${query}`, register: `/comecar${query}` });
+      sessionStorage.setItem('agendai_invitation_token', token);
+      setLinks({ login: '/entrar', register: '/comecar' });
       setStatus('Entre na sua conta ou crie uma conta para aceitar o convite.');
       return;
     }

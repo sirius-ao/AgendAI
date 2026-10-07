@@ -7,12 +7,31 @@ import cookieParser from 'cookie-parser';
 import { json } from 'express';
 import { AppModule } from './app.module.js';
 
+function requireHttpsOrLocalhost(value: string | undefined, name: string) {
+  if (!value) throw new Error(`${name} é obrigatório em produção`);
+  const parsed = new URL(value);
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname);
+  if (parsed.protocol !== 'https:' && !local) throw new Error(`${name} deve usar HTTPS em produção`);
+}
+
 async function bootstrap() {
   if (!process.env.JWT_ACCESS_SECRET || process.env.JWT_ACCESS_SECRET.length < 32) {
     throw new Error('JWT_ACCESS_SECRET deve ter pelo menos 32 caracteres');
   }
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL é obrigatório');
-  if (process.env.NODE_ENV === 'production' && process.env.REQUIRE_EMAIL_CONFIG !== 'false' && (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM || !process.env.CONTACT_EMAIL)) {
+  if (process.env.NODE_ENV === 'production') {
+    const databasePassword = new URL(process.env.DATABASE_URL).password;
+    if (databasePassword.length < 32) throw new Error('A palavra-passe da base de dados deve ter pelo menos 32 caracteres aleatórios');
+    requireHttpsOrLocalhost(process.env.NEXT_PUBLIC_SITE_URL, 'NEXT_PUBLIC_SITE_URL');
+    requireHttpsOrLocalhost(process.env.S3_PUBLIC_ENDPOINT, 'S3_PUBLIC_ENDPOINT');
+    if (!process.env.S3_ACCESS_KEY || process.env.S3_ACCESS_KEY.length < 16 || !process.env.S3_SECRET_KEY || process.env.S3_SECRET_KEY.length < 32) {
+      throw new Error('S3_ACCESS_KEY e S3_SECRET_KEY devem ser segredos únicos e fortes em produção');
+    }
+    if (!process.env.TURNSTILE_SECRET_KEY || !process.env.TURNSTILE_HOSTNAMES?.split(',').some((host) => host.trim())) {
+      throw new Error('TURNSTILE_SECRET_KEY e TURNSTILE_HOSTNAMES são obrigatórios em produção');
+    }
+  }
+  if (process.env.NODE_ENV === 'production' && (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM || !process.env.CONTACT_EMAIL)) {
     throw new Error('RESEND_API_KEY, EMAIL_FROM e CONTACT_EMAIL são obrigatórios em produção');
   }
   const app = await NestFactory.create(AppModule, { bodyParser: false });

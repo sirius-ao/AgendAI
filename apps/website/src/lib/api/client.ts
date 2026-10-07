@@ -47,7 +47,7 @@ export async function apiLogin(email: string, password: string) {
   saveToken(result.accessToken);
   return result;
 }
-export async function apiRegister(input: { name: string; email: string; password: string; schoolName?: string; invitationToken?: string }) {
+export async function apiRegister(input: { name: string; email: string; password: string; schoolName?: string; invitationToken?: string; turnstileToken?: string }) {
   const result = await request<{ accessToken?: string; user?: unknown; verificationRequired?: boolean; emailSent?: boolean; email?: string }>('/auth/register', { method: 'POST', body: JSON.stringify(input) }, false);
   if (result.accessToken) saveToken(result.accessToken);
   return result;
@@ -58,11 +58,11 @@ export async function apiVerifyEmail(token: string) {
 export async function apiResendVerification(email: string) {
   return request<{ success: boolean }>('/auth/verify-email/resend', { method: 'POST', body: JSON.stringify({ email }) }, false);
 }
-export async function apiContact(input: { name: string; email: string; school?: string; plan?: string; message: string }) {
+export async function apiContact(input: { name: string; email: string; school?: string; plan?: string; message: string; turnstileToken?: string }) {
   return request<{ success: boolean }>('/marketing/contact', { method: 'POST', body: JSON.stringify(input) }, false);
 }
-export async function apiNewsletterSubscribe(email: string, consent: boolean) {
-  return request<{ success: boolean }>('/marketing/newsletter/subscribe', { method: 'POST', body: JSON.stringify({ email, consent }) }, false);
+export async function apiNewsletterSubscribe(email: string, consent: boolean, turnstileToken?: string) {
+  return request<{ success: boolean }>('/marketing/newsletter/subscribe', { method: 'POST', body: JSON.stringify({ email, consent, turnstileToken }) }, false);
 }
 export async function apiNewsletterConfirm(token: string) {
   return request<{ success: boolean }>('/marketing/newsletter/confirm', { method: 'POST', body: JSON.stringify({ token }) }, false);

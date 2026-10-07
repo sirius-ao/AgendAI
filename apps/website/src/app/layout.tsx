@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import Script from 'next/script';
 import { SiteFrame } from '@/components/layout/SiteFrame';
+import { PrivacyAnalytics } from '@/components/layout/PrivacyAnalytics';
 import { siteUrl, pageMetadata } from '@/lib/site';
 import './globals.css';
 import '@fontsource-variable/inter';
@@ -21,20 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Saltar para o conteúdo
         </a>
         <SiteFrame>{children}</SiteFrame>
-        <Script id="microsoft-clarity-init" strategy="afterInteractive">
-          {`(function(c,l,a,r,i,t,y){
-            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-          })(window, document, "clarity", "script", "ytnlp7xs6s");`}
-        </Script>
-        <Script id="google-analytics-init" strategy="afterInteractive">
-          {`window.dataLayer = window.dataLayer || []; window.gtag = function(){window.dataLayer.push(arguments);}; window.gtag('js', new Date()); window.gtag('config', 'G-W1GXHX9HDK');`}
-        </Script>
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-W1GXHX9HDK"
-          strategy="afterInteractive"
-        />
+        <PrivacyAnalytics />
       </body>
     </html>
   );

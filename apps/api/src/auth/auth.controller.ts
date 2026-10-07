@@ -6,23 +6,30 @@ import { AuthGuard } from './auth.guard.js';
 import { CurrentUser } from './current-user.decorator.js';
 import type { AccessPayload } from './auth.types.js';
 import { AuthRateLimitGuard } from './auth-rate-limit.guard.js';
+import { TurnstileService } from './turnstile.service.js';
 
 const COOKIE = 'agendai_refresh';
 const cookieOptions = () => ({ httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const, path: '/api/v1/auth', maxAge: 30 * 86400_000 });
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(private readonly auth: AuthService, private readonly turnstile: TurnstileService) {}
   private send(res: Response, result: { accessToken: string; refreshToken: string; user: object }) {
     res.cookie(COOKIE, result.refreshToken, cookieOptions());
     return res.json({ accessToken: result.accessToken, user: result.user });
   }
-  @UseGuards(AuthRateLimitGuard) @Post('register') async register(@Body() dto: RegisterDto, @Res() res: Response) {
-    const result = await this.auth.register(dto);
+  @UseGuards(AuthRateLimitGuard) @Post('register') async register(@Body() dto: RegisterDto, @Req() req: Request, @Res() res: Response) {
+    await this.turnstile.verify(dto.turnstileToken, 'register', req.ip);
+    const { turnstileToken: _turnstileToken, ...input } = dto;
+    const result = await this.auth.register(input);
     if ('verificationRequired' in result) return res.status(202).json(result);
     return this.send(res, result);
   }
-  @UseGuards(AuthRateLimitGuard) @Post('mobile/register') mobileRegister(@Body() dto: RegisterDto) { return this.auth.register(dto); }
+  @UseGuards(AuthRateLimitGuard) @Post('mobile/register') async mobileRegister(@Body() dto: RegisterDto, @Req() req: Request) {
+    await this.turnstile.verify(dto.turnstileToken, 'register', req.ip);
+    const { turnstileToken: _turnstileToken, ...input } = dto;
+    return this.auth.register(input);
+  }
   @UseGuards(AuthRateLimitGuard) @Post('login') async login(@Body() dto: LoginDto, @Res() res: Response) { return this.send(res, await this.auth.login(dto)); }
   @UseGuards(AuthRateLimitGuard) @Post('mobile/login') mobileLogin(@Body() dto: LoginDto) { return this.auth.login(dto); }
   @UseGuards(AuthRateLimitGuard) @Post('mobile/refresh') mobileRefresh(@Body() dto: MobileRefreshDto) { return this.auth.refresh(dto.refreshToken); }

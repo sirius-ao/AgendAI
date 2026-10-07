@@ -22,7 +22,7 @@ export class EmailService {
 
   async sendPasswordReset(email: string, name: string, token: string) {
     const link = new URL('/redefinir-palavra-passe', this.siteUrl);
-    link.searchParams.set('token', token);
+    link.hash = `token=${token}`;
     const text = `Olá ${name},\n\nRecebemos um pedido para redefinir a palavra-passe da sua conta AgendAKI.\n\nPara escolher uma nova palavra-passe, abra esta ligação (válida durante 30 minutos):\n${link}\n\nSe não pediu esta alteração, ignore esta mensagem.`;
     const content = [
       emailParagraph(`Olá ${escapeEmailHtml(name)},`),
@@ -36,7 +36,7 @@ export class EmailService {
 
   async sendInvitation(email: string, schoolName: string, role: string, token: string) {
     const link = new URL('/comecar', this.siteUrl);
-    link.searchParams.set('convite', token);
+    link.hash = `convite=${token}`;
     const text = `Foi convidado para integrar ${schoolName} no AgendAKI como ${role}.\n\nAceite o convite nesta ligação, válida durante 7 dias:\n${link}`;
     const content = [
       emailParagraph(`Foi convidado para integrar <strong>${escapeEmailHtml(schoolName)}</strong> no AgendAKI.`),
@@ -50,7 +50,7 @@ export class EmailService {
 
   async sendVerification(email: string, name: string, token: string) {
     const link = new URL('/verificar-email', this.siteUrl);
-    link.searchParams.set('token', token);
+    link.hash = `token=${token}`;
     const text = `Olá ${name},\n\nConfirme o seu endereço de email para ativar a sua conta AgendAKI.\n\nConfirme nesta ligação, válida por 24 horas:\n${link}\n\nSe não criou uma conta, ignore este email. A conta não será ativada.`;
     const content = [
       emailParagraph(`Olá ${escapeEmailHtml(name)},`),
@@ -91,9 +91,9 @@ export class EmailService {
 
   async sendNewsletterConfirmation(email: string, token: string, unsubscribeToken: string) {
     const confirm = new URL('/newsletter/confirmar', this.siteUrl);
-    confirm.searchParams.set('token', token);
+    confirm.hash = `token=${token}`;
     const unsubscribe = new URL('/newsletter/cancelar', this.siteUrl);
-    unsubscribe.searchParams.set('token', unsubscribeToken);
+    unsubscribe.hash = `token=${unsubscribeToken}`;
     const text = `Confirme a subscrição da newsletter AgendAKI nesta ligação:\n${confirm}\n\nSe não pediu esta subscrição, ignore este email. Para retirar o consentimento mais tarde, cancele aqui:\n${unsubscribe}`;
     const content = [
       emailParagraph('Recebemos um pedido para subscrever a newsletter do AgendAKI.'),

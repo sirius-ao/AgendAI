@@ -6,6 +6,7 @@ import { Button, Input } from '@agendai/ui';
 import { Logo } from './Logo';
 import { useRouter } from 'next/navigation';
 import { apiContact, apiLogin, apiRegister, apiRequest } from '@/lib/api/client';
+import { Turnstile } from './Turnstile';
 const planLabels: Record<string, string> = { pro: 'Professor Pro', escola: 'Escola Start', escola30: 'Escola Plus', plus: 'Escola Premium' };
 export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto' }) {
   const [message, setMessage] = useState('');
@@ -14,16 +15,27 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
   const [verificationEmail, setVerificationEmail] = useState('');
   const [invitationToken, setInvitationToken] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const router = useRouter();
   const contact = mode === 'contacto';
   const login = mode === 'entrar';
   useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    setInvitationToken(query.get('convite') || '');
+    const url = new URL(window.location.href);
+    const query = url.searchParams;
+    const fragment = new URLSearchParams(url.hash.slice(1));
+    const invite = query.get('convite') || fragment.get('convite') || sessionStorage.getItem('agendai_invitation_token') || '';
+    setInvitationToken(invite);
     setSelectedPlan(query.get('plano') || '');
+    if (query.has('convite') || fragment.has('convite')) {
+      sessionStorage.setItem('agendai_invitation_token', invite);
+      query.delete('convite');
+      url.hash = '';
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
   }, []);
   return (
-    <section className="access-page container">
+    <section data-clarity-mask="true" className="access-page container">
       <div className="access-copy">
         <p className="eyebrow">Planear hoje. Ensinar melhor.</p>
         <h1>
@@ -69,16 +81,22 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
             setMessage('');
             try {
               if (contact) {
-                await apiContact({ name: String(data.get('name')), email: String(data.get('email')), school: String(data.get('school') || ''), plan: planLabels[selectedPlan] || selectedPlan, message: String(data.get('message')) });
+                await apiContact({ name: String(data.get('name')), email: String(data.get('email')), school: String(data.get('school') || ''), plan: planLabels[selectedPlan] || selectedPlan, message: String(data.get('message')), turnstileToken });
                 formElement.reset();
+                setTurnstileToken(''); setCaptchaResetKey((key) => key + 1);
                 setMessage('Mensagem enviada. A equipa AgendAKI entrará em contacto consigo.');
               } else if (login) {
                 await apiLogin(String(data.get('email')), String(data.get('password')));
-                if (inviteToken) await apiRequest('/invitations/accept', { method: 'POST', body: JSON.stringify({ token: inviteToken }) });
+                if (inviteToken) {
+                  await apiRequest('/invitations/accept', { method: 'POST', body: JSON.stringify({ token: inviteToken }) });
+                  sessionStorage.removeItem('agendai_invitation_token');
+                }
               } else {
                 const email = String(data.get('email'));
-                const result = await apiRegister({ name: String(data.get('name')), email, password: String(data.get('password')), ...(inviteToken ? { invitationToken: inviteToken } : { schoolName: String(data.get('schoolName')) }) });
+                const result = await apiRegister({ name: String(data.get('name')), email, password: String(data.get('password')), turnstileToken, ...(inviteToken ? { invitationToken: inviteToken } : { schoolName: String(data.get('schoolName')) }) });
+                if (inviteToken) sessionStorage.removeItem('agendai_invitation_token');
                 if (result.verificationRequired) {
+                  setTurnstileToken(''); setCaptchaResetKey((key) => key + 1);
                   setVerificationPending(true);
                   setVerificationEmail(email);
                   setMessage(result.emailSent ? 'Conta criada. Enviámos uma ligação para confirmar o seu email antes de entrar.' : 'Conta criada, mas o email não foi enviado. Peça uma nova ligação de confirmação.');
@@ -87,6 +105,7 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
               }
               router.push('/dashboard');
             } catch (error) {
+              if (!login) { setTurnstileToken(''); setCaptchaResetKey((key) => key + 1); }
               setMessage(error instanceof Error ? error.message : 'Não foi possível entrar. Tente novamente.');
             } finally { setBusy(false); }
           }}
@@ -142,6 +161,7 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
               />
             </label>
           )}
+          {!login && <Turnstile action={contact ? 'contact' : 'register'} onToken={setTurnstileToken} resetKey={captchaResetKey} />}
           <Button type="submit">
             {busy ? 'Aguarde…' : contact ? 'Enviar pedido' : login ? 'Entrar' : 'Criar conta'}
             <ArrowRight size={17} />

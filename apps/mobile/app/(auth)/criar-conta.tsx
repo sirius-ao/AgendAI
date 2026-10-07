@@ -1,8 +1,9 @@
 import { Link, router } from 'expo-router';
-import { useState } from 'react';
-import { Text } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Linking, Text } from 'react-native';
 import { Button, Card, Field, Notice, Page, Heading } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
+import { WEBSITE_URL } from '@/config';
 
 export default function SignUp() {
   const { signUp } = useAuth();
@@ -13,14 +14,28 @@ export default function SignUp() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  useEffect(() => {
+    const receive = (url: string) => {
+      try {
+        const parsed = new URL(url);
+        const token = parsed.searchParams.get('turnstileToken');
+        if (parsed.protocol === 'agendaki:' && parsed.pathname.endsWith('/criar-conta') && token) setTurnstileToken(token);
+      } catch { /* Ignore unrelated links. */ }
+    };
+    const subscription = Linking.addEventListener('url', ({ url }) => receive(url));
+    void Linking.getInitialURL().then((url) => { if (url) receive(url); });
+    return () => subscription.remove();
+  }, []);
   const submit = async () => {
     setBusy(true);
     setError('');
     try {
-      const result = await signUp({ name, email, password, schoolName });
+      const result = await signUp({ name, email, password, schoolName, turnstileToken });
       if (result.verificationRequired) setDone(true);
       else router.replace('/(tabs)');
     } catch (e) {
+      setTurnstileToken('');
       setError(e instanceof Error ? e.message : 'Não foi possível criar a conta.');
     } finally {
       setBusy(false);
@@ -58,7 +73,13 @@ export default function SignUp() {
               secureTextEntry
               autoComplete="new-password"
             />
-            <Button title="Criar conta" onPress={() => void submit()} loading={busy} />
+            <Button
+              title={turnstileToken ? 'Verificação concluída' : 'Verificar com Cloudflare'}
+              onPress={() => void Linking.openURL(`${WEBSITE_URL}/turnstile/register`)}
+              disabled={busy}
+            />
+            <Text>Conclua a verificação no navegador e toque em “Voltar à aplicação”.</Text>
+            <Button title="Criar conta" onPress={() => void submit()} loading={busy} disabled={!turnstileToken} />
           </>
         )}
       </Card>

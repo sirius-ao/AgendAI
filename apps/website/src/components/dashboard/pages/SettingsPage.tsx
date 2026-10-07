@@ -114,7 +114,7 @@ export function SettingsPage() {
     const form = new FormData(formElement);
     try {
       const invite = await apiRequest<{ invitationToken: string; emailSent: boolean }>('/schools/' + encodeURIComponent(state.activeSchoolId) + '/invitations', { method: 'POST', body: JSON.stringify({ email: form.get('email'), role: form.get('role') }) });
-      setInviteUrl(`${window.location.origin}/convites/aceitar?token=${encodeURIComponent(invite.invitationToken)}`);
+      setInviteUrl(`${window.location.origin}/convites/aceitar#token=${encodeURIComponent(invite.invitationToken)}`);
       setInviteEmailSent(invite.emailSent);
       formElement.reset();
       setMemberError('');

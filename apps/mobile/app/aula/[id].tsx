@@ -3,12 +3,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, Share, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Heading, Page, styles } from '@/components/ui';
+import { Button, Card, Heading, Notice, Page, styles } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
 import { useDashboard } from '@/providers/dashboard-provider';
+
+type ShareLink = { id: string; createdAt: string; expiresAt: string; revokedAt: string | null };
 
 const value = (item: unknown) =>
   typeof item === 'string' || typeof item === 'number' ? String(item) : '';
@@ -25,8 +27,8 @@ const escapeHtml = (text: string) =>
   });
 export default function LessonDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { snapshot } = useDashboard();
-  const { user } = useAuth();
+  const { snapshot, schoolId } = useDashboard();
+  const { user, request } = useAuth();
   const [sharing, setSharing] = useState(false);
   const [customizePdf, setCustomizePdf] = useState(false);
   const [includeSchool, setIncludeSchool] = useState(true);
@@ -40,6 +42,10 @@ export default function LessonDetail() {
     'Avaliação',
     'Observações',
   ]);
+  const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
+  const [shareUrl, setShareUrl] = useState('');
+  const [shareError, setShareError] = useState('');
+  const [shareBusy, setShareBusy] = useState(false);
   const row = snapshot?.data.plans.find((item) => item.recordId === id);
   const plan = row?.payload;
   const classId = value(plan?.classId);
@@ -54,6 +60,65 @@ export default function LessonDetail() {
     ['Observações', plan?.description],
   ].filter(([, text]) => Boolean(value(text).trim()));
   const fields = availableFields.filter(([label]) => includedSections.includes(String(label)));
+  const shareLinksPath = `/schools/${encodeURIComponent(schoolId)}/plans/${encodeURIComponent(id)}/share-links`;
+  useEffect(() => {
+    let active = true;
+    if (!schoolId || !id) return;
+    void request<ShareLink[]>(shareLinksPath)
+      .then((links) => {
+        if (active) setShareLinks(links);
+      })
+      .catch((cause) => {
+        if (active)
+          setShareError(
+            cause instanceof Error ? cause.message : 'Não foi possível carregar os links.',
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [id, request, schoolId, shareLinksPath]);
+  const createShareLink = async () => {
+    setShareBusy(true);
+    setShareError('');
+    try {
+      const created = await request<ShareLink & { url: string }>(shareLinksPath, {
+        method: 'POST',
+      });
+      setShareUrl(created.url);
+      setShareLinks((current) => [
+        created,
+        ...current.map((link) =>
+          link.revokedAt ? link : { ...link, revokedAt: new Date().toISOString() },
+        ),
+      ]);
+      await Share.share({
+        title: 'Plano de aula AgendAKI',
+        message: `${user?.name || 'Um professor'} partilhou consigo o plano “${value(plan?.title || plan?.subject)}” criado com o AgendAKI.\n\n${created.url}\n\nCriar o meu gratuitamente: ${new URL('/comecar?utm_source=shared_plan&utm_medium=referral&utm_campaign=teacher_share', created.url).toString()}`,
+      });
+    } catch (cause) {
+      setShareError(cause instanceof Error ? cause.message : 'Não foi possível criar o link.');
+    } finally {
+      setShareBusy(false);
+    }
+  };
+  const revokeShareLink = async (linkId: string) => {
+    setShareBusy(true);
+    setShareError('');
+    try {
+      await request(`${shareLinksPath}/${encodeURIComponent(linkId)}`, { method: 'DELETE' });
+      setShareLinks((current) =>
+        current.map((link) =>
+          link.id === linkId ? { ...link, revokedAt: new Date().toISOString() } : link,
+        ),
+      );
+      setShareUrl('');
+    } catch (cause) {
+      setShareError(cause instanceof Error ? cause.message : 'Não foi possível revogar o link.');
+    } finally {
+      setShareBusy(false);
+    }
+  };
   const sharePdf = async () => {
     if (!plan) return;
     setSharing(true);
@@ -105,7 +170,7 @@ export default function LessonDetail() {
         <div class="meta">${metadata.map(([label, content]) => `<p><b>${escapeHtml(label)}:</b> ${escapeHtml(content)}</p>`).join('')}</div>
         ${teacherLine}
         ${fields.map(([label, content]) => `<section><h2>${escapeHtml(String(label))}</h2><p>${escapeHtml(value(content))}</p></section>`).join('')}
-        <footer><span>AgendAKI · Planear hoje. Ensinar melhor.</span><span>Gerado em ${escapeHtml(new Date().toLocaleDateString('pt-PT'))}</span></footer>
+        <footer><span>Criado com <a href="https://agendaki.net" style="color:#00851b;text-decoration:none;font-weight:bold">AgendAKI · agendaki.net</a></span><span>Gerado em ${escapeHtml(new Date().toLocaleDateString('pt-PT'))}</span></footer>
       </body></html>`;
       const { uri } = await Print.printToFileAsync({ html });
       const filename =
@@ -214,6 +279,52 @@ export default function LessonDetail() {
             onPress={() => void sharePdf()}
             loading={sharing}
           />
+          <Card style={{ backgroundColor: BRAND.greenPale }}>
+            <Text style={{ color: BRAND.forestSoft, fontWeight: '800', fontSize: 16 }}>
+              Partilhar com outro professor
+            </Text>
+            <Text style={styles.subtitle}>
+              O link fica ativo durante 30 dias e pode ser revogado. Mostra apenas objetivos,
+              conteúdo, metodologia, recursos e avaliação; não inclui observações privadas, anexos
+              nem dados de alunos.
+            </Text>
+            <Button
+              title={shareBusy ? 'A preparar link…' : 'Criar link e partilhar'}
+              onPress={() => void createShareLink()}
+              loading={shareBusy}
+            />
+            {shareError ? <Notice text={shareError} type="error" /> : null}
+            {shareUrl ? (
+              <Text selectable style={{ color: BRAND.forestSoft, fontSize: 12, marginTop: 8 }}>
+                {shareUrl}
+              </Text>
+            ) : null}
+            {shareLinks
+              .filter((link) => !link.revokedAt && new Date(link.expiresAt).getTime() > Date.now())
+              .map((link) => (
+                <View
+                  key={link.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    paddingTop: 10,
+                  }}
+                >
+                  <Text style={styles.subtitle}>
+                    Ativo até {new Date(link.expiresAt).toLocaleDateString('pt-PT')}
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={shareBusy}
+                    onPress={() => void revokeShareLink(link.id)}
+                  >
+                    <Text style={{ color: BRAND.red, fontWeight: '800' }}>Revogar</Text>
+                  </Pressable>
+                </View>
+              ))}
+          </Card>
           <Button
             title="Marcar presença"
             onPress={() => router.push({ pathname: '/presenca', params: { planId: id, classId } })}
