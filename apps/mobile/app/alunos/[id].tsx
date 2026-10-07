@@ -1,6 +1,7 @@
+import { AppText } from '@/components/app-text';
 import { BRAND } from '@/config';
 import { useLocalSearchParams, router } from 'expo-router';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { Button, Card, Empty, Heading, Page, styles } from '@/components/ui';
 import { useDashboard } from '@/providers/dashboard-provider';
 
@@ -98,42 +99,46 @@ export default function StudentProfile() {
                 justifyContent: 'center',
               }}
             >
-              <Text style={{ color: BRAND.blue, fontSize: 24, fontWeight: '800' }}>
+              <AppText style={{ color: BRAND.blue, fontSize: 24, fontWeight: '800' }}>
                 {String(p.name || 'A')
                   .split(/\s+/)
                   .slice(0, 2)
                   .map((name) => name[0])
                   .join('')
                   .toUpperCase()}
-              </Text>
+              </AppText>
             </View>
-            <Text style={{ color: BRAND.ink, fontSize: 19, fontWeight: '800' }}>
+            <AppText style={{ color: BRAND.ink, fontSize: 19, fontWeight: '800' }}>
               {String(p.name || 'Aluno')}
-            </Text>
-            <Text style={styles.subtitle}>
+            </AppText>
+            <AppText style={styles.subtitle}>
               {String(p.contact || 'Contacto não informado')} · {String(p.status || 'Ativo')}
-            </Text>
+            </AppText>
             {group && (
-              <Text style={styles.subtitle}>
+              <AppText style={styles.subtitle}>
                 {String(group.payload.name || '')} ·{' '}
                 {String(group.payload.year || group.payload.grade || '')}
-              </Text>
+              </AppText>
             )}
           </Card>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <Card style={{ flex: 1 }}>
-              <Text style={styles.subtitle}>Presenças</Text>
-              <Text style={{ color: BRAND.green, fontSize: 21, fontWeight: '800' }}>{present}</Text>
+              <AppText style={styles.subtitle}>Presenças</AppText>
+              <AppText style={{ color: BRAND.green, fontSize: 21, fontWeight: '800' }}>
+                {present}
+              </AppText>
             </Card>
             <Card style={{ flex: 1 }}>
-              <Text style={styles.subtitle}>Faltas</Text>
-              <Text style={{ color: BRAND.red, fontSize: 21, fontWeight: '800' }}>{absences}</Text>
+              <AppText style={styles.subtitle}>Faltas</AppText>
+              <AppText style={{ color: BRAND.red, fontSize: 21, fontWeight: '800' }}>
+                {absences}
+              </AppText>
             </Card>
             <Card style={{ flex: 1 }}>
-              <Text style={styles.subtitle}>Média / 20</Text>
-              <Text style={{ color: BRAND.purpleInk, fontSize: 21, fontWeight: '800' }}>
+              <AppText style={styles.subtitle}>Média / 20</AppText>
+              <AppText style={{ color: BRAND.purpleInk, fontSize: 21, fontWeight: '800' }}>
                 {average === null ? '—' : average.toFixed(1)}
-              </Text>
+              </AppText>
             </Card>
           </View>
           <Button
@@ -143,31 +148,31 @@ export default function StudentProfile() {
               router.push({ pathname: '/avaliacoes', params: { classId, studentId: id } })
             }
           />
-          <Text style={{ color: BRAND.ink, fontSize: 17, fontWeight: '800' }}>
+          <AppText style={{ color: BRAND.ink, fontSize: 17, fontWeight: '800' }}>
             Histórico de avaliações
-          </Text>
+          </AppText>
           {assessments.length ? (
             assessments.map((row) => (
               <Card key={row.id}>
-                <Text style={{ color: BRAND.ink, fontWeight: '700' }}>{row.title}</Text>
-                <Text style={styles.subtitle}>
+                <AppText style={{ color: BRAND.ink, fontWeight: '700' }}>{row.title}</AppText>
+                <AppText style={styles.subtitle}>
                   {row.date} · {row.score}/20
-                </Text>
+                </AppText>
               </Card>
             ))
           ) : (
             <Empty title="Sem avaliações" text="As notas deste aluno aparecerão aqui." />
           )}
-          <Text style={{ color: BRAND.ink, fontSize: 17, fontWeight: '800' }}>
+          <AppText style={{ color: BRAND.ink, fontSize: 17, fontWeight: '800' }}>
             Histórico de presenças
-          </Text>
+          </AppText>
           {attendanceRows.length ? (
             attendanceRows.slice(0, 20).map(({ row, mark }) => (
               <Card key={row.recordId}>
-                <Text style={{ color: BRAND.ink, fontWeight: '700' }}>
+                <AppText style={{ color: BRAND.ink, fontWeight: '700' }}>
                   {String(row.payload.date || '')}
-                </Text>
-                <Text
+                </AppText>
+                <AppText
                   style={{
                     color:
                       mark?.status === 'Presente'
@@ -180,7 +185,7 @@ export default function StudentProfile() {
                 >
                   {mark?.status}
                   {mark?.note ? ` · ${mark.note}` : ''}
-                </Text>
+                </AppText>
               </Card>
             ))
           ) : (

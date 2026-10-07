@@ -1,6 +1,7 @@
+import { AppText } from '@/components/app-text';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { Button, Card, Empty, Heading, Page, styles } from '@/components/ui';
 import { BRAND } from '@/config';
 import { useDashboard } from '@/providers/dashboard-provider';
@@ -67,7 +68,7 @@ export default function Calendar() {
         <Button title="Esta semana" tone="soft" onPress={() => setSelected(new Date())} />
         <Button title="Semana ›" secondary onPress={() => setSelected((day) => addDays(day, 7))} />
       </View>
-      <Text style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>{weekLabel}</Text>
+      <AppText style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>{weekLabel}</AppText>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -101,7 +102,7 @@ export default function Calendar() {
                 borderColor: active ? BRAND.green : BRAND.line,
               }}
             >
-              <Text
+              <AppText
                 style={{
                   color: active ? BRAND.white : BRAND.muted,
                   fontSize: 11,
@@ -109,12 +110,12 @@ export default function Calendar() {
                 }}
               >
                 {day.toLocaleDateString('pt-PT', { weekday: 'short' })}
-              </Text>
-              <Text
+              </AppText>
+              <AppText
                 style={{ color: active ? BRAND.white : BRAND.ink, fontSize: 16, fontWeight: '900' }}
               >
                 {day.getDate()}
-              </Text>
+              </AppText>
               <View
                 style={{
                   width: 5,
@@ -127,11 +128,11 @@ export default function Calendar() {
           );
         })}
       </ScrollView>
-      <Text
+      <AppText
         style={{ color: BRAND.ink, fontWeight: '800', fontSize: 18, textTransform: 'capitalize' }}
       >
         {selected.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' })}
-      </Text>
+      </AppText>
       {events.length ? (
         events.map((row) => {
           const p = row.payload;
@@ -143,23 +144,25 @@ export default function Calendar() {
               key={`${row.kind}-${row.recordId}`}
               onPress={() => row.planId && router.push(`/aula/${row.planId}` as never)}
             >
-              <Text style={{ color: BRAND.forestSoft, fontWeight: '800' }}>
+              <AppText style={{ color: BRAND.forestSoft, fontWeight: '800' }}>
                 {String(p.startTime || p.start || p.time || 'Dia inteiro')}{' '}
                 {p.endTime || p.end ? `– ${String(p.endTime || p.end)}` : ''}
-              </Text>
-              <Text style={{ color: BRAND.ink, fontSize: 17, fontWeight: '800' }}>
+              </AppText>
+              <AppText style={{ color: BRAND.ink, fontSize: 17, fontWeight: '800' }}>
                 {String(p.title || p.subject || 'Compromisso')}
-              </Text>
-              <Text style={styles.subtitle}>
+              </AppText>
+              <AppText style={styles.subtitle}>
                 {[p.subjectName, group?.name || p.className, p.location]
                   .filter(Boolean)
                   .join(' · ')}
-              </Text>
+              </AppText>
               {p.description || p.objectives ? (
-                <Text style={styles.subtitle}>{String(p.description || p.objectives)}</Text>
+                <AppText style={styles.subtitle}>{String(p.description || p.objectives)}</AppText>
               ) : null}
               {row.planId ? (
-                <Text style={{ color: BRAND.forestSoft, fontWeight: '700' }}>Abrir plano →</Text>
+                <AppText style={{ color: BRAND.forestSoft, fontWeight: '700' }}>
+                  Abrir plano →
+                </AppText>
               ) : null}
             </Card>
           );

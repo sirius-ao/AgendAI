@@ -1,7 +1,8 @@
+import { AppText } from '@/components/app-text';
 import { BRAND } from '@/config';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import {
   Button,
   Card,
@@ -179,10 +180,10 @@ export default function Attendance() {
         {!validDate(day) && (
           <Notice text="Introduza uma data válida no formato AAAA-MM-DD." type="error" />
         )}
-        <Text style={styles.subtitle}>
+        <AppText style={styles.subtitle}>
           {String(classRecord?.payload.name || 'Escolha uma turma')} · {count('Presente')} presentes
           · {count('Falta')} faltas · {count('Justificada')} justificadas · {pending} por marcar
-        </Text>
+        </AppText>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ flex: 1 }}>
             <Button title="Todos presentes" secondary onPress={() => markAll('Presente')} />
@@ -197,9 +198,9 @@ export default function Attendance() {
           const status = marks[student.recordId]?.status || '';
           return (
             <Card key={student.recordId}>
-              <Text style={{ color: BRAND.ink, fontWeight: '800' }}>
+              <AppText style={{ color: BRAND.ink, fontWeight: '800' }}>
                 {String(student.payload.name || 'Aluno')}
-              </Text>
+              </AppText>
               <View style={{ flexDirection: 'row', gap: 7 }}>
                 {(['Presente', 'Falta', 'Justificada'] as const).map((choice) => (
                   <View key={choice} style={{ flex: 1 }}>

@@ -1,5 +1,6 @@
+import { AppText } from '@/components/app-text';
 import { useMemo, useState } from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert } from 'react-native';
 import {
   Button,
   Card,
@@ -79,7 +80,9 @@ export default function Announcements() {
       <Heading title="Comunicados" subtitle="Avisos importantes da escola e das turmas." back />
       {canPublish ? (
         <Card>
-          <Text style={{ color: BRAND.ink, fontSize: 16, fontWeight: '800' }}>Novo comunicado</Text>
+          <AppText style={{ color: BRAND.ink, fontSize: 16, fontWeight: '800' }}>
+            Novo comunicado
+          </AppText>
           <Notice
             text={notice}
             type={notice.startsWith('Comunicado publicado') ? 'success' : 'error'}
@@ -115,29 +118,29 @@ export default function Announcements() {
         </Card>
       ) : (
         <Card style={{ backgroundColor: BRAND.greenPale }}>
-          <Text style={{ color: BRAND.forestSoft, fontWeight: '800' }}>AVISOS ESCOLARES</Text>
-          <Text style={styles.subtitle}>
+          <AppText style={{ color: BRAND.forestSoft, fontWeight: '800' }}>AVISOS ESCOLARES</AppText>
+          <AppText style={styles.subtitle}>
             Os comunicados são publicados pela administração da escola.
-          </Text>
+          </AppText>
         </Card>
       )}
-      <Text style={{ color: BRAND.ink, fontSize: 17, fontWeight: '800' }}>Mais recentes</Text>
+      <AppText style={{ color: BRAND.ink, fontSize: 17, fontWeight: '800' }}>Mais recentes</AppText>
       {announcements.length ? (
         announcements.map((row) => {
           const className = classes.find((item) => item.recordId === row.payload.classId)?.payload
             .name;
           return (
             <Card key={row.recordId}>
-              <Text style={{ color: BRAND.forestSoft, fontWeight: '800' }}>
+              <AppText style={{ color: BRAND.forestSoft, fontWeight: '800' }}>
                 {String(row.payload.date || 'Comunicado escolar')} ·{' '}
                 {String(className || 'Toda a escola')}
-              </Text>
-              <Text style={{ color: BRAND.ink, fontSize: 16, fontWeight: '800' }}>
+              </AppText>
+              <AppText style={{ color: BRAND.ink, fontSize: 16, fontWeight: '800' }}>
                 {String(row.payload.title || 'Aviso')}
-              </Text>
-              <Text style={styles.subtitle}>
+              </AppText>
+              <AppText style={styles.subtitle}>
                 {String(row.payload.body || row.payload.message || '')}
-              </Text>
+              </AppText>
             </Card>
           );
         })

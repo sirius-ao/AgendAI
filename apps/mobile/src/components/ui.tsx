@@ -1,3 +1,4 @@
+import { AppText } from '@/components/app-text';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState, type ReactNode } from 'react';
@@ -9,7 +10,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
   type TextInputProps,
@@ -41,12 +41,14 @@ export function BrandLogo({
       />
       {!compact && (
         <>
-          <Text style={{ color: dark ? BRAND.white : BRAND.ink, fontSize: 30, fontWeight: '900' }}>
-            Agend<Text style={{ color: dark ? BRAND.greenBright : BRAND.green }}>AKI</Text>
-          </Text>
-          <Text style={{ color: dark ? '#d8e9df' : BRAND.muted, fontSize: 13 }}>
+          <AppText
+            style={{ color: dark ? BRAND.white : BRAND.ink, fontSize: 30, fontWeight: '900' }}
+          >
+            Agend<AppText style={{ color: dark ? BRAND.greenBright : BRAND.green }}>AKI</AppText>
+          </AppText>
+          <AppText style={{ color: dark ? '#d8e9df' : BRAND.muted, fontSize: 13 }}>
             Planear hoje. Ensinar melhor.
-          </Text>
+          </AppText>
         </>
       )}
     </View>
@@ -102,8 +104,8 @@ export function Heading({
         </Pressable>
       )}
       <View style={{ flex: 1 }}>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <AppText style={styles.title}>{title}</AppText>
+        {subtitle ? <AppText style={styles.subtitle}>{subtitle}</AppText> : null}
       </View>
     </View>
   );
@@ -126,6 +128,7 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={title}
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [
@@ -140,7 +143,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={secondary || tone === 'soft' ? BRAND.forestSoft : BRAND.white} />
       ) : (
-        <Text
+        <AppText
           style={[
             styles.buttonText,
             tone === 'soft' && { color: BRAND.forestSoft },
@@ -148,7 +151,7 @@ export function Button({
           ]}
         >
           {title}
-        </Text>
+        </AppText>
       )}
     </Pressable>
   );
@@ -156,7 +159,7 @@ export function Button({
 export function Field({ label, ...props }: TextInputProps & { label: string }) {
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      <AppText style={styles.label}>{label}</AppText>
       <TextInput
         placeholderTextColor={BRAND.muted}
         {...props}
@@ -186,16 +189,16 @@ export function ChoiceField({
   const selected = options.find((option) => option.id === value);
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      <AppText style={styles.label}>{label}</AppText>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${selected?.label || placeholder}`}
         onPress={() => setVisible(true)}
         style={styles.choice}
       >
-        <Text style={{ color: selected ? BRAND.ink : BRAND.muted, flex: 1 }}>
+        <AppText style={{ color: selected ? BRAND.ink : BRAND.muted, flex: 1 }}>
           {selected?.label || placeholder}
-        </Text>
+        </AppText>
         <Ionicons name="chevron-down" size={18} color={BRAND.muted} />
       </Pressable>
       <Modal
@@ -206,11 +209,13 @@ export function ChoiceField({
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setVisible(false)}>
           <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>{label}</Text>
+            <AppText style={styles.modalTitle}>{label}</AppText>
             <FlatList
               data={options}
               keyExtractor={(option) => option.id}
-              ListEmptyComponent={<Text style={styles.subtitle}>Sem opções disponíveis.</Text>}
+              ListEmptyComponent={
+                <AppText style={styles.subtitle}>Sem opções disponíveis.</AppText>
+              }
               renderItem={({ item }) => (
                 <Pressable
                   onPress={() => {
@@ -219,14 +224,14 @@ export function ChoiceField({
                   }}
                   style={styles.option}
                 >
-                  <Text
+                  <AppText
                     style={{
                       color: item.id === value ? BRAND.forestSoft : BRAND.ink,
                       fontWeight: '700',
                     }}
                   >
                     {item.label}
-                  </Text>
+                  </AppText>
                   {item.id === value ? (
                     <Ionicons name="checkmark" size={20} color={BRAND.green} />
                   ) : null}
@@ -243,16 +248,28 @@ export function Card({
   children,
   onPress,
   style,
-}: ViewProps & { children: ReactNode; onPress?: () => void }) {
+  accessibilityLabel,
+}: ViewProps & { children: ReactNode; onPress?: () => void; accessibilityLabel?: string }) {
   const content = <View style={[styles.card, style]}>{children}</View>;
-  return onPress ? <Pressable onPress={onPress}>{content}</Pressable> : content;
+  return onPress ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={({ pressed }) => (pressed ? { opacity: 0.82 } : undefined)}
+    >
+      {content}
+    </Pressable>
+  ) : (
+    content
+  );
 }
 export function Empty({ title, text }: { title: string; text: string }) {
   return (
     <View style={styles.empty}>
       <Ionicons name="file-tray-outline" size={30} color={BRAND.muted} />
-      <Text style={styles.emptyTitle}>{title}</Text>
-      <Text style={styles.subtitle}>{text}</Text>
+      <AppText style={styles.emptyTitle}>{title}</AppText>
+      <AppText style={styles.subtitle}>{text}</AppText>
     </View>
   );
 }
@@ -264,7 +281,7 @@ export function Notice({
   type?: 'info' | 'error' | 'success';
 }) {
   return text ? (
-    <Text
+    <AppText
       accessibilityRole="alert"
       style={[
         styles.notice,
@@ -273,7 +290,7 @@ export function Notice({
       ]}
     >
       {text}
-    </Text>
+    </AppText>
   ) : null;
 }
 export const styles = StyleSheet.create({
@@ -282,9 +299,9 @@ export const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 36, gap: 16 },
   heading: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },
   back: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: BRAND.white,
@@ -292,7 +309,7 @@ export const styles = StyleSheet.create({
   title: { color: BRAND.ink, fontSize: 23, fontWeight: '800', letterSpacing: -0.4 },
   subtitle: { color: BRAND.muted, fontSize: 13, lineHeight: 19, marginTop: 3 },
   button: {
-    minHeight: 50,
+    minHeight: 52,
     backgroundColor: BRAND.green,
     borderRadius: 14,
     alignItems: 'center',
@@ -307,7 +324,7 @@ export const styles = StyleSheet.create({
   field: { gap: 7 },
   label: { color: BRAND.ink, fontSize: 13, fontWeight: '700' },
   input: {
-    minHeight: 48,
+    minHeight: 52,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: BRAND.line,
@@ -317,7 +334,7 @@ export const styles = StyleSheet.create({
     fontSize: 15,
   },
   choice: {
-    minHeight: 48,
+    minHeight: 52,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: BRAND.line,

@@ -1,7 +1,8 @@
+import { AppText } from '@/components/app-text';
 import { BRAND } from '@/config';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { Button, Card, Empty, Field, Heading, Page, styles } from '@/components/ui';
 import { useDashboard } from '@/providers/dashboard-provider';
 
@@ -97,7 +98,7 @@ export default function ClassDetail() {
         back
       />
       <Card>
-        <Text style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>
+        <AppText style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>
           {[
             group?.payload.year || group?.payload.grade,
             group?.payload.shift,
@@ -105,27 +106,29 @@ export default function ClassDetail() {
           ]
             .filter(Boolean)
             .join(' · ') || 'Informações da turma'}
-        </Text>
-        <Text style={styles.subtitle}>Resumo da turma com dados sincronizados da escola.</Text>
+        </AppText>
+        <AppText style={styles.subtitle}>
+          Resumo da turma com dados sincronizados da escola.
+        </AppText>
       </Card>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Card style={{ flex: 1, paddingHorizontal: 12 }}>
-          <Text style={styles.subtitle}>Presenças</Text>
-          <Text style={{ color: BRAND.forestSoft, fontSize: 20, fontWeight: '900' }}>
+          <AppText style={styles.subtitle}>Presenças</AppText>
+          <AppText style={{ color: BRAND.forestSoft, fontSize: 20, fontWeight: '900' }}>
             {attendanceRate === null ? '—' : `${attendanceRate}%`}
-          </Text>
+          </AppText>
         </Card>
         <Card style={{ flex: 1, paddingHorizontal: 12 }}>
-          <Text style={styles.subtitle}>Média</Text>
-          <Text style={{ color: BRAND.purpleInk, fontSize: 20, fontWeight: '900' }}>
+          <AppText style={styles.subtitle}>Média</AppText>
+          <AppText style={{ color: BRAND.purpleInk, fontSize: 20, fontWeight: '900' }}>
             {gradeAverage === null ? '—' : `${gradeAverage.toFixed(1)}/20`}
-          </Text>
+          </AppText>
         </Card>
         <Card style={{ flex: 1, paddingHorizontal: 12 }}>
-          <Text style={styles.subtitle}>Avaliações</Text>
-          <Text style={{ color: BRAND.blue, fontSize: 20, fontWeight: '900' }}>
+          <AppText style={styles.subtitle}>Avaliações</AppText>
+          <AppText style={{ color: BRAND.blue, fontSize: 20, fontWeight: '900' }}>
             {(snapshot?.data.assessments || []).filter((row) => row.payload.classId === id).length}
-          </Text>
+          </AppText>
         </Card>
       </View>
       <Button
@@ -142,18 +145,18 @@ export default function ClassDetail() {
           onPress={() => router.push(`/aula/${nextPlan.recordId}` as never)}
           style={{ backgroundColor: BRAND.greenPale }}
         >
-          <Text style={{ color: BRAND.forestSoft, fontWeight: '800' }}>PRÓXIMA AULA</Text>
-          <Text style={{ color: BRAND.ink, fontWeight: '800' }}>
+          <AppText style={{ color: BRAND.forestSoft, fontWeight: '800' }}>PRÓXIMA AULA</AppText>
+          <AppText style={{ color: BRAND.ink, fontWeight: '800' }}>
             {String(nextPlan.payload.title || nextPlan.payload.subject || 'Plano de aula')}
-          </Text>
-          <Text style={styles.subtitle}>
+          </AppText>
+          <AppText style={styles.subtitle}>
             {String(nextPlan.payload.date || '')} ·{' '}
             {String(nextPlan.payload.startTime || 'Hora por definir')}
-          </Text>
-          <Text style={{ color: BRAND.forestSoft, fontWeight: '700' }}>Abrir plano →</Text>
+          </AppText>
+          <AppText style={{ color: BRAND.forestSoft, fontWeight: '700' }}>Abrir plano →</AppText>
         </Card>
       ) : null}
-      <Text style={{ fontSize: 17, fontWeight: '800', color: BRAND.ink }}>Alunos</Text>
+      <AppText style={{ fontSize: 17, fontWeight: '800', color: BRAND.ink }}>Alunos</AppText>
       <Field
         label="Pesquisar nesta turma"
         value={query}
@@ -166,12 +169,12 @@ export default function ClassDetail() {
             key={s.recordId}
             onPress={() => router.push({ pathname: '/alunos/[id]', params: { id: s.recordId } })}
           >
-            <Text style={{ color: BRAND.ink, fontWeight: '700' }}>
+            <AppText style={{ color: BRAND.ink, fontWeight: '700' }}>
               {String(s.payload.name || 'Aluno')}
-            </Text>
-            <Text style={styles.subtitle}>
+            </AppText>
+            <AppText style={styles.subtitle}>
               {[s.payload.contact, s.payload.status || 'Ativo'].filter(Boolean).join(' · ')}
-            </Text>
+            </AppText>
           </Card>
         ))
       ) : (

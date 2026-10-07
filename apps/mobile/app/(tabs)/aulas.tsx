@@ -1,6 +1,7 @@
+import { AppText } from '@/components/app-text';
 import { BRAND } from '@/config';
 import { router } from 'expo-router';
-import { Text } from 'react-native';
+
 import { Card, Empty, Page, styles } from '@/components/ui';
 import { useDashboard } from '@/providers/dashboard-provider';
 
@@ -9,7 +10,7 @@ export default function Lessons() {
   const plans = snapshot?.data.plans || [];
   return (
     <Page>
-      <Text style={styles.subtitle}>Os seus planos e ações de aula.</Text>
+      <AppText style={styles.subtitle}>Os seus planos e ações de aula.</AppText>
       {plans.length ? (
         plans.map((row) => {
           const p = row.payload;
@@ -23,15 +24,15 @@ export default function Lessons() {
                 })
               }
             >
-              <Text style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>
+              <AppText style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>
                 {String(p.subject || p.title || 'Aula')}
-              </Text>
-              <Text style={styles.subtitle}>
+              </AppText>
+              <AppText style={styles.subtitle}>
                 {[p.date, p.startTime, p.className || p.classId].filter(Boolean).join(' · ')}
-              </Text>
-              <Text style={{ color: BRAND.forestSoft, fontWeight: '700' }}>
+              </AppText>
+              <AppText style={{ color: BRAND.forestSoft, fontWeight: '700' }}>
                 Ver detalhes da aula →
-              </Text>
+              </AppText>
             </Card>
           );
         })

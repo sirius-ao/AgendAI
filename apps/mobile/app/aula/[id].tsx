@@ -1,12 +1,13 @@
+import { AppText } from '@/components/app-text';
 import { BRAND } from '@/config';
 import { router, useLocalSearchParams } from 'expo-router';
 import { File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, Share, Text, View } from 'react-native';
+import { Alert, Pressable, Share, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Heading, Notice, Page, styles } from '@/components/ui';
+import { Button, Card, Field, Heading, Notice, Page, styles } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
 import { useDashboard } from '@/providers/dashboard-provider';
 
@@ -27,7 +28,7 @@ const escapeHtml = (text: string) =>
   });
 export default function LessonDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { snapshot, schoolId } = useDashboard();
+  const { snapshot, schoolId, saveRecord, syncState } = useDashboard();
   const { user, request } = useAuth();
   const [sharing, setSharing] = useState(false);
   const [customizePdf, setCustomizePdf] = useState(false);
@@ -46,6 +47,10 @@ export default function LessonDetail() {
   const [shareUrl, setShareUrl] = useState('');
   const [shareError, setShareError] = useState('');
   const [shareBusy, setShareBusy] = useState(false);
+  const [showLessonNote, setShowLessonNote] = useState(false);
+  const [lessonNote, setLessonNote] = useState('');
+  const [lessonNoteMessage, setLessonNoteMessage] = useState('');
+  const [savingLessonNote, setSavingLessonNote] = useState(false);
   const row = snapshot?.data.plans.find((item) => item.recordId === id);
   const plan = row?.payload;
   const classId = value(plan?.classId);
@@ -117,6 +122,38 @@ export default function LessonDetail() {
       setShareError(cause instanceof Error ? cause.message : 'Não foi possível revogar o link.');
     } finally {
       setShareBusy(false);
+    }
+  };
+  const saveLessonNote = async () => {
+    if (!plan || !classId || lessonNote.trim().length < 3 || !user) return;
+    setSavingLessonNote(true);
+    try {
+      const recordId = `lesson-diary-${id}-${Date.now()}`;
+      const date = value(plan.date).slice(0, 10) || new Date().toISOString().slice(0, 10);
+      await saveRecord('diary', recordId, {
+        id: recordId,
+        teacherId: user.id,
+        classId,
+        planId: id,
+        category: 'Resumo da aula',
+        date,
+        note: lessonNote.trim(),
+        private: true,
+        createdAt: new Date().toISOString(),
+      });
+      setLessonNote('');
+      setShowLessonNote(false);
+      setLessonNoteMessage(
+        syncState === 'offline'
+          ? 'Resumo guardado neste dispositivo; será enviado quando houver ligação.'
+          : 'Resumo guardado. A sincronização continua em segundo plano.',
+      );
+    } catch (cause) {
+      setLessonNoteMessage(
+        cause instanceof Error ? cause.message : 'Não foi possível guardar o resumo.',
+      );
+    } finally {
+      setSavingLessonNote(false);
     }
   };
   const sharePdf = async () => {
@@ -217,18 +254,54 @@ export default function LessonDetail() {
             onPress={() => router.push({ pathname: '/plano/criar', params: { planId: id } })}
           />
           <Card style={{ backgroundColor: BRAND.greenPale }}>
-            <Text style={{ color: BRAND.forestSoft, fontWeight: '800' }}>PLANO DE AULA</Text>
-            <Text style={styles.subtitle}>
+            <AppText style={{ color: BRAND.forestSoft, fontWeight: '800' }}>PLANO DE AULA</AppText>
+            <AppText style={styles.subtitle}>
               Estado: {value(plan.status) || 'Rascunho'} · Duração: {value(plan.duration) || '45'}{' '}
               min
-            </Text>
+            </AppText>
+          </Card>
+          <Card>
+            <AppText style={{ color: BRAND.ink, fontWeight: '800' }}>Depois da aula</AppText>
+            <AppText style={styles.subtitle}>
+              Registe rapidamente o que foi concluído e o que deve ser retomado. O resumo fica
+              privado no diário e pode ser guardado offline.
+            </AppText>
+            <Button
+              title={showLessonNote ? 'Fechar resumo' : '＋ Registar resumo da aula'}
+              secondary
+              onPress={() => setShowLessonNote((visible) => !visible)}
+            />
+            {showLessonNote ? (
+              <>
+                <Field
+                  label="Resumo e próximos passos"
+                  value={lessonNote}
+                  onChangeText={setLessonNote}
+                  multiline
+                  maxLength={3000}
+                  placeholder="Conteúdos concluídos, dificuldades observadas e o que retomar na próxima aula…"
+                />
+                <Button
+                  title="Guardar resumo"
+                  onPress={() => void saveLessonNote()}
+                  loading={savingLessonNote}
+                  disabled={lessonNote.trim().length < 3}
+                />
+              </>
+            ) : null}
+            {lessonNoteMessage ? (
+              <Notice
+                text={lessonNoteMessage}
+                type={lessonNoteMessage.includes('Não foi') ? 'error' : 'success'}
+              />
+            ) : null}
           </Card>
           {availableFields.map(([title, text]) => (
             <Card key={String(title)}>
-              <Text style={{ color: BRAND.ink, fontSize: 16, fontWeight: '800' }}>
+              <AppText style={{ color: BRAND.ink, fontSize: 16, fontWeight: '800' }}>
                 {String(title)}
-              </Text>
-              <Text style={{ color: BRAND.muted, lineHeight: 22 }}>{value(text)}</Text>
+              </AppText>
+              <AppText style={{ color: BRAND.muted, lineHeight: 22 }}>{value(text)}</AppText>
             </Card>
           ))}
           <Button
@@ -238,10 +311,12 @@ export default function LessonDetail() {
           />
           {customizePdf ? (
             <Card>
-              <Text style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>
+              <AppText style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>
                 O que incluir no PDF
-              </Text>
-              <Text style={styles.subtitle}>Escolha os dados e secções que quer partilhar.</Text>
+              </AppText>
+              <AppText style={styles.subtitle}>
+                Escolha os dados e secções que quer partilhar.
+              </AppText>
               <PdfOption
                 label="Dados e identidade da escola"
                 selected={includeSchool}
@@ -280,14 +355,14 @@ export default function LessonDetail() {
             loading={sharing}
           />
           <Card style={{ backgroundColor: BRAND.greenPale }}>
-            <Text style={{ color: BRAND.forestSoft, fontWeight: '800', fontSize: 16 }}>
+            <AppText style={{ color: BRAND.forestSoft, fontWeight: '800', fontSize: 16 }}>
               Partilhar com outro professor
-            </Text>
-            <Text style={styles.subtitle}>
+            </AppText>
+            <AppText style={styles.subtitle}>
               O link fica ativo durante 30 dias e pode ser revogado. Mostra apenas objetivos,
               conteúdo, metodologia, recursos e avaliação; não inclui observações privadas, anexos
               nem dados de alunos.
-            </Text>
+            </AppText>
             <Button
               title={shareBusy ? 'A preparar link…' : 'Criar link e partilhar'}
               onPress={() => void createShareLink()}
@@ -295,9 +370,9 @@ export default function LessonDetail() {
             />
             {shareError ? <Notice text={shareError} type="error" /> : null}
             {shareUrl ? (
-              <Text selectable style={{ color: BRAND.forestSoft, fontSize: 12, marginTop: 8 }}>
+              <AppText selectable style={{ color: BRAND.forestSoft, fontSize: 12, marginTop: 8 }}>
                 {shareUrl}
-              </Text>
+              </AppText>
             ) : null}
             {shareLinks
               .filter((link) => !link.revokedAt && new Date(link.expiresAt).getTime() > Date.now())
@@ -312,15 +387,15 @@ export default function LessonDetail() {
                     paddingTop: 10,
                   }}
                 >
-                  <Text style={styles.subtitle}>
+                  <AppText style={styles.subtitle}>
                     Ativo até {new Date(link.expiresAt).toLocaleDateString('pt-PT')}
-                  </Text>
+                  </AppText>
                   <Pressable
                     accessibilityRole="button"
                     disabled={shareBusy}
                     onPress={() => void revokeShareLink(link.id)}
                   >
-                    <Text style={{ color: BRAND.red, fontWeight: '800' }}>Revogar</Text>
+                    <AppText style={{ color: BRAND.red, fontWeight: '800' }}>Revogar</AppText>
                   </Pressable>
                 </View>
               ))}
@@ -342,9 +417,9 @@ export default function LessonDetail() {
         </>
       ) : (
         <Card>
-          <Text style={styles.subtitle}>
+          <AppText style={styles.subtitle}>
             Este plano não foi encontrado. Atualize os dados da escola e tente novamente.
-          </Text>
+          </AppText>
         </Card>
       )}
     </Page>
@@ -377,7 +452,7 @@ function PdfOption({
         size={21}
         color={selected ? BRAND.green : BRAND.muted}
       />
-      <Text style={{ color: BRAND.ink, flex: 1 }}>{label}</Text>
+      <AppText style={{ color: BRAND.ink, flex: 1 }}>{label}</AppText>
     </Pressable>
   );
 }

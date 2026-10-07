@@ -1,6 +1,7 @@
+import { AppText } from '@/components/app-text';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { BRAND } from '@/config';
 import { Button, Card, ChoiceField, Empty, Field, Page, styles } from '@/components/ui';
 import { useDashboard } from '@/providers/dashboard-provider';
@@ -87,10 +88,10 @@ export default function Plans() {
         ]}
         onSelect={setFilter}
       />
-      <Text style={{ color: BRAND.muted, fontSize: 13, fontWeight: '700' }}>
+      <AppText style={{ color: BRAND.muted, fontSize: 13, fontWeight: '700' }}>
         {visiblePlans.length}{' '}
         {visiblePlans.length === 1 ? 'plano encontrado' : 'planos encontrados'}
-      </Text>
+      </AppText>
       {visiblePlans.length ? (
         visiblePlans.map(({ recordId, payload: plan }) => {
           const groupName = String(
@@ -121,10 +122,12 @@ export default function Plans() {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
                   <View style={{ flex: 1, gap: 3 }}>
-                    <Text style={{ fontSize: 16, fontWeight: '800', color: BRAND.ink }}>
+                    <AppText style={{ fontSize: 16, fontWeight: '800', color: BRAND.ink }}>
                       {String(plan.title || plan.subject || 'Plano de aula')}
-                    </Text>
-                    <Text style={styles.subtitle}>{[groupName, subjectName].join(' · ')}</Text>
+                    </AppText>
+                    <AppText style={styles.subtitle}>
+                      {[groupName, subjectName].join(' · ')}
+                    </AppText>
                   </View>
                   <View
                     style={{
@@ -134,19 +137,19 @@ export default function Plans() {
                       paddingVertical: 5,
                     }}
                   >
-                    <Text style={{ color: statusColor, fontSize: 11, fontWeight: '800' }}>
+                    <AppText style={{ color: statusColor, fontSize: 11, fontWeight: '800' }}>
                       {status}
-                    </Text>
+                    </AppText>
                   </View>
                 </View>
-                <Text style={{ color: BRAND.muted, fontWeight: '600' }}>
+                <AppText style={{ color: BRAND.muted, fontWeight: '600' }}>
                   {date} · {String(plan.startTime || 'Hora por definir')}
                   {plan.duration ? ` · ${String(plan.duration)} min` : ''}
-                </Text>
+                </AppText>
                 {plan.objectives ? (
-                  <Text style={styles.subtitle} numberOfLines={2}>
+                  <AppText style={styles.subtitle} numberOfLines={2}>
                     {String(plan.objectives)}
-                  </Text>
+                  </AppText>
                 ) : null}
               </Pressable>
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 16 }}>
@@ -156,7 +159,7 @@ export default function Plans() {
                     router.push({ pathname: '/plano/criar', params: { planId: recordId } })
                   }
                 >
-                  <Text style={{ color: BRAND.forestSoft, fontWeight: '700' }}>Editar</Text>
+                  <AppText style={{ color: BRAND.forestSoft, fontWeight: '700' }}>Editar</AppText>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
@@ -167,13 +170,13 @@ export default function Plans() {
                     })
                   }
                 >
-                  <Text style={{ color: BRAND.purpleInk, fontWeight: '700' }}>Avaliar</Text>
+                  <AppText style={{ color: BRAND.purpleInk, fontWeight: '700' }}>Avaliar</AppText>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => router.push({ pathname: '/aula/[id]', params: { id: recordId } })}
                 >
-                  <Text style={{ color: BRAND.ink, fontWeight: '700' }}>Abrir</Text>
+                  <AppText style={{ color: BRAND.ink, fontWeight: '700' }}>Abrir</AppText>
                 </Pressable>
               </View>
             </Card>
@@ -198,8 +201,8 @@ function Summary({ label, value, color }: { label: string; value: number; color:
     <Card
       style={{ flexBasis: '47%', flexGrow: 1, paddingHorizontal: 10, paddingVertical: 12, gap: 4 }}
     >
-      <Text style={{ color: BRAND.muted, fontSize: 11 }}>{label}</Text>
-      <Text style={{ color, fontSize: 20, fontWeight: '900' }}>{value}</Text>
+      <AppText style={{ color: BRAND.muted, fontSize: 11 }}>{label}</AppText>
+      <AppText style={{ color, fontSize: 20, fontWeight: '900' }}>{value}</AppText>
     </Card>
   );
 }

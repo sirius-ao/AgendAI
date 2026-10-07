@@ -1,6 +1,7 @@
+import { AppText } from '@/components/app-text';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Text } from 'react-native';
+
 import { Button, Card, ChoiceField, Field, Heading, Notice, Page } from '@/components/ui';
 import { SchoolDataStatus } from '@/components/school-data-status';
 import { useDashboard } from '@/providers/dashboard-provider';
@@ -53,11 +54,11 @@ export default function NewStudent() {
       <SchoolDataStatus />
       <Card>
         {!classes.length && (
-          <Text>
+          <AppText>
             {syncState === 'loading'
               ? 'A carregar turmas…'
               : 'Sincronize uma turma para cadastrar o aluno.'}
-          </Text>
+          </AppText>
         )}
         <Notice text={error} type="error" />
         {role === 'TEACHER' && (

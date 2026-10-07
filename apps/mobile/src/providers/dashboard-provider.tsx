@@ -18,12 +18,16 @@ import {
   enqueueOperation,
   getQueue,
   queueSize,
+  clearQueueFailure,
+  getQueueFailures,
+  markQueueFailure,
   readSnapshot,
   removeQueuedOperation,
   updateCachedRecord,
   writeSnapshot,
 } from '@/data/dashboard-repository';
 import type { ApiDashboardSnapshot, DashboardSnapshot, QueuedOperation } from '@/types/api';
+import { ApiError } from '@/data/api';
 
 export type SyncState = 'loading' | 'synced' | 'pending' | 'offline' | 'error';
 interface DashboardContextValue {
@@ -34,6 +38,14 @@ interface DashboardContextValue {
   pendingCount: number;
   online: boolean;
   message: string;
+  failedOperations: Array<{
+    operationId: string;
+    message: string;
+    recordId: string;
+    collection: string;
+  }>;
+  retryFailedOperation(operationId: string): Promise<void>;
+  discardFailedOperation(operationId: string): Promise<void>;
   saveRecord(collection: string, recordId: string, payload: Record<string, unknown>): Promise<void>;
   syncNow(): Promise<void>;
   refresh(): Promise<void>;
@@ -51,6 +63,9 @@ export function DashboardProvider({ children }: PropsWithChildren) {
   const [pendingCount, setPendingCount] = useState(0);
   const [online, setOnline] = useState(true);
   const [message, setMessage] = useState('');
+  const [failedOperations, setFailedOperations] = useState<
+    DashboardContextValue['failedOperations']
+  >([]);
   const snapshotRef = useRef<DashboardSnapshot | null>(null);
   const schoolRef = useRef('');
   const accountRef = useRef('');
@@ -70,21 +85,37 @@ export function DashboardProvider({ children }: PropsWithChildren) {
 
   const flushQueue = useCallback(
     async (accountId: string, id: string) => {
-      const operations = await getQueue(db, accountId, id);
+      const operations = await getQueue(db, accountId, id, false);
       for (const operation of operations) {
         const path = `/schools/${encodeURIComponent(id)}/data/${encodeURIComponent(operation.collection)}/${encodeURIComponent(operation.recordId)}`;
-        await request(
-          path,
-          operation.method === 'DELETE'
-            ? { method: 'DELETE' }
-            : {
-                method: 'PUT',
-                body: JSON.stringify({ id: operation.recordId, payload: operation.payload }),
-              },
-        );
-        await removeQueuedOperation(db, accountId, operation.id);
+        try {
+          await request(
+            path,
+            operation.method === 'DELETE'
+              ? { method: 'DELETE' }
+              : {
+                  method: 'PUT',
+                  body: JSON.stringify({ id: operation.recordId, payload: operation.payload }),
+                },
+          );
+          await removeQueuedOperation(db, accountId, operation.id);
+        } catch (error) {
+          if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+            await markQueueFailure(db, accountId, id, operation.id, error.message);
+            continue;
+          }
+          throw error;
+        }
       }
       setPendingCount(await queueSize(db, accountId, id));
+      setFailedOperations(
+        (await getQueueFailures(db, accountId, id)).map((failure) => ({
+          operationId: failure.operation_id,
+          message: failure.message,
+          recordId: failure.record_id,
+          collection: failure.collection,
+        })),
+      );
     },
     [db, request],
   );
@@ -131,6 +162,20 @@ export function DashboardProvider({ children }: PropsWithChildren) {
           if (queueError) throw queueError;
           const count = await queueSize(db, accountId, id);
           setPendingCount(count);
+          const failures = await getQueueFailures(db, accountId, id);
+          setFailedOperations(
+            failures.map((failure) => ({
+              operationId: failure.operation_id,
+              message: failure.message,
+              recordId: failure.record_id,
+              collection: failure.collection,
+            })),
+          );
+          setMessage(
+            failures.length
+              ? `${failures.length} alteração(ões) precisam de atenção; as restantes continuam a sincronizar.`
+              : '',
+          );
           setSyncState(count ? 'pending' : 'synced');
         } catch (cause) {
           const count = await queueSize(db, accountId, id);
@@ -190,6 +235,15 @@ export function DashboardProvider({ children }: PropsWithChildren) {
         readSnapshot(db, user.id, id),
         getQueue(db, user.id, id),
       ]);
+      const failuresAtStart = await getQueueFailures(db, user.id, id);
+      setFailedOperations(
+        failuresAtStart.map((failure) => ({
+          operationId: failure.operation_id,
+          message: failure.message,
+          recordId: failure.record_id,
+          collection: failure.collection,
+        })),
+      );
       if (!active) return;
       setPendingCount(queue.length);
       if (cached) {
@@ -217,6 +271,20 @@ export function DashboardProvider({ children }: PropsWithChildren) {
         if (!active) return;
         const remaining = await queueSize(db, user.id, id);
         setPendingCount(remaining);
+        const failures = await getQueueFailures(db, user.id, id);
+        setFailedOperations(
+          failures.map((failure) => ({
+            operationId: failure.operation_id,
+            message: failure.message,
+            recordId: failure.record_id,
+            collection: failure.collection,
+          })),
+        );
+        setMessage(
+          failures.length
+            ? `${failures.length} alteração(ões) precisam de atenção; as restantes continuam a sincronizar.`
+            : '',
+        );
         setSyncState(remaining ? 'pending' : 'synced');
       } catch (cause) {
         if (!active) return;
@@ -285,6 +353,36 @@ export function DashboardProvider({ children }: PropsWithChildren) {
     [db, online, publishSnapshot, refresh],
   );
 
+  const retryFailedOperation = useCallback(
+    async (operationId: string) => {
+      const accountId = accountRef.current;
+      const id = schoolRef.current;
+      if (!accountId || !id) return;
+      await clearQueueFailure(db, accountId, id, operationId);
+      await refresh();
+    },
+    [db, refresh],
+  );
+  const discardFailedOperation = useCallback(
+    async (operationId: string) => {
+      const accountId = accountRef.current;
+      const id = schoolRef.current;
+      if (!accountId || !id) return;
+      await removeQueuedOperation(db, accountId, operationId);
+      const failures = await getQueueFailures(db, accountId, id);
+      setFailedOperations(
+        failures.map((failure) => ({
+          operationId: failure.operation_id,
+          message: failure.message,
+          recordId: failure.record_id,
+          collection: failure.collection,
+        })),
+      );
+      await refresh();
+    },
+    [db, refresh],
+  );
+
   const value = useMemo<DashboardContextValue>(
     () => ({
       snapshot,
@@ -294,15 +392,21 @@ export function DashboardProvider({ children }: PropsWithChildren) {
       pendingCount,
       online,
       message,
+      failedOperations,
+      retryFailedOperation,
+      discardFailedOperation,
       saveRecord,
       syncNow: refresh,
       refresh,
     }),
     [
       message,
+      failedOperations,
       online,
       pendingCount,
       refresh,
+      retryFailedOperation,
+      discardFailedOperation,
       saveRecord,
       schoolId,
       selectSchool,

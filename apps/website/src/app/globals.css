@@ -5119,7 +5119,65 @@ textarea {
 .admin-mfa-secret { overflow-wrap: anywhere; }
 .admin-mfa-code input, .admin-mfa-controls input { max-width: 240px; border: 1px solid #d7e1da; border-radius: 8px; padding: 10px 12px; font: inherit; }
 .admin-mfa-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.admin-page { width: min(1320px, calc(100% - 40px)); padding-top: clamp(30px, 5vw, 58px); }
+.admin-header { align-items: flex-end; }
+.admin-header > div > p:last-child { margin: 8px 0 0; }
+.admin-tabs { gap: 4px; margin: 26px 0 20px; padding: 5px; border: 1px solid #e3ebe5; border-radius: 14px; background: #f5f8f5; }
+.admin-tabs button { min-height: 42px; border: 0; border-radius: 10px; padding: 10px 16px; }
+.admin-tabs button.is-active { background: #fff; color: #087b2a; box-shadow: 0 2px 8px #153b1b12; }
+.admin-tabs button:focus-visible, .admin-page button:focus-visible, .admin-dialog button:focus-visible, .admin-dialog input:focus-visible, .admin-dialog textarea:focus-visible { outline: 3px solid #00a52a66; outline-offset: 2px; }
+.admin-card { border-radius: 16px; box-shadow: 0 6px 24px #153b1b0b; }
+.admin-mfa-status { display: flex; justify-content: space-between; align-items: center; gap: 24px; border-color: #dcebe0; background: linear-gradient(115deg, #f5fcf7, #fff 70%); }
+.admin-mfa-status strong { color: #173a22; }
+.admin-mfa-status p { margin-bottom: 0; color: #607067; line-height: 1.55; }
+.admin-row { gap: 24px; }
+.admin-row-actions .dash-btn { min-height: 40px; }
+.admin-dialog { position: fixed; inset: 0; width: min(560px, calc(100% - 28px)); max-width: none; max-height: min(90dvh, 900px); margin: auto; overflow: auto; border: 1px solid #e0e9e2; border-radius: 20px; padding: 24px; color: #17271d; background: #fff; box-shadow: 0 28px 90px #07170d40; }
+.admin-dialog::backdrop { background: rgb(7 23 13 / 58%); backdrop-filter: blur(4px); }
+.admin-confirm-dialog { padding: 24px; }
+.admin-dialog-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding-bottom: 16px; border-bottom: 1px solid #e8eee9; }
+.admin-dialog-header .eyebrow { margin: 0 0 7px; color: #00851b; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.admin-dialog-header h2 { margin: 0; font-size: clamp(21px, 4vw, 26px); line-height: 1.25; }
+.admin-dialog-icon { display: inline-grid; flex: 0 0 auto; width: 42px; height: 42px; place-items: center; border: 1px solid #e0e9e2; border-radius: 50%; color: #526458; background: #fff; font: inherit; font-size: 25px; line-height: 1; cursor: pointer; }
+.admin-dialog-icon:hover { background: #f3f7f4; }
+.admin-dialog-description { margin: 18px 0; color: #526458; line-height: 1.65; }
+.admin-dialog-field { display: grid; gap: 8px; margin: 18px 0; color: #26372d; font-weight: 700; }
+.admin-dialog-field > span { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
+.admin-dialog-field small { color: #718078; font-size: 12px; font-weight: 500; }
+.admin-dialog-field textarea, .admin-dialog-field input { width: 100%; min-height: 46px; border: 1px solid #ccd9cf; border-radius: 10px; padding: 11px 13px; color: #17271d; background: #fff; font: inherit; font-weight: 400; }
+.admin-dialog-field textarea { min-height: 112px; resize: vertical; line-height: 1.5; }
+.admin-dialog-field input { max-width: 240px; letter-spacing: .16em; }
+.admin-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e8eee9; }
+.admin-dialog .dash-btn.is-danger { border-color: #b42318; color: #fff; background: #b42318; }
+.admin-dialog .dash-btn.is-danger:hover { background: #8f1d14; }
+.admin-detail-dialog { position: fixed; width: min(820px, calc(100% - 32px)); padding: 28px; }
+.admin-detail-header { position: sticky; z-index: 5; top: 0; display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: -28px -28px 16px; padding: 18px 28px 12px; border-bottom: 1px solid #e8eee9; background: #fff; }
+.admin-detail-header h2 { min-width: 0; margin: 0; font-size: 26px; overflow-wrap: anywhere; }
+.admin-detail-dialog h3 { margin: 26px 0 10px; font-size: 16px; }
+.admin-detail-dialog > p { color: #526458; line-height: 1.6; overflow-wrap: anywhere; }
+.admin-detail-close { position: static; }
+.admin-detail-list article { border-radius: 12px; padding: 14px; background: #fbfdfb; }
+.admin-detail-list article strong { overflow-wrap: anywhere; }
+.admin-detail-dialog .admin-metrics .admin-card { border-radius: 12px; padding: 16px; }
+.admin-loading-page { min-height: 70vh; }
+.admin-loading-card { display: flex; align-items: center; gap: 14px; max-width: 520px; color: #526458; }
+.admin-spinner { width: 22px; height: 22px; border: 3px solid #dcebe0; border-top-color: #00a52a; border-radius: 50%; animation: admin-spin .75s linear infinite; }
+@keyframes admin-spin { to { transform: rotate(360deg); } }
 @media (max-width: 760px) { .admin-header, .admin-row, .admin-section-heading { align-items: stretch; flex-direction: column; } .admin-header > a, .admin-section-heading > button { align-self: flex-start; } .admin-row-actions { justify-content: flex-start; } .admin-toolbar { flex-wrap: wrap; } .admin-toolbar input { flex-basis: 100%; } }
+@media (max-width: 560px) {
+  .admin-page { width: calc(100% - 28px); padding-top: 24px; }
+  .admin-header { gap: 16px; }
+  .admin-tabs { margin-inline: -2px; }
+  .admin-mfa-status { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .admin-row-actions { width: 100%; }
+  .admin-dialog, .admin-detail-dialog { width: calc(100% - 20px); max-height: min(92dvh, 900px); border-radius: 16px; padding: 18px; }
+  .admin-dialog-actions { flex-direction: column-reverse; }
+  .admin-dialog-actions .dash-btn { width: 100%; justify-content: center; }
+  .admin-detail-dialog h2 { font-size: 22px; }
+  .admin-detail-header { margin: -18px -18px 14px; padding: 14px 18px 10px; }
+  .admin-detail-header h2 { font-size: 22px; }
+  .admin-detail-dialog .admin-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 /* Narrow-screen guardrails shared by public pages and admin views. */
 @media (max-width: 760px) {

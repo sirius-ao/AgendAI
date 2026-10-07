@@ -37,5 +37,10 @@ export async function migrateDatabase(db: SQLiteDatabase) {
       created_at TEXT NOT NULL,
       UNIQUE(account_id, school_id, collection, record_id)
     );
+    CREATE TABLE IF NOT EXISTS sync_failures_v1 (
+      account_id TEXT NOT NULL, school_id TEXT NOT NULL, operation_id TEXT NOT NULL,
+      message TEXT NOT NULL, failed_at TEXT NOT NULL,
+      PRIMARY KEY(account_id, school_id, operation_id)
+    );
   `);
 }

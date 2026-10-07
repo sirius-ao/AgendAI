@@ -39,14 +39,14 @@ export class AdminController {
   @Get('schools') schools(@Query() query: AdminListQueryDto) {
     return this.admin.listSchools(query);
   }
-  @Get('schools/:id') school(@Param('id', ParseUUIDPipe) id: string) {
-    return this.admin.schoolDetail(id);
+  @Get('schools/:id') school(@Param('id', ParseUUIDPipe) id: string, @Query() query: AdminListQueryDto) {
+    return this.admin.schoolDetail(id, query);
   }
   @Get('audit') audit(@Query() query: AdminListQueryDto) {
     return this.admin.listAudit(query);
   }
-  @Get('backups') backups() {
-    return this.admin.listBackups();
+  @Get('backups') backups(@Query() query: AdminListQueryDto) {
+    return this.admin.listBackups(query);
   }
 
   @UseGuards(AdminWriteGuard)
