@@ -48,9 +48,22 @@ export default function SyncStatus() {
                 : 'Sem internet. O AgendAKI continua disponível com os dados locais.')}
         </Text>
         <Text style={styles.subtitle}>{online ? 'Ligação disponível' : 'Modo offline'}</Text>
+        <Text style={{ color: BRAND.ink, fontWeight: '700' }}>
+          {pendingCount
+            ? `${pendingCount} alteração(ões) guardadas neste dispositivo`
+            : 'Nenhuma alteração pendente'}
+        </Text>
+        {pendingCount > 0 && (
+          <Text style={styles.subtitle}>
+            Os dados permanecem no dispositivo até serem aceites pelo servidor. A sincronização
+            volta a tentar quando a ligação regressar ou ao abrir esta tela.
+          </Text>
+        )}
       </Card>
       <Button
-        title={syncState === 'synced' ? 'Continuar' : 'Tentar novamente'}
+        title={
+          syncState === 'synced' ? 'Continuar' : online ? 'Tentar novamente' : 'Atualizar estado'
+        }
         onPress={() => (syncState === 'synced' ? router.replace('/(tabs)') : void syncNow())}
       />
     </Page>

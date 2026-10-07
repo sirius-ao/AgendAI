@@ -36,6 +36,8 @@ enum DashboardCollection {
   STUDENTS
   FOLDERS
   TEACHER_SUBJECTS
+  DIARY
+  ANNOUNCEMENTS
 }
 
 enum DashboardValueKind {

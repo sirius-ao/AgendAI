@@ -29,6 +29,8 @@ const collections = new Map<string, DashboardCollection>([
   ['classes', DashboardCollection.CLASSES],
   ['students', DashboardCollection.STUDENTS],
   ['folders', DashboardCollection.FOLDERS],
+  ['diary', DashboardCollection.DIARY],
+  ['announcements', DashboardCollection.ANNOUNCEMENTS],
 ]);
 const ids = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
@@ -68,6 +70,7 @@ export class DashboardDataService {
           DashboardCollection.CLASSES,
           DashboardCollection.STUDENTS,
           DashboardCollection.SETTINGS,
+          DashboardCollection.ANNOUNCEMENTS,
         ] as DashboardCollection[]
       ).includes(collection)
     )
@@ -83,6 +86,8 @@ export class DashboardDataService {
             DashboardCollection.PLANS,
             DashboardCollection.ASSESSMENTS,
             DashboardCollection.EVENTS,
+            DashboardCollection.TASKS,
+            DashboardCollection.DIARY,
           ] as DashboardCollection[]
         ).includes(collection)
       ) {
@@ -104,7 +109,11 @@ export class DashboardDataService {
       })
     )
       throw new ForbiddenException('Não pode alterar este registo');
-    if (existing && collection !== DashboardCollection.ATTENDANCE) {
+    if (
+      existing &&
+      collection !== DashboardCollection.ATTENDANCE &&
+      collection !== DashboardCollection.CONVERSATIONS
+    ) {
       const existingPayload = existing.payload as RecordPayload;
       const ownsExisting =
         existing.createdById === userId ||
@@ -165,8 +174,42 @@ export class DashboardDataService {
       membership.role === 'TEACHER'
     )
       throw new ForbiddenException('Apenas a administração pode alterar o catálogo e as turmas');
-    if (membership.role === 'TEACHER')
+    if (membership.role === 'TEACHER') {
       await this.assertTeacherWrite(userId, schoolId, collection, dto.id, dto.payload);
+      if (collection === DashboardCollection.CONVERSATIONS) {
+        const existing = await this.prisma.dashboardRecord.findUnique({
+          where: { schoolId_collection_recordId: { schoolId, collection, recordId: dto.id } },
+        });
+        if (existing) {
+          const oldPayload = existing.payload as Record<string, unknown>;
+          const incoming = Array.isArray(dto.payload.messages) ? dto.payload.messages : [];
+          const original = Array.isArray(oldPayload.messages) ? oldPayload.messages : [];
+          const isSameMessage = (left: unknown, right: unknown) =>
+            JSON.stringify(left) === JSON.stringify(right);
+          if (
+            incoming.length <= original.length ||
+            !original.every((message, index) => isSameMessage(message, incoming[index]))
+          )
+            throw new ForbiddenException('Só pode acrescentar mensagens à conversa');
+          const added = incoming.slice(original.length);
+          if (
+            added.some(
+              (message) =>
+                !message ||
+                typeof message !== 'object' ||
+                Array.isArray(message) ||
+                (message as Record<string, unknown>).senderId !== userId ||
+                typeof (message as Record<string, unknown>).text !== 'string' ||
+                !(message as Record<string, unknown>).text?.toString().trim(),
+            )
+          )
+            throw new ForbiddenException(
+              'As mensagens devem ser enviadas pelo utilizador autenticado',
+            );
+          dto.payload = { ...oldPayload, messages: [...original, ...added] };
+        }
+      }
+    }
     if (dto.payload.id !== undefined && dto.payload.id !== dto.id)
       throw new BadRequestException('O ID do registo não corresponde ao corpo do pedido');
     if (collection === DashboardCollection.SUBJECTS && typeof dto.payload.name === 'string') {
@@ -278,7 +321,14 @@ export class DashboardDataService {
     const result = await this.prisma.dashboardRecord.deleteMany({
       where: { schoolId, collection, recordId },
     });
-    if (result.count) await this.audit.write({ schoolId, actorId: userId, action: 'DELETE', entity: name, recordId });
+    if (result.count)
+      await this.audit.write({
+        schoolId,
+        actorId: userId,
+        action: 'DELETE',
+        entity: name,
+        recordId,
+      });
     return { success: true };
   }
   async snapshot(userId: string, schoolId: string) {

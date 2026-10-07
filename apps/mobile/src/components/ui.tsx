@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -17,6 +17,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BRAND } from '@/config';
+import { useAuth } from '@/providers/auth-provider';
+import { useDashboard } from '@/providers/dashboard-provider';
 
 export function BrandLogo({
   dark = false,
@@ -57,6 +59,13 @@ export function Page({
   dark = false,
   ...props
 }: ViewProps & { children: ReactNode; scroll?: boolean; dark?: boolean }) {
+  const { authenticated } = useAuth();
+  const { refresh } = useDashboard();
+  useFocusEffect(
+    useCallback(() => {
+      if (authenticated) void refresh();
+    }, [authenticated, refresh]),
+  );
   return (
     <SafeAreaView style={[styles.safe, dark && { backgroundColor: BRAND.forest }]} edges={['top']}>
       <View style={styles.page} {...props}>
@@ -110,7 +119,7 @@ export function Button({
   title: string;
   onPress: () => void;
   secondary?: boolean;
-  tone?: 'green' | 'purple' | 'soft';
+  tone?: 'green' | 'purple' | 'soft' | 'red';
   disabled?: boolean;
   loading?: boolean;
 }) {
@@ -122,6 +131,7 @@ export function Button({
       style={({ pressed }) => [
         styles.button,
         tone === 'purple' && { backgroundColor: BRAND.purple },
+        tone === 'red' && { backgroundColor: BRAND.red },
         tone === 'soft' && { backgroundColor: BRAND.greenSoft },
         secondary && styles.buttonSecondary,
         (disabled || pressed) && styles.buttonDisabled,

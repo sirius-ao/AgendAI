@@ -1,7 +1,7 @@
 import { BRAND } from '@/config';
-import { useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Alert, Text } from 'react-native';
+import { useLocalSearchParams, router } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Text, View } from 'react-native';
 import {
   Button,
   Card,
@@ -13,84 +13,166 @@ import {
   Page,
   styles,
 } from '@/components/ui';
+import { useAuth } from '@/providers/auth-provider';
+import { SchoolDataStatus } from '@/components/school-data-status';
 import { useDashboard } from '@/providers/dashboard-provider';
 
+const localDate = () => {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+const newId = () => `mobile-assessment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const scoresFor = (record: Record<string, unknown>, students: { recordId: string }[]) =>
+  students.map((student) => {
+    const grades =
+      record.grades && typeof record.grades === 'object'
+        ? (record.grades as Record<string, unknown>)
+        : {};
+    const legacy = Array.isArray(record.scores)
+      ? (record.scores as { studentId: string; score: number }[]).find(
+          (item) => item.studentId === student.recordId,
+        )?.score
+      : undefined;
+    const score = grades[student.recordId] ?? legacy;
+    return typeof score === 'number' && Number.isFinite(score) ? score : null;
+  });
 export default function Assessments() {
-  const { classId: selectedClass } = useLocalSearchParams<{ classId?: string }>();
-  const { snapshot, saveRecord } = useDashboard();
+  const {
+    classId: selectedClass,
+    planId,
+    subjectId: selectedSubject,
+    studentId,
+  } = useLocalSearchParams<{
+    classId?: string;
+    planId?: string;
+    subjectId?: string;
+    studentId?: string;
+  }>();
+  const { snapshot, saveRecord, syncState } = useDashboard();
+  const { user } = useAuth();
+  const classes = snapshot?.data.classes || [];
+  const plans = snapshot?.data.plans || [];
+  const plan = plans.find((row) => row.recordId === planId);
   const [classId, setClassId] = useState(
-    String(selectedClass || snapshot?.data.classes[0]?.recordId || ''),
+    String(selectedClass || plan?.payload.classId || classes[0]?.recordId || ''),
   );
-  const students = (snapshot?.data.students || []).filter(
-    (s) => !classId || s.payload.classId === classId,
+  const subjects = snapshot?.data.subjects || [];
+  const group = classes.find((row) => row.recordId === classId);
+  const subjectOptions = useMemo(() => {
+    const allowed = Array.isArray(group?.payload.subjectIds)
+      ? group.payload.subjectIds.filter((id): id is string => typeof id === 'string')
+      : [];
+    return subjects.filter((row) => !allowed.length || allowed.includes(row.recordId));
+  }, [subjects, group]);
+  const [subject, setSubject] = useState(
+    String(selectedSubject || plan?.payload.subjectId || subjectOptions[0]?.recordId || ''),
   );
-  const [title, setTitle] = useState('Avaliação');
+  const students = (snapshot?.data.students || []).filter((row) => row.payload.classId === classId);
+  const [title, setTitle] = useState(String(plan?.payload.title || 'Avaliação'));
   const [scores, setScores] = useState<Record<string, string>>({});
+  const [assessmentId, setAssessmentId] = useState(newId);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const id = useMemo(
-    () => `mobile-assessment-${classId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    [classId],
-  );
-  const save = async () => {
-    if (!classId || !students.length) {
-      setError('Selecione uma turma com alunos.');
+  const history = (snapshot?.data.assessments || [])
+    .filter((row) => row.payload.classId === classId)
+    .sort((a, b) => String(b.payload.date || '').localeCompare(String(a.payload.date || '')));
+  useEffect(() => {
+    if (!classes.some((row) => row.recordId === classId) && classes.length)
+      setClassId(classes[0].recordId);
+  }, [classes, classId]);
+  useEffect(() => {
+    if (!subjectOptions.some((row) => row.recordId === subject) && subjectOptions.length)
+      setSubject(subjectOptions[0].recordId);
+  }, [subjectOptions, subject]);
+  const mean = (values: (number | null)[]) => {
+    const valid = values.filter((n): n is number => n !== null);
+    return valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : null;
+  };
+  const save = () => {
+    if (!classId || !subject || !students.length) {
+      setError('Escolha uma turma com alunos e uma disciplina.');
       return;
     }
     const invalid = students.find((student) => {
-      const value = scores[student.recordId]?.trim().replace(',', '.');
-      const score = Number(value);
-      return !value || !Number.isFinite(score) || score < 0 || score > 20;
+      const raw = scores[student.recordId]?.trim().replace(',', '.');
+      return !raw || !Number.isFinite(Number(raw)) || Number(raw) < 0 || Number(raw) > 20;
     });
     if (invalid) {
-      setError('Preencha uma nota válida entre 0 e 20 para cada aluno.');
+      setError('Introduza uma nota entre 0 e 20 para cada aluno.');
       return;
     }
     Alert.alert('Guardar avaliação?', `Será registada para ${students.length} alunos.`, [
       { text: 'Rever', style: 'cancel' },
-      {
-        text: 'Guardar',
-        onPress: () => {
-          void persist();
-        },
-      },
+      { text: 'Guardar', onPress: () => void persist() },
     ]);
   };
   const persist = async () => {
     setBusy(true);
     setError('');
+    setNotice('');
     try {
-      await saveRecord('assessments', id, {
-        id,
+      const grades = Object.fromEntries(
+        students.map((student) => [
+          student.recordId,
+          Number(scores[student.recordId].trim().replace(',', '.')),
+        ]),
+      );
+      await saveRecord('assessments', assessmentId, {
+        id: assessmentId,
+        teacherId: user?.id,
         title: title.trim() || 'Avaliação',
         classId,
+        subjectId: subject,
+        type: 'Prova/Teste',
         date: localDate(),
-        scores: students.map((student) => ({
-          studentId: student.recordId,
-          score: Number(scores[student.recordId].trim().replace(',', '.')),
-        })),
+        duration: 45,
+        weight: 1,
+        description: '',
+        criteria: '',
+        visibility: 'Escola',
+        published: true,
+        reminder: false,
+        tags: '',
+        attachments: [],
+        grades,
+        gradeDetails: Object.fromEntries(
+          Object.entries(grades).map(([id, value]) => [
+            id,
+            { status: 'Avaliado', value: String(value), feedback: '', difficulties: [] },
+          ]),
+        ),
+        gradesConfirmedAt: new Date().toISOString(),
       });
       setNotice(
-        'Avaliação guardada neste dispositivo e ficará sincronizada quando houver internet.',
+        syncState === 'offline'
+          ? 'Avaliação guardada no dispositivo; será enviada quando houver internet.'
+          : 'Avaliação guardada e sincronizada com a escola.',
       );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Não foi possível guardar.');
+      setScores({});
+      setTitle('Avaliação');
+      setAssessmentId(newId());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível guardar.');
     } finally {
       setBusy(false);
     }
   };
   return (
     <Page>
-      <Heading title="Lançar avaliação" subtitle="Registe notas por aluno." back />
+      <Heading
+        title="Avaliações e notas"
+        subtitle="Lance notas e acompanhe os resultados da turma."
+        back
+      />
+      <SchoolDataStatus />
       <Card>
-        <Field label="Nome da avaliação" value={title} onChangeText={setTitle} />
         <ChoiceField
           label="Turma"
           value={classId}
-          options={(snapshot?.data.classes || []).map((item) => ({
-            id: item.recordId,
-            label: String(item.payload.name || 'Turma'),
+          options={classes.map((row) => ({
+            id: row.recordId,
+            label: String(row.payload.name || 'Turma'),
           }))}
           onSelect={(value) => {
             setClassId(value);
@@ -99,18 +181,50 @@ export default function Assessments() {
             setNotice('');
           }}
         />
+        <ChoiceField
+          label="Disciplina"
+          value={subject}
+          options={subjectOptions.map((row) => ({
+            id: row.recordId,
+            label: String(row.payload.name || 'Disciplina'),
+          }))}
+          onSelect={setSubject}
+        />
+        <Field
+          label="Nome da avaliação"
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Ex.: Teste 1 — Equações"
+        />
       </Card>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <Card style={{ flex: 1 }}>
+          <Text style={styles.subtitle}>Alunos</Text>
+          <Text style={{ color: BRAND.ink, fontWeight: '800', fontSize: 20 }}>
+            {students.length}
+          </Text>
+        </Card>
+        <Card style={{ flex: 1 }}>
+          <Text style={styles.subtitle}>Avaliações</Text>
+          <Text style={{ color: BRAND.purpleInk, fontWeight: '800', fontSize: 20 }}>
+            {history.length}
+          </Text>
+        </Card>
+      </View>
+      <Text style={{ fontSize: 17, color: BRAND.ink, fontWeight: '800' }}>
+        Lançar notas · 0 a 20
+      </Text>
       {students.length ? (
-        students.map((s) => (
-          <Card key={s.recordId}>
+        students.map((student) => (
+          <Card key={student.recordId}>
             <Text style={{ color: BRAND.ink, fontWeight: '700' }}>
-              {String(s.payload.name || 'Aluno')}
+              {String(student.payload.name || 'Aluno')}
             </Text>
             <Field
               label="Nota"
-              value={scores[s.recordId] || ''}
+              value={scores[student.recordId] || ''}
               onChangeText={(value) =>
-                setScores((old) => ({ ...old, [s.recordId]: value.replace(',', '.') }))
+                setScores((old) => ({ ...old, [student.recordId]: value.replace(',', '.') }))
               }
               keyboardType="decimal-pad"
               placeholder="0–20"
@@ -118,19 +232,62 @@ export default function Assessments() {
           </Card>
         ))
       ) : (
-        <Empty title="Sem alunos nesta turma" text="Os alunos disponíveis aparecerão aqui." />
+        <Empty
+          title={syncState === 'loading' ? 'A carregar alunos…' : 'Sem alunos nesta turma'}
+          text="Escolha uma turma com alunos sincronizados."
+        />
       )}
       <Notice text={error} type="error" />
       <Notice text={notice} type="success" />
-      <Button title="Guardar avaliação" onPress={() => void save()} loading={busy} />
-      <Text style={styles.subtitle}>
-        Os dados são guardados localmente e sincronizados ao recuperar a ligação.
+      <Button
+        title="Guardar avaliação"
+        tone="purple"
+        onPress={save}
+        loading={busy}
+        disabled={!students.length}
+      />
+      <Text style={{ fontSize: 17, color: BRAND.ink, fontWeight: '800' }}>
+        Histórico de avaliações
       </Text>
+      {history.length ? (
+        history.map((row) => {
+          const values = scoresFor(row.payload, students);
+          const average = mean(values);
+          return (
+            <Card key={row.recordId}>
+              <Text style={{ color: BRAND.ink, fontWeight: '800' }}>
+                {String(row.payload.title || 'Avaliação')}
+              </Text>
+              <Text style={styles.subtitle}>
+                {String(row.payload.date || '')} · {String(row.payload.type || 'Avaliação')}
+              </Text>
+              <Text style={{ color: BRAND.purpleInk, fontWeight: '700' }}>
+                {values.filter((value) => value !== null).length}/{students.length} notas · Média{' '}
+                {average === null ? '—' : average.toFixed(1)}
+              </Text>
+              {students
+                .filter((_, index) => values[index] !== null)
+                .map((student, index) => (
+                  <Text key={student.recordId} style={styles.subtitle}>
+                    {String(student.payload.name || 'Aluno')}: {values[index]}/20
+                  </Text>
+                ))}
+            </Card>
+          );
+        })
+      ) : (
+        <Empty
+          title="Sem avaliações lançadas"
+          text="As notas e os resultados da turma ficarão disponíveis aqui."
+        />
+      )}
+      {studentId && (
+        <Button
+          title="Ver perfil do aluno"
+          secondary
+          onPress={() => router.push({ pathname: '/alunos/[id]', params: { id: studentId } })}
+        />
+      )}
     </Page>
   );
-}
-
-function localDate() {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }

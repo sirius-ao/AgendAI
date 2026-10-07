@@ -15,7 +15,7 @@ function roleName(role: string) {
   return ({ OWNER: 'Diretor', ADMIN: 'Administrador', COORDINATOR: 'Coordenador', TEACHER: 'Professor' } as Record<string, string>)[role] || role;
 }
 function fromRows(snapshot: Snapshot) {
-  return Object.fromEntries(Object.entries(snapshot.data).map(([key, rows]) => [key, rows.map((row) => row.payload)])) as Record<string, Record<string, unknown>[]>;
+  return Object.fromEntries(Object.entries(snapshot.data).map(([key, rows]) => [key, rows.map((row) => ({ ...row.payload, id: row.recordId }))])) as Record<string, Record<string, unknown>[]>;
 }
 function savedRecords(state: DashboardState, schoolId: string): Record<Collection, StoredRecord[]> {
   const record = <T extends { id: string }>(items: T[]) => items.map((item) => ({ id: item.id, payload: item as unknown as Record<string, unknown> }));
