@@ -88,6 +88,13 @@ async function performSyncApiDashboard(state: DashboardState, schoolId: string, 
     // School preferences contain school-wide identity fields; the generic endpoint
     // intentionally reserves them for administrators.
     if (state.user.role === 'Professor' && collection === 'settings') continue;
+    const invalidRecord = values[collection].find(
+      (item) => typeof item.id !== 'string' || item.id.length < 1 || item.id.length > 120,
+    );
+    if (invalidRecord)
+      throw new Error(
+        `Não foi possível sincronizar ${collection}: existe um registo com ID inválido. Atualize os dados e tente novamente.`,
+      );
     const oldRows = index[collection] || new Map<string, string>();
     const nextRows = new Map(values[collection].map((item) => [item.id, JSON.stringify(item.payload)]));
     const operations: (() => Promise<unknown>)[] = [];
