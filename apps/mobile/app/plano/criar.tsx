@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Text } from 'react-native';
 import { Button, Card, ChoiceField, Field, Heading, Notice, Page, styles } from '@/components/ui';
 import { useDashboard } from '@/providers/dashboard-provider';
@@ -10,7 +10,7 @@ const localDate = () => {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 };
 export default function CreatePlan() {
-  const { snapshot, saveRecord } = useDashboard();
+  const { snapshot, saveRecord, syncState } = useDashboard();
   const classes = snapshot?.data.classes || [];
   const subjects = snapshot?.data.subjects || [];
   const [title, setTitle] = useState('');
@@ -21,6 +21,12 @@ export default function CreatePlan() {
   const [time, setTime] = useState('08:00');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!classes.some((item) => item.recordId === classId) && classes.length)
+      setClassId(classes[0].recordId);
+    if (!subjects.some((item) => item.recordId === subjectId) && subjects.length)
+      setSubjectId(subjects[0].recordId);
+  }, [classes, classId, subjects, subjectId]);
   const submit = async () => {
     if (
       !title.trim() ||
@@ -62,7 +68,7 @@ export default function CreatePlan() {
   };
   return (
     <Page>
-      <Heading title="Criar plano de aula" subtitle="Pode continuar mesmo sem internet." back />
+      <Heading title="Criar plano de aula" subtitle="Planeie a aula para a sua turma." back />
       <Card>
         <Notice text={error} type="error" />
         {!classes.length || !subjects.length ? (

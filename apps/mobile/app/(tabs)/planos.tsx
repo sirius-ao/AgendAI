@@ -16,8 +16,8 @@ export default function Plans() {
             key={recordId}
             onPress={() =>
               router.push({
-                pathname: '/presenca',
-                params: { planId: recordId, classId: String(p.classId || '') },
+                pathname: '/aula/[id]',
+                params: { id: recordId },
               })
             }
           >

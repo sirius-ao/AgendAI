@@ -18,8 +18,8 @@ export default function Lessons() {
               key={row.recordId}
               onPress={() =>
                 router.push({
-                  pathname: '/presenca',
-                  params: { planId: row.recordId, classId: String(p.classId || '') },
+                  pathname: '/aula/[id]',
+                  params: { id: row.recordId },
                 })
               }
             >
@@ -29,7 +29,9 @@ export default function Lessons() {
               <Text style={styles.subtitle}>
                 {[p.date, p.startTime, p.className || p.classId].filter(Boolean).join(' · ')}
               </Text>
-              <Text style={{ color: BRAND.forestSoft, fontWeight: '700' }}>Abrir presenças →</Text>
+              <Text style={{ color: BRAND.forestSoft, fontWeight: '700' }}>
+                Ver detalhes da aula →
+              </Text>
             </Card>
           );
         })

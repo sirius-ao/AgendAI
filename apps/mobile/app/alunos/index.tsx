@@ -4,10 +4,14 @@ import { useState } from 'react';
 import { Text } from 'react-native';
 import { Button, Card, Empty, Field, Heading, Page, styles } from '@/components/ui';
 import { SchoolDataStatus } from '@/components/school-data-status';
+import { useAuth } from '@/providers/auth-provider';
 import { useDashboard } from '@/providers/dashboard-provider';
 
 export default function Students() {
-  const { snapshot, syncState } = useDashboard();
+  const { snapshot, syncState, schoolId } = useDashboard();
+  const { user } = useAuth();
+  const canManageStudents =
+    user?.schools.find((school) => school.id === schoolId)?.role !== 'TEACHER';
   const [query, setQuery] = useState('');
   const students = (snapshot?.data.students || []).filter((s) =>
     String(s.payload.name || '')
@@ -50,7 +54,9 @@ export default function Students() {
           text="Tente outra pesquisa ou sincronize os dados."
         />
       )}
-      <Button title="Adicionar aluno" onPress={() => router.push('/alunos/novo')} />
+      {canManageStudents && (
+        <Button title="Adicionar aluno" onPress={() => router.push('/alunos/novo')} />
+      )}
     </Page>
   );
 }

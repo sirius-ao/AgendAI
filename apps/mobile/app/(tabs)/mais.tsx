@@ -30,6 +30,11 @@ export default function More() {
           ['Configurações', '/configuracoes'],
           ['Modo offline', '/offline'],
           ['Detalhes da sincronização', '/sincronizacao'],
+          ['Agenda', '/calendario'],
+          ['Recursos', '/recursos'],
+          ['Relatórios', '/relatorios'],
+          ['Notificações', '/notificacoes'],
+          ['Mensagens', '/mensagens'],
         ].map(([title, path], index) => (
           <View key={path} style={{ width: '48%' }}>
             <Card onPress={() => router.push(path as never)}>
@@ -45,6 +50,11 @@ export default function More() {
                       'settings-outline',
                       'cloud-offline-outline',
                       'sync-outline',
+                      'calendar-outline',
+                      'library-outline',
+                      'bar-chart-outline',
+                      'notifications-outline',
+                      'chatbubbles-outline',
                     ] as const
                   )[index]
                 }

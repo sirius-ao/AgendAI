@@ -23,7 +23,7 @@ export default function Home() {
     <Page>
       <View style={{ gap: 4, paddingVertical: 4 }}>
         <Text style={{ color: BRAND.muted }}>{greeting},</Text>
-        <Text style={styles.title}>{user?.name?.split(' ')[0] || 'Professor'} 👋</Text>
+        <Text style={styles.title}>{user?.name?.split(' ')[0] || 'Professor'}</Text>
         <Text style={styles.subtitle}>
           {now.toLocaleDateString('pt-PT', {
             weekday: 'long',

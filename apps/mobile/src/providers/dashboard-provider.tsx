@@ -1,4 +1,5 @@
 import { normalizeDashboardSnapshot } from '@/data/dashboard-snapshot';
+import { AppState } from 'react-native';
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 import { useSQLiteContext } from 'expo-sqlite';
 import {
@@ -154,6 +155,9 @@ export function DashboardProvider({ children }: PropsWithChildren) {
       if (connected && schoolRef.current) void refresh();
       else if (!connected) setSyncState((current) => (current === 'loading' ? 'offline' : current));
     });
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refresh();
+    });
     const start = async () => {
       if (!authenticated || !user) {
         accountRef.current = '';
@@ -228,6 +232,7 @@ export function DashboardProvider({ children }: PropsWithChildren) {
     return () => {
       active = false;
       unsubscribe();
+      appStateSubscription.remove();
     };
   }, [authenticated, db, flushQueue, loadFromServer, refresh, user]);
 
