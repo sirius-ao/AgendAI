@@ -15,6 +15,16 @@ export class LoginDto {
   @IsOptional() @IsString() @Matches(/^\d{6}$/) mfaCode?: string;
 }
 
+export class GoogleAuthDto {
+  @IsString() @MinLength(100) @MaxLength(5000) credential!: string;
+  @IsString() @Matches(/^(LOGIN|REGISTER)$/) mode!: 'LOGIN' | 'REGISTER';
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(120) name?: string;
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(140) schoolName?: string;
+  @IsOptional() @IsString() @MinLength(40) @MaxLength(100) invitationToken?: string;
+  @IsOptional() @IsString() @MaxLength(2048) turnstileToken?: string;
+  @IsOptional() @IsString() @Matches(/^\d{6}$/) mfaCode?: string;
+}
+
 export class UpdateProfileDto {
   @IsOptional() @IsString() @MinLength(2) @MaxLength(120) name?: string;
   @IsOptional() @IsString() @MaxLength(40) phone?: string;

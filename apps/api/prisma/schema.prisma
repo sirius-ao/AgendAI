@@ -80,6 +80,7 @@ model User {
   email                   String                   @unique @db.VarChar(254)
   phone                   String                   @default("") @db.VarChar(40)
   passwordHash            String                   @db.VarChar(100)
+  googleSubject           String?                  @unique @db.VarChar(255)
   tokenVersion            Int                      @default(0)
   isActive                Boolean                  @default(true)
   isSuperAdmin            Boolean                  @default(false)

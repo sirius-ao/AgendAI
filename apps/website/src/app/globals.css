@@ -2635,12 +2635,47 @@ textarea {
   color: var(--color-brand-green-dark);
   font-weight: 700;
 }
+.access-or {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 18px 0 14px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.access-or::before,
+.access-or::after { content: ''; flex: 1; height: 1px; background: var(--color-border, #e4e8ed); }
+.google-signin { position: relative; display: flex; justify-content: center; min-height: 44px; }
+.google-signin > div:first-of-type { max-width: 100%; }
+.google-signin small { align-self: center; color: #b42318; font-size: 12px; }
+.google-signin.is-disabled { opacity: .6; }
+.google-signin-blocker { position: absolute; inset: 0; cursor: wait; }
+.google-preview-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: min(100%, 400px);
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  background: #fff;
+  color: #3c4043;
+  font: 500 14px Arial, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgb(60 64 67 / 12%);
+}
+.google-preview-button:hover { background: #f8faff; box-shadow: 0 1px 3px rgb(60 64 67 / 22%); }
+.google-preview-mark { color: #4285f4; font: 700 20px Arial, sans-serif; }
 .form-feedback {
   background: var(--color-brand-green-light);
   padding: 12px;
   border-radius: 8px;
   font-size: 13px;
 }
+.login-mfa-instructions { margin: 0; color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
+.login-mfa-back { align-self: flex-start; border: 0; padding: 0; background: transparent; color: var(--color-brand-green-dark); font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
 .empty-page {
   min-height: 65vh;
   padding-block: 90px;

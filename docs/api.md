@@ -53,10 +53,13 @@ Os dumps SQL solicitados em `/admin` são complementares aos scripts operacionai
 - `GET /auth/me`: utilizador e escolas associados; requer `Authorization: Bearer <accessToken>`.
 - `PATCH /auth/me`: atualiza nome e telefone. A alteração de email aguarda verificação de endereço.
 - `POST /auth/register` aceita `invitationToken` para criar a conta e aderir a uma escola existente; sem convite, `schoolName` é obrigatório.
+- `GET /auth/google/nonce` e `POST /auth/google` permitem entrar e criar conta com Google. A API valida assinatura, audiência, emissor, nonce e email verificado; o identificador `sub` do Google fica associado à conta.
 
 Os access tokens expiram em 15 minutos. O refresh token fica num cookie HttpOnly, SameSite Lax, e apenas o hash é guardado na base de dados. Em produção o cookie exige HTTPS.
 
 A recuperação, a confirmação de email, os convites, o contacto e a newsletter usam a API Resend. Defina `RESEND_API_KEY`, `EMAIL_FROM` verificado, `CONTACT_EMAIL` e `NEXT_PUBLIC_SITE_URL`. Em produção, registos novos e antigos sem email confirmado ficam sem acesso até confirmarem o endereço. O Compose exige a configuração por omissão; `REQUIRE_EMAIL_CONFIG=false` permite executar localmente sem fornecedor e desativa a confirmação obrigatória. Os pedidos de recuperação e reenvio não revelam se o endereço está registado. Configure limites de envio e alertas no fornecedor antes de abrir os formulários ao público.
+
+Para ativar Google, crie um OAuth Client ID do tipo **Web application** no Google Cloud, adicione a origem do website em *Authorized JavaScript origins* e defina o mesmo ID em `GOOGLE_CLIENT_ID` (API) e `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (build do website). O botão fica oculto sem o ID público. Não é necessário redirect URI: o website usa Google Identity Services e a API valida o ID token diretamente.
 
 ## Contacto e newsletter
 

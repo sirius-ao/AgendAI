@@ -4,6 +4,10 @@ const API_URL = '/api/v1';
 const TOKEN_KEY = 'agendai_access_token';
 let refreshPromise: Promise<boolean> | null = null;
 
+export class ApiError extends Error {
+  constructor(message: string, readonly code?: string) { super(message); this.name = 'ApiError'; }
+}
+
 export type ApiUser = { id: string; name: string; email: string; phone?: string; isSuperAdmin?: boolean; adminRole?: 'NONE' | 'SUPPORT' | 'SUPER_ADMIN'; adminMfaEnabled?: boolean; schools: { id: string; name: string; address: string; academicYear: string; role: string }[] };
 
 function token() { return typeof window === 'undefined' ? null : sessionStorage.getItem(TOKEN_KEY); }
@@ -35,9 +39,9 @@ async function request<T>(path: string, init: RequestInit = {}, authenticated = 
   let response = await send();
   if (authenticated && response.status === 401 && await refreshSession()) response = await send();
   if (!response.ok) {
-    const body = await response.json().catch(() => null) as { message?: string | string[] } | null;
+    const body = await response.json().catch(() => null) as { message?: string | string[]; code?: string } | null;
     const message = Array.isArray(body?.message) ? body.message.join(' · ') : body?.message;
-    throw new Error(message || `Pedido falhou (${response.status})`);
+    throw new ApiError(message || `Pedido falhou (${response.status})`, body?.code);
   }
   return response.json() as Promise<T>;
 }
@@ -50,6 +54,12 @@ export async function apiLogin(email: string, password: string, mfaCode?: string
 export async function apiRegister(input: { name: string; email: string; password: string; schoolName?: string; invitationToken?: string; turnstileToken?: string }) {
   const result = await request<{ accessToken?: string; user?: unknown; verificationRequired?: boolean; emailSent?: boolean; email?: string }>('/auth/register', { method: 'POST', body: JSON.stringify(input) }, false);
   if (result.accessToken) saveToken(result.accessToken);
+  return result;
+}
+export async function apiGoogleNonce() { return request<{ nonce: string }>('/auth/google/nonce', { method: 'GET' }, false); }
+export async function apiGoogleAuth(input: { credential: string; mode: 'LOGIN' | 'REGISTER'; name?: string; schoolName?: string; invitationToken?: string; turnstileToken?: string; mfaCode?: string }) {
+  const result = await request<{ accessToken: string; user: unknown }>('/auth/google', { method: 'POST', body: JSON.stringify(input) }, false);
+  saveToken(result.accessToken);
   return result;
 }
 export async function apiVerifyEmail(token: string) {
