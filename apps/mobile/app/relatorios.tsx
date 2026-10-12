@@ -1,4 +1,5 @@
-import { Share, Text, View } from 'react-native';
+import { AppText } from '@/components/app-text';
+import { Share, View } from 'react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Button, Card, ChoiceField, Empty, Heading, Page, styles } from '@/components/ui';
@@ -118,27 +119,27 @@ export default function Reports() {
         <>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <Card style={{ flex: 1 }}>
-              <Text style={{ color: BRAND.muted }}>Assiduidade</Text>
-              <Text style={{ color: BRAND.forestSoft, fontSize: 24, fontWeight: '900' }}>
+              <AppText style={{ color: BRAND.muted }}>Assiduidade</AppText>
+              <AppText style={{ color: BRAND.forestSoft, fontSize: 24, fontWeight: '900' }}>
                 {presenceRate === null ? '—' : `${presenceRate}%`}
-              </Text>
+              </AppText>
             </Card>
             <Card style={{ flex: 1 }}>
-              <Text style={{ color: BRAND.muted }}>Média</Text>
-              <Text style={{ color: BRAND.purpleInk, fontSize: 24, fontWeight: '900' }}>
+              <AppText style={{ color: BRAND.muted }}>Média</AppText>
+              <AppText style={{ color: BRAND.purpleInk, fontSize: 24, fontWeight: '900' }}>
                 {average === null ? '—' : `${average.toFixed(1)}/20`}
-              </Text>
+              </AppText>
             </Card>
           </View>
           <Card>
-            <Text style={{ color: BRAND.ink, fontWeight: '800' }}>
+            <AppText style={{ color: BRAND.ink, fontWeight: '800' }}>
               {students.length} alunos · {attendance.length} registos de presença ·{' '}
               {assessments.length} avaliações
-            </Text>
+            </AppText>
           </Card>
-          <Text style={{ color: BRAND.ink, fontWeight: '800', fontSize: 17 }}>
+          <AppText style={{ color: BRAND.ink, fontWeight: '800', fontSize: 17 }}>
             Desempenho por aluno
-          </Text>
+          </AppText>
           {studentStats.map((student) => (
             <Card
               key={student.id}
@@ -149,16 +150,16 @@ export default function Reports() {
               }}
             >
               <View style={{ flex: 1 }}>
-                <Text style={{ color: BRAND.ink, fontWeight: '700' }}>{student.name}</Text>
-                <Text style={styles.subtitle}>
+                <AppText style={{ color: BRAND.ink, fontWeight: '700' }}>{student.name}</AppText>
+                <AppText style={styles.subtitle}>
                   {student.totalAttendance
                     ? `${Math.round((100 * student.present) / student.totalAttendance)}% presença`
                     : 'Sem registos de presença'}
-                </Text>
+                </AppText>
               </View>
-              <Text style={{ color: BRAND.forestSoft, fontWeight: '900' }}>
+              <AppText style={{ color: BRAND.forestSoft, fontWeight: '900' }}>
                 {student.average === null ? '—' : student.average.toFixed(1)}
-              </Text>
+              </AppText>
             </Card>
           ))}
           <Button title="Partilhar relatório" onPress={share} />

@@ -21,7 +21,8 @@ interface RegisterInput {
   name: string;
   email: string;
   password: string;
-  schoolName: string;
+  schoolName?: string;
+  invitationToken?: string;
   turnstileToken: string;
 }
 interface RegisterResult {
@@ -38,7 +39,8 @@ interface AuthContextValue {
   loading: boolean;
   user: MobileUser | null;
   error: string;
-  signIn(email: string, password: string): Promise<void>;
+  signIn(email: string, password: string, mfaCode?: string): Promise<void>;
+  acceptInvitation(token: string): Promise<void>;
   signUp(input: RegisterInput): Promise<RegisterResult>;
   signOut(): Promise<void>;
   request<T>(path: string, init?: RequestInit): Promise<T>;
@@ -179,11 +181,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [loadProfile, rotateSession]);
 
   const signIn = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, mfaCode?: string) => {
       setError('');
       const session = await publicRequest<SessionResponse>('/auth/mobile/login', {
         method: 'POST',
-        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+          ...(mfaCode ? { mfaCode } : {}),
+        }),
       });
       await updateSession(session);
       try {
@@ -205,7 +211,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           ...input,
           name: input.name.trim(),
           email: input.email.trim().toLowerCase(),
-          schoolName: input.schoolName.trim(),
+          ...(input.schoolName ? { schoolName: input.schoolName.trim() } : {}),
         }),
       });
       if (result.accessToken && result.refreshToken && result.user) {
@@ -240,6 +246,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
     },
     [rotateSession],
+  );
+
+  const acceptInvitation = useCallback(
+    async (token: string) => {
+      await request('/invitations/accept', { method: 'POST', body: JSON.stringify({ token }) });
+      if (accessRef.current) await loadProfile(accessRef.current);
+    },
+    [loadProfile, request],
   );
 
   const signOut = useCallback(async () => {
@@ -287,6 +301,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       user,
       error,
       signIn,
+      acceptInvitation,
       signUp,
       signOut,
       request,
@@ -297,6 +312,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }),
     [
       accessToken,
+      acceptInvitation,
       error,
       forgotPassword,
       loading,

@@ -1,6 +1,7 @@
+import { AppText } from '@/components/app-text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Text } from 'react-native';
+
 import { Button, Card, ChoiceField, Field, Heading, Notice, Page, styles } from '@/components/ui';
 import { useDashboard } from '@/providers/dashboard-provider';
 
@@ -10,9 +11,16 @@ const localDate = () => {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 };
 export default function CreatePlan() {
-  const { planId, date: requestedDate } = useLocalSearchParams<{
+  const {
+    planId,
+    date: requestedDate,
+    classId: requestedClass,
+    subjectId: requestedSubject,
+  } = useLocalSearchParams<{
     planId?: string;
     date?: string;
+    classId?: string;
+    subjectId?: string;
   }>();
   const { snapshot, saveRecord, syncState } = useDashboard();
   const classes = snapshot?.data.classes || [];
@@ -52,12 +60,20 @@ export default function CreatePlan() {
       setTime(String(plan.startTime || plan.time || '08:00'));
       setDuration(String(plan.duration || 45));
     } else {
-      setClassId(classes[0]?.recordId || '');
-      setSubjectId(subjects[0]?.recordId || '');
+      setClassId(
+        classes.some((row) => row.recordId === requestedClass)
+          ? String(requestedClass)
+          : classes[0]?.recordId || '',
+      );
+      setSubjectId(
+        subjects.some((row) => row.recordId === requestedSubject)
+          ? String(requestedSubject)
+          : subjects[0]?.recordId || '',
+      );
       if (requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) setDate(requestedDate);
     }
     initialized.current = true;
-  }, [classes, plan, planId, requestedDate, snapshot, subjects]);
+  }, [classes, plan, planId, requestedClass, requestedDate, requestedSubject, snapshot, subjects]);
   const submit = async () => {
     if (
       !title.trim() ||
@@ -122,10 +138,10 @@ export default function CreatePlan() {
       <Card>
         <Notice text={error} type="error" />
         {!classes.length || !subjects.length ? (
-          <Text style={styles.subtitle}>
+          <AppText style={styles.subtitle}>
             Para criar um plano, este dispositivo precisa de ter pelo menos uma turma e uma
             disciplina sincronizadas.
-          </Text>
+          </AppText>
         ) : null}
         <Field
           label="Título da aula"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiDownload, apiRequest } from '@/lib/api/client';
 
@@ -80,16 +80,37 @@ type UserDetail = {
 };
 type SchoolDetail = SchoolRow & {
   timezone: string; updatedAt: string; _count: SchoolRow['_count'] & { dashboardRecords: number };
-  memberships: { role: string; createdAt: string; user: { id: string; name: string; email: string; isActive: boolean; emailVerifiedAt: string | null; lastLoginAt: string | null; createdAt: string } }[];
+  memberships: PageResult<{ id: string; role: string; createdAt: string; user: { id: string; name: string; email: string; isActive: boolean; emailVerifiedAt: string | null; lastLoginAt: string | null; createdAt: string } }>;
   auditEvents: { id: string; action: string; entity: string; createdAt: string; actor: { name: string; email: string }; details: unknown }[];
 };
+type SchoolMemberDetail = SchoolDetail['memberships']['items'][number];
+type SchoolDetailPayload = Omit<SchoolDetail, 'memberships' | 'auditEvents'> & {
+  memberships?: PageResult<SchoolMemberDetail> | SchoolMemberDetail[];
+  auditEvents?: SchoolDetail['auditEvents'];
+};
 type AdminDetail = { kind: 'user'; value: UserDetail } | { kind: 'school'; value: SchoolDetail } | null;
+type AdminConfirmation = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  destructive?: boolean;
+  reasonRequired?: boolean;
+  requiresMfaCode?: boolean;
+  onConfirm: (reason: string) => Promise<void>;
+} | null;
 const tabs = ['Resumo', 'Escolas', 'Utilizadores', 'Backups', 'Auditoria'] as const;
 type Tab = (typeof tabs)[number];
 const when = (value: string) =>
   new Date(value).toLocaleString('pt-AO', { dateStyle: 'medium', timeStyle: 'short' });
 const size = (value: string | null) =>
   value ? `${(Number(value) / 1024 / 1024).toFixed(1)} MB` : '—';
+const normalizeSchoolDetail = (value: SchoolDetailPayload): SchoolDetail => ({
+  ...value,
+  memberships: Array.isArray(value.memberships)
+    ? { items: value.memberships, nextCursor: null }
+    : value.memberships ?? { items: [], nextCursor: null },
+  auditEvents: value.auditEvents ?? [],
+});
 
 export function AdminConsole() {
   const router = useRouter();
@@ -102,6 +123,7 @@ export function AdminConsole() {
   const [userCursor, setUserCursor] = useState<string | null>(null);
   const [schoolCursor, setSchoolCursor] = useState<string | null>(null);
   const [auditCursor, setAuditCursor] = useState<string | null>(null);
+  const [backupCursor, setBackupCursor] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [auditAction, setAuditAction] = useState('');
@@ -116,9 +138,14 @@ export function AdminConsole() {
   const [mfaRequired, setMfaRequired] = useState(true);
   const [mfaSecret, setMfaSecret] = useState('');
   const [mfaCode, setMfaCode] = useState('');
-  const [mfaReason, setMfaReason] = useState('');
   const [mfaMessage, setMfaMessage] = useState('');
+  const [initialLoading, setInitialLoading] = useState(true);
   const [detail, setDetail] = useState<AdminDetail>(null);
+  const [confirmation, setConfirmation] = useState<AdminConfirmation>(null);
+  const [confirmationReason, setConfirmationReason] = useState('');
+  const [confirmationError, setConfirmationError] = useState('');
+  const confirmationDialog = useRef<HTMLDialogElement>(null);
+  const detailDialog = useRef<HTMLDialogElement>(null);
 
   const load = useCallback(async (search: string, active: string) => {
     setError('');
@@ -132,14 +159,14 @@ export function AdminConsole() {
         apiRequest<Summary>('/admin/summary'),
         apiRequest<PageResult<UserRow>>(`/admin/users${qs}`),
         apiRequest<PageResult<SchoolRow>>(`/admin/schools${qs}`),
-        apiRequest<BackupRow[]>('/admin/backups'),
+        apiRequest<PageResult<BackupRow> | BackupRow[]>('/admin/backups?limit=20'),
         apiRequest<PageResult<AuditRow>>('/admin/audit'),
         apiRequest<{ enabled: boolean; required: boolean; role: 'SUPPORT' | 'SUPER_ADMIN' }>('/admin/mfa/status'),
       ]);
       setSummary(stats);
       setUsers(userRows.items);
       setSchools(schoolRows.items);
-      setBackups(backupRows);
+      setBackups(Array.isArray(backupRows) ? backupRows : backupRows.items ?? []);
       setAudit(auditRows.items);
       setMfaEnabled(mfa.enabled);
       setMfaRequired(mfa.required);
@@ -147,21 +174,24 @@ export function AdminConsole() {
       setUserCursor(userRows.nextCursor);
       setSchoolCursor(schoolRows.nextCursor);
       setAuditCursor(auditRows.nextCursor);
+      setBackupCursor(Array.isArray(backupRows) ? null : backupRows.nextCursor ?? null);
       setAuthorized('yes');
+      setInitialLoading(false);
     } catch (cause) {
       const message =
         cause instanceof Error ? cause.message : 'Não foi possível carregar a área administrativa.';
       setAuthorized(/MFA_SETUP_REQUIRED/.test(message) ? 'mfa' : /administração|acesso reservado|Forbidden|403/i.test(message) ? 'no' : 'checking');
       setError(/MFA_SETUP_REQUIRED/.test(message) ? '' : message);
+      setInitialLoading(false);
     }
   }, []);
 
-  const loadMore = async (kind: 'users' | 'schools' | 'audit') => {
-    const cursor = kind === 'users' ? userCursor : kind === 'schools' ? schoolCursor : auditCursor;
+  const loadMore = async (kind: 'users' | 'schools' | 'audit' | 'backups') => {
+    const cursor = kind === 'users' ? userCursor : kind === 'schools' ? schoolCursor : kind === 'audit' ? auditCursor : backupCursor;
     if (!cursor) return;
-    const params = new URLSearchParams({ cursor, limit: '100' });
-    if (kind !== 'audit' && query.trim()) params.set('q', query.trim());
-    if (kind !== 'audit' && activeFilter) params.set('active', activeFilter);
+    const params = new URLSearchParams({ cursor, limit: kind === 'backups' ? '20' : '100' });
+    if ((kind === 'users' || kind === 'schools') && query.trim()) params.set('q', query.trim());
+    if ((kind === 'users' || kind === 'schools') && activeFilter) params.set('active', activeFilter);
     if (kind === 'audit') {
       if (auditAction) params.set('action', auditAction);
       if (auditEntity) params.set('entity', auditEntity);
@@ -170,7 +200,7 @@ export function AdminConsole() {
     }
     setBusy(true);
     try {
-      const next = await apiRequest<PageResult<UserRow | SchoolRow | AuditRow>>(
+      const next = await apiRequest<PageResult<UserRow | SchoolRow | AuditRow | BackupRow>>(
         `/admin/${kind}?${params}`,
       );
       if (kind === 'users') {
@@ -179,9 +209,12 @@ export function AdminConsole() {
       } else if (kind === 'schools') {
         setSchools((current) => [...current, ...(next.items as SchoolRow[])]);
         setSchoolCursor(next.nextCursor);
-      } else {
+      } else if (kind === 'audit') {
         setAudit((current) => [...current, ...(next.items as AuditRow[])]);
         setAuditCursor(next.nextCursor);
+      } else {
+        setBackups((current) => [...current, ...(next.items as BackupRow[])]);
+        setBackupCursor(next.nextCursor);
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Não foi possível carregar mais registos.');
@@ -209,7 +242,7 @@ export function AdminConsole() {
     return () => window.clearTimeout(timer);
   }, [load]);
   useEffect(() => {
-    if (!backups.some((backup) => backup.status === 'QUEUED' || backup.status === 'RUNNING'))
+    if (!Array.isArray(backups) || !backups.some((backup) => backup.status === 'QUEUED' || backup.status === 'RUNNING'))
       return;
     const timer = setInterval(() => {
       void load(query, activeFilter);
@@ -217,66 +250,75 @@ export function AdminConsole() {
     return () => clearInterval(timer);
   }, [activeFilter, backups, load, query]);
 
-  const askReason = (title: string) => {
-    if (!window.confirm(title)) return null;
-    const reason = window.prompt('Indique o motivo (mínimo 8 caracteres):')?.trim() || '';
-    if (reason.length < 8) {
-      setError('Indique um motivo com pelo menos 8 caracteres.');
-      return null;
-    }
-    return reason;
+  useEffect(() => {
+    const dialog = confirmationDialog.current;
+    if (confirmation && dialog && !dialog.open) dialog.showModal();
+  }, [confirmation]);
+  useEffect(() => {
+    const dialog = detailDialog.current;
+    if (detail && dialog && !dialog.open) dialog.showModal();
+  }, [detail]);
+
+  const openConfirmation = (next: NonNullable<AdminConfirmation>) => {
+    setConfirmationReason('');
+    setConfirmationError('');
+    setConfirmation(next);
   };
 
-  const changeUser = async (user: UserRow, active: boolean) => {
-    const reason = askReason(`${active ? 'Ativar' : 'Desativar'} a conta de ${user.name}?`);
-    if (!reason) return;
+  const submitConfirmation = async () => {
+    if (!confirmation) return;
+    const reason = confirmationReason.trim();
+    if (confirmation.reasonRequired && reason.length < 8) {
+      setConfirmationError('Explique o motivo com pelo menos 8 caracteres.');
+      return;
+    }
     setBusy(true);
     try {
-      await apiRequest(`/admin/users/${encodeURIComponent(user.id)}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ active, reason }),
-      });
-      await load(query, activeFilter);
+      await confirmation.onConfirm(reason);
+      confirmationDialog.current?.close();
+      setConfirmation(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'A ação falhou.');
+      setConfirmationError(cause instanceof Error ? cause.message : 'A ação falhou. Tente novamente.');
     } finally {
       setBusy(false);
     }
   };
 
-  const changeSchool = async (school: SchoolRow, active: boolean) => {
-    const reason = askReason(`${active ? 'Reativar' : 'Suspender'} a escola ${school.name}?`);
-    if (!reason) return;
-    setBusy(true);
-    try {
-      await apiRequest(`/admin/schools/${encodeURIComponent(school.id)}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ active, reason }),
-      });
+  const changeUser = (user: UserRow, active: boolean) => openConfirmation({
+    title: `${active ? 'Ativar' : 'Desativar'} conta`,
+    description: `A conta de ${user.name} (${user.email}) ficará ${active ? 'ativa e poderá voltar a entrar' : 'sem acesso à plataforma'}. Esta ação será registada na auditoria.`,
+    confirmLabel: active ? 'Ativar conta' : 'Desativar conta',
+    destructive: !active,
+    reasonRequired: true,
+    onConfirm: async (reason) => {
+      await apiRequest(`/admin/users/${encodeURIComponent(user.id)}/status`, { method: 'PATCH', body: JSON.stringify({ active, reason }) });
       await load(query, activeFilter);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'A ação falhou.');
-    } finally {
-      setBusy(false);
-    }
-  };
+    },
+  });
 
-  const changeRole = async (user: UserRow, role: 'NONE' | 'SUPPORT' | 'SUPER_ADMIN') => {
-    const reason = askReason(`Alterar o perfil administrativo de ${user.name} para ${role}?`);
-    if (!reason) return;
-    setBusy(true);
-    try {
-      await apiRequest(`/admin/users/${encodeURIComponent(user.id)}/admin-role`, {
-        method: 'PATCH',
-        body: JSON.stringify({ role, reason }),
-      });
+  const changeSchool = (school: SchoolRow, active: boolean) => openConfirmation({
+    title: `${active ? 'Reativar' : 'Suspender'} escola`,
+    description: `${school.name} tem ${school._count.memberships} membros, ${school._count.classes} turmas e ${school._count.students} alunos. ${active ? 'Os membros voltarão a aceder aos dados.' : 'Os membros deixarão de aceder aos dados enquanto a escola estiver suspensa.'} A ação ficará na auditoria.`,
+    confirmLabel: active ? 'Reativar escola' : 'Suspender escola',
+    destructive: !active,
+    reasonRequired: true,
+    onConfirm: async (reason) => {
+      await apiRequest(`/admin/schools/${encodeURIComponent(school.id)}/status`, { method: 'PATCH', body: JSON.stringify({ active, reason }) });
       await load(query, activeFilter);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'A ação falhou.');
-    } finally {
-      setBusy(false);
-    }
-  };
+    },
+  });
+
+  const changeRole = (user: UserRow, role: 'NONE' | 'SUPPORT' | 'SUPER_ADMIN') => openConfirmation({
+    title: 'Alterar perfil administrativo',
+    description: `O perfil de ${user.name} será alterado para ${role === 'NONE' ? 'utilizador sem privilégios administrativos' : role === 'SUPPORT' ? 'suporte com acesso de leitura' : 'super administrador com poderes de gestão'}. A alteração será auditada.`,
+    confirmLabel: 'Confirmar alteração',
+    destructive: role === 'NONE',
+    reasonRequired: true,
+    onConfirm: async (reason) => {
+      await apiRequest(`/admin/users/${encodeURIComponent(user.id)}/admin-role`, { method: 'PATCH', body: JSON.stringify({ role, reason }) });
+      await load(query, activeFilter);
+    },
+  });
 
   const showDetail = async (kind: 'user' | 'school', id: string) => {
     setBusy(true);
@@ -285,26 +327,40 @@ export function AdminConsole() {
         const value = await apiRequest<UserDetail>(`/admin/users/${encodeURIComponent(id)}`);
         setDetail({ kind, value });
       } else {
-        const value = await apiRequest<SchoolDetail>(`/admin/schools/${encodeURIComponent(id)}`);
-        setDetail({ kind, value });
+        const value = await apiRequest<SchoolDetailPayload>(`/admin/schools/${encodeURIComponent(id)}?limit=20`);
+        setDetail({ kind, value: normalizeSchoolDetail(value) });
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Não foi possível carregar os detalhes.');
     } finally { setBusy(false); }
   };
 
-  const supportAction = async (user: Pick<UserRow, 'id' | 'name'>, action: 'revoke-sessions' | 'resend-verification') => {
-    const reason = askReason(action === 'revoke-sessions' ? `Revogar todas as sessões de ${user.name}?` : `Reenviar confirmação de email para ${user.name}?`);
-    if (!reason) return;
+  const loadMoreSchoolMembers = async () => {
+    if (detail?.kind !== 'school' || !detail.value.memberships.nextCursor) return;
     setBusy(true);
     try {
+      const params = new URLSearchParams({ cursor: detail.value.memberships.nextCursor, limit: '20' });
+      const next = normalizeSchoolDetail(await apiRequest<SchoolDetailPayload>(`/admin/schools/${encodeURIComponent(detail.value.id)}?${params}`));
+      setDetail((current) => current?.kind === 'school' && current.value.id === next.id
+        ? { kind: 'school', value: { ...next, memberships: { items: [...current.value.memberships.items, ...next.memberships.items], nextCursor: next.memberships.nextCursor } } }
+        : current);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível carregar mais membros.');
+    } finally { setBusy(false); }
+  };
+
+  const supportAction = (user: Pick<UserRow, 'id' | 'name'>, action: 'revoke-sessions' | 'resend-verification') => openConfirmation({
+    title: action === 'revoke-sessions' ? 'Revogar sessões ativas' : 'Reenviar confirmação de email',
+    description: action === 'revoke-sessions' ? `Todas as sessões de ${user.name} serão invalidadas e o utilizador terá de entrar novamente.` : `Será enviada uma nova ligação de confirmação para ${user.name}.`,
+    confirmLabel: action === 'revoke-sessions' ? 'Revogar sessões' : 'Reenviar email',
+    destructive: action === 'revoke-sessions',
+    reasonRequired: true,
+    onConfirm: async (reason) => {
       await apiRequest(`/admin/users/${encodeURIComponent(user.id)}/${action}`, { method: 'POST', body: JSON.stringify({ reason }) });
       setError('');
       await showDetail('user', user.id);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'A ação de suporte falhou.');
-    } finally { setBusy(false); }
-  };
+    },
+  });
 
   const startMfaSetup = async () => {
     setBusy(true);
@@ -331,16 +387,20 @@ export function AdminConsole() {
   };
 
   const disableMfa = async () => {
-    if (mfaReason.trim().length < 8) { setMfaMessage('Indique o motivo com pelo menos 8 caracteres.'); return; }
-    setBusy(true);
-    setMfaMessage('');
-    try {
-      await apiRequest('/admin/mfa/disable', { method: 'POST', body: JSON.stringify({ code: mfaCode, reason: mfaReason }) });
-      setMfaMessage('MFA desativada. Entre novamente.');
-      window.setTimeout(() => router.replace('/entrar'), 900);
-    } catch (cause) {
-      setMfaMessage(cause instanceof Error ? cause.message : 'Não foi possível desativar MFA.');
-    } finally { setBusy(false); }
+    openConfirmation({
+      title: 'Desativar MFA',
+      description: 'A proteção adicional será removida desta conta administrativa. A ação será registada na auditoria e será necessário entrar novamente.',
+      confirmLabel: 'Desativar MFA',
+      destructive: true,
+      reasonRequired: true,
+      requiresMfaCode: true,
+      onConfirm: async (reason) => {
+        if (mfaCode.length !== 6) throw new Error('Introduza o código atual de seis dígitos.');
+        await apiRequest('/admin/mfa/disable', { method: 'POST', body: JSON.stringify({ code: mfaCode, reason }) });
+        setMfaMessage('MFA desativada. Entre novamente.');
+        window.setTimeout(() => router.replace('/entrar'), 900);
+      },
+    });
   };
 
   const verifyBackup = async (backup: BackupRow) => {
@@ -354,37 +414,27 @@ export function AdminConsole() {
     } finally { setBusy(false); }
   };
 
-  const requestBackup = async () => {
-    if (
-      !window.confirm(
-        'Criar agora um backup SQL cifrado da base de dados? O ficheiro exclui anexos que estejam no armazenamento S3.',
-      )
-    )
-      return;
-    setBusy(true);
-    try {
+  const requestBackup = () => openConfirmation({
+    title: 'Criar backup da base de dados',
+    description: 'Será gerado um backup SQL comprimido e cifrado, com retenção de 7 dias. Os anexos guardados no S3 não estão incluídos.',
+    confirmLabel: 'Criar backup SQL',
+    onConfirm: async () => {
       await apiRequest('/admin/backups', { method: 'POST' });
       setTab('Backups');
       await load(query, activeFilter);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Não foi possível pedir o backup.');
-    } finally {
-      setBusy(false);
-    }
-  };
+    },
+  });
 
-  const removeBackup = async (backup: BackupRow) => {
-    if (!window.confirm('Eliminar permanentemente este backup?')) return;
-    setBusy(true);
-    try {
+  const removeBackup = (backup: BackupRow) => openConfirmation({
+    title: 'Eliminar backup',
+    description: `O ficheiro de ${when(backup.createdAt)} será apagado permanentemente. Esta operação não pode ser revertida.`,
+    confirmLabel: 'Eliminar backup',
+    destructive: true,
+    onConfirm: async () => {
       await apiRequest(`/admin/backups/${encodeURIComponent(backup.id)}`, { method: 'DELETE' });
       await load(query, activeFilter);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Não foi possível eliminar o backup.');
-    } finally {
-      setBusy(false);
-    }
-  };
+    },
+  });
 
   if (authorized === 'checking' && error)
     return (
@@ -396,6 +446,18 @@ export function AdminConsole() {
             Entrar com a conta administradora
           </a>
         </div>
+      </main>
+    );
+  if (authorized === 'checking' && initialLoading)
+    return (
+      <main className="admin-page admin-loading-page" aria-busy="true">
+        <header className="admin-header">
+          <div><p className="eyebrow">AgendAKI · Plataforma</p><h1>Administração</h1></div>
+        </header>
+        <section className="admin-card admin-loading-card" role="status">
+          <span className="admin-spinner" aria-hidden="true" />
+          <span>A validar acesso e carregar os dados…</span>
+        </section>
       </main>
     );
   if (authorized === 'mfa')
@@ -451,6 +513,7 @@ export function AdminConsole() {
           <button
             key={item}
             className={tab === item ? 'is-active' : ''}
+            aria-pressed={tab === item}
             onClick={() => setTab(item)}
           >
             {item}
@@ -463,9 +526,7 @@ export function AdminConsole() {
           <p>{!mfaRequired ? 'A MFA está desligada em ADMIN_MFA_REQUIRED. As configurações existentes ficam guardadas e voltam a ser exigidas quando a variável for ativada.' : `${adminRole === 'SUPPORT' ? 'Perfil de suporte — acesso de leitura.' : 'Perfil de super administrador.'} O código autenticador é pedido ao iniciar sessão.`}</p>
         </div>
         {mfaRequired && mfaEnabled && <div className="admin-mfa-controls">
-          <input aria-label="Código MFA atual" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="Código atual" value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} />
-          <input aria-label="Motivo para desativar MFA" minLength={8} placeholder="Motivo (mín. 8 caracteres)" value={mfaReason} onChange={(event) => setMfaReason(event.target.value)} />
-          <button className="dash-btn secondary" disabled={busy || mfaCode.length !== 6 || mfaReason.trim().length < 8} onClick={() => void disableMfa()}>Desativar MFA</button>
+          <button className="dash-btn secondary" disabled={busy} onClick={() => void disableMfa()}>Desativar MFA</button>
         </div>}
       </section>
       {mfaMessage && <p role="status" className="admin-error">{mfaMessage}</p>}
@@ -771,6 +832,7 @@ export function AdminConsole() {
               </div>
             </article>
           ))}
+          {backupCursor && <button className="dash-btn secondary" disabled={busy} onClick={() => void loadMore('backups')}>Carregar mais backups</button>}
         </section>
       )}
 
@@ -810,36 +872,70 @@ export function AdminConsole() {
           )}
         </>
       )}
-      {detail && <div className="admin-detail-backdrop" onClick={() => setDetail(null)}>
-        <section className="admin-card admin-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-detail-title" onClick={(event) => event.stopPropagation()}>
-          <button className="dash-btn secondary admin-detail-close" onClick={() => setDetail(null)}>Fechar</button>
+      {confirmation && (
+      <dialog
+          ref={confirmationDialog}
+          className="admin-dialog admin-confirm-dialog"
+          aria-labelledby="admin-confirm-title"
+          aria-describedby="admin-confirm-description"
+          onClose={() => {
+            setConfirmation(null);
+            setConfirmationReason('');
+            setConfirmationError('');
+            setMfaCode('');
+          }}
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !busy) confirmationDialog.current?.close();
+          }}
+        >
+          <header className="admin-dialog-header">
+            <div><p className="eyebrow">Confirmar ação</p><h2 id="admin-confirm-title">{confirmation.title}</h2></div>
+            <button className="admin-dialog-icon" type="button" aria-label="Fechar" disabled={busy} onClick={() => confirmationDialog.current?.close()}>×</button>
+          </header>
+          <p id="admin-confirm-description" className="admin-dialog-description">{confirmation.description}</p>
+          {confirmation.reasonRequired && <label className="admin-dialog-field"><span>Motivo <small>Obrigatório · mínimo 8 caracteres</small></span><textarea autoFocus rows={4} maxLength={1000} value={confirmationReason} onChange={(event) => setConfirmationReason(event.target.value)} placeholder="Registe o motivo para a auditoria…" /></label>}
+          {confirmation.requiresMfaCode && <label className="admin-dialog-field"><span>Código autenticador <small>Introduza o código atual de seis dígitos</small></span><input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" /></label>}
+          {confirmationError && <p className="admin-error" role="alert">{confirmationError}</p>}
+          <footer className="admin-dialog-actions">
+            <button type="button" className="dash-btn secondary" disabled={busy} onClick={() => confirmationDialog.current?.close()}>Cancelar</button>
+            <button type="button" className={`dash-btn${confirmation.destructive ? ' is-danger' : ''}`} disabled={busy || Boolean(confirmation.reasonRequired && confirmationReason.trim().length < 8) || Boolean(confirmation.requiresMfaCode && mfaCode.length !== 6)} onClick={() => void submitConfirmation()}>{busy ? 'A processar…' : confirmation.confirmLabel}</button>
+          </footer>
+        </dialog>
+      )}
+      {detail && <dialog
+        ref={detailDialog}
+        className="admin-dialog admin-detail-dialog"
+        aria-labelledby="admin-detail-title"
+        onClose={() => setDetail(null)}
+        onClick={(event) => { if (event.target === event.currentTarget) detailDialog.current?.close(); }}
+      >
           {detail.kind === 'user' ? <>
-            <h2 id="admin-detail-title">{detail.value.name}</h2>
+            <header className="admin-detail-header"><h2 id="admin-detail-title">{detail.value.name}</h2><button type="button" className="admin-dialog-icon admin-detail-close" aria-label="Fechar detalhes" onClick={() => detailDialog.current?.close()}>×</button></header>
             <p>{detail.value.email} · {detail.value.isActive ? 'Conta ativa' : 'Conta desativada'} · {detail.value.emailVerifiedAt ? 'Email confirmado' : 'Email por confirmar'}</p>
             <p>Criada {when(detail.value.createdAt)} · último login {detail.value.lastLoginAt ? when(detail.value.lastLoginAt) : 'nunca'} · sessões ativas {detail.value.activeSessions}</p>
             <p>Perfil de plataforma: {detail.value.platformAdminRole} · MFA {detail.value.adminMfaEnabled ? 'ativa' : 'inativa'}</p>
             <h3>Escolas</h3>
             <div className="admin-detail-list">{detail.value.memberships.map((membership) => <article key={membership.school.id}><strong>{membership.school.name}</strong><span>{membership.role} · {membership.school.isActive ? 'ativa' : 'suspensa'} · membro desde {when(membership.createdAt)}</span></article>)}{!detail.value.memberships.length && <p>Sem escolas associadas.</p>}</div>
             {adminRole === 'SUPER_ADMIN' && <div className="admin-row-actions admin-detail-actions">
-              {detail.value.activeSessions > 0 && <button className="dash-btn secondary" disabled={busy} onClick={() => void supportAction(detail.value, 'revoke-sessions')}>Revogar sessões</button>}
-              {!detail.value.emailVerifiedAt && <button className="dash-btn secondary" disabled={busy} onClick={() => void supportAction(detail.value, 'resend-verification')}>Reenviar confirmação</button>}
+              {detail.value.activeSessions > 0 && <button className="dash-btn secondary" disabled={busy} onClick={() => supportAction(detail.value, 'revoke-sessions')}>Revogar sessões</button>}
+              {!detail.value.emailVerifiedAt && <button className="dash-btn secondary" disabled={busy} onClick={() => supportAction(detail.value, 'resend-verification')}>Reenviar confirmação</button>}
             </div>}
             <h3>Últimas ações administrativas</h3>
             <div className="admin-detail-list">{detail.value.recentActions.map((action) => <article key={action.id}><strong>{action.action}</strong><span>{action.actor.name} · {when(action.createdAt)}{action.details ? ` · ${JSON.stringify(action.details)}` : ''}</span></article>)}{!detail.value.recentActions.length && <p>Sem ações registadas.</p>}</div>
           </> : <>
-            <h2 id="admin-detail-title">{detail.value.name}</h2>
+            <header className="admin-detail-header"><h2 id="admin-detail-title">{detail.value.name}</h2><button type="button" className="admin-dialog-icon admin-detail-close" aria-label="Fechar detalhes" onClick={() => detailDialog.current?.close()}>×</button></header>
             <p>{detail.value.address || 'Sem endereço'} · {detail.value.academicYear || 'Ano letivo não definido'} · {detail.value.isActive ? 'Ativa' : 'Suspensa'}</p>
             <p>Criada {when(detail.value.createdAt)} · atualizada {when(detail.value.updatedAt)} · fuso {detail.value.timezone}</p>
             <section className="admin-metrics">
               {[["Membros", detail.value._count.memberships], ["Turmas", detail.value._count.classes], ["Alunos", detail.value._count.students], ["Registos", detail.value._count.dashboardRecords]].map(([label, value]) => <article className="admin-card" key={String(label)}><span>{label}</span><strong>{value}</strong></article>)}
             </section>
             <h3>Membros e atividade</h3>
-            <div className="admin-detail-list">{detail.value.memberships.map(({ user, role, createdAt }) => <article key={user.id}><strong>{user.name} · {role}</strong><span>{user.email} · {user.isActive ? 'conta ativa' : 'conta desativada'} · email {user.emailVerifiedAt ? 'confirmado' : 'pendente'} · último login {user.lastLoginAt ? when(user.lastLoginAt) : 'nunca'} · desde {when(createdAt)}</span></article>)}</div>
+            <div className="admin-detail-list">{detail.value.memberships.items.map(({ id, user, role, createdAt }) => <article key={id}><strong>{user.name} · {role}</strong><span>{user.email} · {user.isActive ? 'conta ativa' : 'conta desativada'} · email {user.emailVerifiedAt ? 'confirmado' : 'pendente'} · último login {user.lastLoginAt ? when(user.lastLoginAt) : 'nunca'} · desde {when(createdAt)}</span></article>)}{!detail.value.memberships.items.length && <p>Sem membros associados.</p>}</div>
+            {detail.value.memberships.nextCursor && <button className="dash-btn secondary" disabled={busy} onClick={() => void loadMoreSchoolMembers()}>Carregar mais membros</button>}
             <h3>Atividade recente da escola</h3>
             <div className="admin-detail-list">{detail.value.auditEvents.map((event) => <article key={event.id}><strong>{event.action} · {event.entity}</strong><span>{event.actor.name} · {when(event.createdAt)}{event.details ? ` · ${JSON.stringify(event.details)}` : ''}</span></article>)}{!detail.value.auditEvents.length && <p>Sem atividade registada.</p>}</div>
           </>}
-        </section>
-      </div>}
+      </dialog>}
     </main>
   );
 }

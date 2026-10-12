@@ -1,7 +1,8 @@
+import { AppText } from '@/components/app-text';
 import { BRAND } from '@/config';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Text } from 'react-native';
+
 import { Button, Card, Heading, Notice, Page, styles } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -38,18 +39,20 @@ export default function VerifyEmail() {
     <Page>
       <Heading title="Confirmar email" subtitle="Proteja o acesso à sua conta." />
       <Card>
-        <Text style={{ color: BRAND.ink, fontSize: 20, fontWeight: '800' }}>
+        <AppText style={{ color: BRAND.ink, fontSize: 20, fontWeight: '800' }}>
           {status === 'loading'
             ? 'A validar ligação'
             : status === 'success'
               ? 'Email confirmado'
               : 'Não foi possível confirmar'}
-        </Text>
+        </AppText>
         <Notice
           text={message}
           type={status === 'error' ? 'error' : status === 'success' ? 'success' : 'info'}
         />
-        <Text style={styles.subtitle}>A ligação de confirmação só pode ser utilizada uma vez.</Text>
+        <AppText style={styles.subtitle}>
+          A ligação de confirmação só pode ser utilizada uma vez.
+        </AppText>
         <Button title="Voltar a entrar" onPress={() => router.replace('/(auth)/entrar')} />
       </Card>
     </Page>

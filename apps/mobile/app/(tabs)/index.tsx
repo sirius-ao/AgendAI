@@ -1,7 +1,8 @@
+import { AppText } from '@/components/app-text';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { BRAND } from '@/config';
 import { Button, Card, ChoiceField, Page, styles } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
@@ -148,31 +149,39 @@ export default function Home() {
   return (
     <Page>
       <View style={{ gap: 4, paddingVertical: 4 }}>
-        <Text style={{ color: BRAND.muted }}>{greeting},</Text>
-        <Text style={styles.title}>{user?.name?.split(' ')[0] || 'Professor'}</Text>
-        <Text style={styles.subtitle}>
+        <AppText style={{ color: BRAND.muted }}>{greeting},</AppText>
+        <AppText style={styles.title}>{user?.name?.split(' ')[0] || 'Professor'}</AppText>
+        <AppText style={styles.subtitle}>
           {now.toLocaleDateString('pt-PT', {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
           })}
-        </Text>
+        </AppText>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <Button title="⌕  Pesquisar" secondary onPress={() => router.push('/pesquisa')} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button title="✓  Pendências" onPress={() => router.push('/pendencias')} />
+        </View>
       </View>
       {syncState === 'offline' || syncState === 'pending' || syncState === 'error' ? (
         <Card style={{ backgroundColor: syncState === 'error' ? '#fff8eb' : BRAND.greenPale }}>
-          <Text style={{ color: BRAND.forest, fontWeight: '800' }}>
+          <AppText style={{ color: BRAND.forest, fontWeight: '800' }}>
             {syncState === 'offline'
               ? 'Modo offline'
               : syncState === 'error'
                 ? 'Falha ao sincronizar'
                 : 'Alterações por sincronizar'}
-          </Text>
-          <Text style={styles.subtitle}>
+          </AppText>
+          <AppText style={styles.subtitle}>
             {message ||
               (pendingCount
                 ? `${pendingCount} alteração(ões) guardada(s) neste dispositivo.`
                 : 'Os dados guardados continuam disponíveis.')}
-          </Text>
+          </AppText>
         </Card>
       ) : null}
       {lesson ? (
@@ -180,11 +189,13 @@ export default function Home() {
           onPress={() => router.push(lesson.planId ? `/aula/${lesson.planId}` : '/calendario')}
           style={{ backgroundColor: lesson.ongoing ? '#e9f8ee' : BRAND.greenPale }}
         >
-          <Text style={{ color: BRAND.forestSoft, fontWeight: '800' }}>
+          <AppText style={{ color: BRAND.forestSoft, fontWeight: '800' }}>
             {lesson.ongoing ? '● AULA EM CURSO' : '◷ PRÓXIMA AULA'}
-          </Text>
-          <Text style={{ fontSize: 20, fontWeight: '800', color: BRAND.ink }}>{lesson.title}</Text>
-          <Text style={styles.subtitle}>
+          </AppText>
+          <AppText style={{ fontSize: 20, fontWeight: '800', color: BRAND.ink }}>
+            {lesson.title}
+          </AppText>
+          <AppText style={styles.subtitle}>
             {[
               lesson.date === today
                 ? 'Hoje'
@@ -200,27 +211,27 @@ export default function Home() {
             ]
               .filter(Boolean)
               .join(' · ')}
-          </Text>
-          {lesson.location ? <Text style={styles.subtitle}>{lesson.location}</Text> : null}
-          <Text style={{ color: BRAND.forestSoft, fontWeight: '700', marginTop: 4 }}>
+          </AppText>
+          {lesson.location ? <AppText style={styles.subtitle}>{lesson.location}</AppText> : null}
+          <AppText style={{ color: BRAND.forestSoft, fontWeight: '700', marginTop: 4 }}>
             {lesson.planId ? 'Abrir plano →' : 'Ver agenda →'}
-          </Text>
+          </AppText>
         </Card>
       ) : (
         <Card style={{ backgroundColor: BRAND.greenPale }}>
-          <Text style={{ color: BRAND.ink, fontWeight: '800', fontSize: 17 }}>
+          <AppText style={{ color: BRAND.ink, fontWeight: '800', fontSize: 17 }}>
             Sem próximas aulas
-          </Text>
-          <Text style={styles.subtitle}>
+          </AppText>
+          <AppText style={styles.subtitle}>
             Não há aulas futuras na agenda. Pode consultar o calendário ou preparar uma aula.
-          </Text>
+          </AppText>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <Button title="Ver agenda" secondary onPress={() => router.push('/calendario')} />
             <Button title="Preparar aula" tone="soft" onPress={() => router.push('/plano/criar')} />
           </View>
         </Card>
       )}
-      <Text style={{ fontSize: 16, fontWeight: '800', color: BRAND.ink }}>Acesso rápido</Text>
+      <AppText style={{ fontSize: 16, fontWeight: '800', color: BRAND.ink }}>Acesso rápido</AppText>
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <Quick title="Presenças" onPress={() => router.push('/(tabs)/aulas')} />
         <Quick title="Avaliações" tone="purple" onPress={() => router.push('/avaliacoes')} />
@@ -243,22 +254,22 @@ export default function Home() {
           <Ionicons name="people-outline" size={24} color={BRAND.blue} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>
+          <AppText style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>
             Consultar alunos
-          </Text>
-          <Text style={styles.subtitle}>
+          </AppText>
+          <AppText style={styles.subtitle}>
             {
               (snapshot?.data.students || []).filter(
                 (student) => String(student.payload.status || 'Ativo').toLowerCase() === 'ativo',
               ).length
             }{' '}
             ativos · {(snapshot?.data.students || []).length} no total
-          </Text>
+          </AppText>
         </View>
         <Ionicons name="chevron-forward" size={20} color={BRAND.muted} />
       </Card>
       <Card>
-        <Text style={{ fontWeight: '800', color: BRAND.ink }}>Hoje na escola</Text>
+        <AppText style={{ fontWeight: '800', color: BRAND.ink }}>Hoje na escola</AppText>
         {user && user.schools.length > 1 ? (
           <ChoiceField
             label="Escola"
@@ -269,22 +280,22 @@ export default function Home() {
             }}
           />
         ) : null}
-        <Text style={styles.subtitle}>
+        <AppText style={styles.subtitle}>
           {snapshot?.school.name ||
             user?.schools.find((school) => school.id === schoolId)?.name ||
             'A sua escola'}
-        </Text>
-        <Text style={{ color: BRAND.muted }}>
+        </AppText>
+        <AppText style={{ color: BRAND.muted }}>
           {(snapshot?.data.classes || []).length} turmas · {(snapshot?.data.students || []).length}{' '}
           alunos · {plans.length} planos de aula
-        </Text>
+        </AppText>
       </Card>
-      <Text
+      <AppText
         onPress={() => void syncNow()}
         style={{ color: BRAND.forestSoft, textAlign: 'center', padding: 8 }}
       >
         Atualizar dados
-      </Text>
+      </AppText>
     </Page>
   );
 }

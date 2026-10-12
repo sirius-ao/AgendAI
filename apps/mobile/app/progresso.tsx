@@ -1,6 +1,7 @@
+import { AppText } from '@/components/app-text';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { Button, Card, ChoiceField, Empty, Heading, Page, styles } from '@/components/ui';
 import { BRAND } from '@/config';
 import { useDashboard } from '@/providers/dashboard-provider';
@@ -161,24 +162,24 @@ export default function Progress() {
             onPress={() => router.push({ pathname: '/alunos/[id]', params: { id: row.id } })}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
-              <Text style={{ color: BRAND.ink, fontWeight: '800', flex: 1 }}>{row.name}</Text>
+              <AppText style={{ color: BRAND.ink, fontWeight: '800', flex: 1 }}>{row.name}</AppText>
               {row.attention ? (
-                <Text style={{ color: BRAND.red, fontWeight: '800', fontSize: 12 }}>
+                <AppText style={{ color: BRAND.red, fontWeight: '800', fontSize: 12 }}>
                   Acompanhar
-                </Text>
+                </AppText>
               ) : null}
             </View>
-            <Text style={styles.subtitle}>
+            <AppText style={styles.subtitle}>
               Média {row.average === null ? '—' : `${row.average.toFixed(1)}/20`} · Presença{' '}
               {row.attendanceRate === null ? '—' : `${row.attendanceRate}%`}
-            </Text>
-            <Text style={styles.subtitle}>
+            </AppText>
+            <AppText style={styles.subtitle}>
               Últimas notas:{' '}
               {row.assessments.length
                 ? row.assessments.map((score) => score.toFixed(1)).join(' · ')
                 : 'sem avaliações'}
-            </Text>
-            <Text style={{ color: BRAND.forestSoft, fontWeight: '700' }}>Abrir perfil →</Text>
+            </AppText>
+            <AppText style={{ color: BRAND.forestSoft, fontWeight: '700' }}>Abrir perfil →</AppText>
           </Card>
         ))
       ) : (
@@ -213,8 +214,8 @@ function Metric({
   const color = tone === 'purple' ? BRAND.purpleInk : tone === 'red' ? BRAND.red : BRAND.forestSoft;
   return (
     <Card style={{ flex: 1, paddingHorizontal: 10 }}>
-      <Text style={styles.subtitle}>{label}</Text>
-      <Text style={{ color, fontSize: 18, fontWeight: '900' }}>{value}</Text>
+      <AppText style={styles.subtitle}>{label}</AppText>
+      <AppText style={{ color, fontSize: 18, fontWeight: '900' }}>{value}</AppText>
     </Card>
   );
 }

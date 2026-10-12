@@ -1,12 +1,14 @@
-import { Link, router } from 'expo-router';
+import { AppText } from '@/components/app-text';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Linking, Text } from 'react-native';
+import { Linking } from 'react-native';
 import { Button, Card, Field, Notice, Page, Heading } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
 import { WEBSITE_URL } from '@/config';
 
 export default function SignUp() {
   const { signUp } = useAuth();
+  const params = useLocalSearchParams<{ convite?: string }>();
   const [name, setName] = useState('');
   const [schoolName, setSchoolName] = useState('');
   const [email, setEmail] = useState('');
@@ -20,18 +22,30 @@ export default function SignUp() {
       try {
         const parsed = new URL(url);
         const token = parsed.searchParams.get('turnstileToken');
-        if (parsed.protocol === 'agendaki:' && parsed.pathname.endsWith('/criar-conta') && token) setTurnstileToken(token);
-      } catch { /* Ignore unrelated links. */ }
+        if (parsed.protocol === 'agendaki:' && parsed.pathname.endsWith('/criar-conta') && token)
+          setTurnstileToken(token);
+      } catch {
+        /* Ignore unrelated links. */
+      }
     };
     const subscription = Linking.addEventListener('url', ({ url }) => receive(url));
-    void Linking.getInitialURL().then((url) => { if (url) receive(url); });
+    void Linking.getInitialURL().then((url) => {
+      if (url) receive(url);
+    });
     return () => subscription.remove();
   }, []);
   const submit = async () => {
     setBusy(true);
     setError('');
     try {
-      const result = await signUp({ name, email, password, schoolName, turnstileToken });
+      const result = await signUp({
+        name,
+        email,
+        password,
+        schoolName: params.convite ? undefined : schoolName,
+        invitationToken: params.convite,
+        turnstileToken,
+      });
       if (result.verificationRequired) setDone(true);
       else router.replace('/(tabs)');
     } catch (e) {
@@ -48,16 +62,18 @@ export default function SignUp() {
         <Notice text={error} type="error" />
         {done ? (
           <>
-            <Text style={{ fontSize: 20, fontWeight: '800' }}>Confirme o seu email</Text>
-            <Text>
+            <AppText style={{ fontSize: 20, fontWeight: '800' }}>Confirme o seu email</AppText>
+            <AppText>
               Enviámos uma ligação de confirmação para {email}. Abra o email para ativar a conta.
-            </Text>
+            </AppText>
             <Button title="Voltar a entrar" onPress={() => router.replace('/(auth)/entrar')} />
           </>
         ) : (
           <>
             <Field label="Nome completo" value={name} onChangeText={setName} autoComplete="name" />
-            <Field label="Nome da escola" value={schoolName} onChangeText={setSchoolName} />
+            {!params.convite && (
+              <Field label="Nome da escola" value={schoolName} onChangeText={setSchoolName} />
+            )}
             <Field
               label="Email"
               value={email}
@@ -78,14 +94,28 @@ export default function SignUp() {
               onPress={() => void Linking.openURL(`${WEBSITE_URL}/turnstile/register`)}
               disabled={busy}
             />
-            <Text>Conclua a verificação no navegador e toque em “Voltar à aplicação”.</Text>
-            <Button title="Criar conta" onPress={() => void submit()} loading={busy} disabled={!turnstileToken} />
+            <AppText>Conclua a verificação no navegador e toque em “Voltar à aplicação”.</AppText>
+            <Button
+              title="Criar conta"
+              onPress={() => void submit()}
+              loading={busy}
+              disabled={!turnstileToken}
+            />
           </>
         )}
       </Card>
-      <Text style={{ textAlign: 'center' }}>
-        Já tem conta? <Link href="/(auth)/entrar">Entrar</Link>
-      </Text>
+      <AppText style={{ textAlign: 'center' }}>
+        Já tem conta?{' '}
+        <Link
+          href={
+            params.convite
+              ? (`/(auth)/entrar?convite=${encodeURIComponent(params.convite)}` as never)
+              : '/(auth)/entrar'
+          }
+        >
+          Entrar
+        </Link>
+      </AppText>
     </Page>
   );
 }

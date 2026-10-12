@@ -1,8 +1,9 @@
+import { AppText } from '@/components/app-text';
 import { BRAND } from '@/config';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { Button, Card, ChoiceField, Empty, Field, Heading, Page, styles } from '@/components/ui';
 import { SchoolDataStatus } from '@/components/school-data-status';
 import { useAuth } from '@/providers/auth-provider';
@@ -84,9 +85,9 @@ export default function Students() {
         ]}
         onSelect={setStatus}
       />
-      <Text style={{ color: BRAND.muted, fontSize: 13, fontWeight: '700' }}>
+      <AppText style={{ color: BRAND.muted, fontSize: 13, fontWeight: '700' }}>
         {students.length} {students.length === 1 ? 'aluno encontrado' : 'alunos encontrados'}
-      </Text>
+      </AppText>
       {students.length ? (
         students.map((s) => (
           <Card
@@ -140,7 +141,7 @@ function ViewInitials({ name }: { name: string }) {
         justifyContent: 'center',
       }}
     >
-      <Text style={{ color: BRAND.blue, fontSize: 16, fontWeight: '800' }}>{initials}</Text>
+      <AppText style={{ color: BRAND.blue, fontSize: 16, fontWeight: '800' }}>{initials}</AppText>
     </View>
   );
 }
@@ -159,15 +160,15 @@ function ViewText({
   const active = status.trim().toLocaleLowerCase('pt') === 'ativo';
   return (
     <View style={{ flex: 1, gap: 2 }}>
-      <Text style={{ color: BRAND.ink, fontWeight: '800' }}>{name}</Text>
-      <Text style={styles.subtitle}>
+      <AppText style={{ color: BRAND.ink, fontWeight: '800' }}>{name}</AppText>
+      <AppText style={styles.subtitle}>
         {[className, contact].filter(Boolean).join(' · ') || 'Turma não indicada'}
-      </Text>
-      <Text
+      </AppText>
+      <AppText
         style={{ color: active ? BRAND.forestSoft : BRAND.muted, fontSize: 11, fontWeight: '700' }}
       >
         {status}
-      </Text>
+      </AppText>
     </View>
   );
 }

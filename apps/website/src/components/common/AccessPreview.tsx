@@ -1,12 +1,13 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Check } from 'lucide-react';
 import { Button, Input } from '@agendai/ui';
 import { Logo } from './Logo';
 import { useRouter } from 'next/navigation';
-import { apiContact, apiLogin, apiRegister, apiRequest } from '@/lib/api/client';
+import { ApiError, apiContact, apiGoogleAuth, apiLogin, apiRegister, apiRequest } from '@/lib/api/client';
 import { Turnstile } from './Turnstile';
+import { GoogleSignInButton } from './GoogleSignInButton';
 const planLabels: Record<string, string> = { pro: 'Professor Pro', escola: 'Escola Start', escola30: 'Escola Plus', plus: 'Escola Premium' };
 export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto' }) {
   const [message, setMessage] = useState('');
@@ -17,9 +18,44 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
   const [selectedPlan, setSelectedPlan] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
+  const [loginMfaRequired, setLoginMfaRequired] = useState(false);
+  const [pendingLogin, setPendingLogin] = useState<{ email: string; password: string; googleCredential?: string } | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
   const contact = mode === 'contacto';
   const login = mode === 'entrar';
+  const handleGoogleCredential = useCallback(async (credential: string) => {
+    const formElement = formRef.current;
+    if (!formElement) return false;
+    const data = new FormData(formElement);
+    const inviteToken = invitationToken || undefined;
+    setBusy(true);
+    setMessage('');
+    try {
+      const mfaCode = loginMfaRequired ? String(data.get('mfaCode') || '') : '';
+      const result = await apiGoogleAuth({
+        credential,
+        mode: login ? 'LOGIN' : 'REGISTER',
+        ...(!login ? { name: String(data.get('name') || ''), ...(inviteToken ? { invitationToken: inviteToken } : { schoolName: String(data.get('schoolName') || '') }), turnstileToken } : { ...(mfaCode ? { mfaCode } : {}), ...(inviteToken ? { invitationToken: inviteToken } : {}) }),
+      });
+      if (inviteToken) sessionStorage.removeItem('agendai_invitation_token');
+      const user = result.user as { isSuperAdmin?: boolean; adminRole?: string } | undefined;
+      router.push(user?.isSuperAdmin || user?.adminRole === 'SUPPORT' ? '/admin' : '/dashboard');
+      return false;
+    } catch (error) {
+      if (login && error instanceof ApiError && error.code === 'MFA_REQUIRED') {
+        setPendingLogin({ email: '', password: '', googleCredential: credential });
+        setLoginMfaRequired(true);
+        setMessage('A sua conta requer um código autenticador para concluir a entrada.');
+        return true;
+      }
+      setMessage(error instanceof Error ? error.message : 'Não foi possível autenticar com Google. Tente novamente.');
+      return false;
+    } finally {
+      if (!login) { setTurnstileToken(''); setCaptchaResetKey((key) => key + 1); }
+      setBusy(false);
+    }
+  }, [invitationToken, login, loginMfaRequired, router, turnstileToken]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const url = new URL(window.location.href);
@@ -69,12 +105,12 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
           {contact
             ? 'Vamos conversar sobre a sua escola.'
             : login
-              ? 'Bem-vindo de volta.'
+              ? loginMfaRequired ? 'Confirmação de segurança.' : 'Bem-vindo de volta.'
               : 'O seu próximo plano começa aqui.'}
         </h2>
-        <p>{contact ? 'Prepare uma mensagem para a equipa AgendAKI.' : login ? 'Entre na sua conta AgendAKI.' : 'Crie a conta da sua escola e comece a organizar o trabalho.'}</p>
+        <p>{contact ? 'Prepare uma mensagem para a equipa AgendAKI.' : login ? loginMfaRequired ? 'A palavra-passe foi validada. Falta confirmar o código autenticador.' : 'Entre na sua conta AgendAKI.' : 'Crie a conta da sua escola e comece a organizar o trabalho.'}</p>
         {contact && selectedPlan && <div className="form-notice">Interesse no plano: {planLabels[selectedPlan] || selectedPlan}</div>}
-        <form
+        <form ref={formRef}
           onSubmit={async (e) => {
             e.preventDefault();
             const formElement = e.currentTarget;
@@ -90,12 +126,16 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
                 setTurnstileToken(''); setCaptchaResetKey((key) => key + 1);
                 setMessage('Mensagem enviada. A equipa AgendAKI entrará em contacto consigo.');
               } else if (login) {
-                const result = await apiLogin(String(data.get('email')), String(data.get('password')), String(data.get('mfaCode') || '') || undefined);
+                const result = loginMfaRequired && pendingLogin?.googleCredential
+                  ? await apiGoogleAuth({ credential: pendingLogin.googleCredential, mode: 'LOGIN', mfaCode: String(data.get('mfaCode') || '') })
+                  : await apiLogin(loginMfaRequired ? pendingLogin?.email || '' : String(data.get('email')), loginMfaRequired ? pendingLogin?.password || '' : String(data.get('password')), loginMfaRequired ? String(data.get('mfaCode') || '') : undefined);
                 if ((result.user as { isSuperAdmin?: boolean; adminRole?: string } | undefined)?.isSuperAdmin || (result.user as { adminRole?: string } | undefined)?.adminRole === 'SUPPORT') destination = '/admin';
                 if (inviteToken) {
                   await apiRequest('/invitations/accept', { method: 'POST', body: JSON.stringify({ token: inviteToken }) });
                   sessionStorage.removeItem('agendai_invitation_token');
                 }
+                setPendingLogin(null);
+                setLoginMfaRequired(false);
               } else {
                 const email = String(data.get('email'));
                 const result = await apiRegister({ name: String(data.get('name')), email, password: String(data.get('password')), turnstileToken, ...(inviteToken ? { invitationToken: inviteToken } : { schoolName: String(data.get('schoolName')) }) });
@@ -110,6 +150,12 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
               }
               router.push(destination);
             } catch (error) {
+              if (login && !loginMfaRequired && error instanceof ApiError && error.code === 'MFA_REQUIRED') {
+                setPendingLogin({ email: String(data.get('email')), password: String(data.get('password')) });
+                setLoginMfaRequired(true);
+                setMessage('A sua conta requer um código autenticador para concluir a entrada.');
+                return;
+              }
               if (!login) { setTurnstileToken(''); setCaptchaResetKey((key) => key + 1); }
               setMessage(error instanceof Error ? error.message : 'Não foi possível entrar. Tente novamente.');
             } finally { setBusy(false); }
@@ -127,7 +173,7 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
               <Input name="schoolName" required={!invitationToken} minLength={2} maxLength={140} autoComplete="organization" placeholder="Ex.: Escola Horizonte" />
             </label>
           )}
-          <label>
+          {(!login || !loginMfaRequired) && <label>
             O seu e-mail
             <Input
               name="email"
@@ -136,7 +182,7 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
               autoComplete="email"
               placeholder="nome@exemplo.com"
             />
-          </label>
+          </label>}
           {contact ? (
             <>
               <label>
@@ -153,6 +199,11 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
                 />
               </label>
             </>
+          ) : login && loginMfaRequired ? (
+            <>
+              <p className="login-mfa-instructions">Confirma a tua identidade com o código de seis dígitos da aplicação autenticadora.</p>
+              <label>Código autenticador<Input name="mfaCode" required inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" placeholder="000000" autoFocus /></label>
+            </>
           ) : (
             <label>
               Palavra-passe
@@ -166,22 +217,26 @@ export function AccessPreview({ mode }: { mode: 'entrar' | 'comecar' | 'contacto
               />
             </label>
           )}
-          {login && <label>Código autenticador — quando exigido pelo servidor<Input name="mfaCode" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" placeholder="6 dígitos" /></label>}
           {!login && <Turnstile action={contact ? 'contact' : 'register'} onToken={setTurnstileToken} resetKey={captchaResetKey} />}
+          {login && loginMfaRequired && <button className="login-mfa-back" type="button" onClick={() => { setLoginMfaRequired(false); setPendingLogin(null); setMessage(''); }}>← Voltar e corrigir os dados</button>}
           <Button type="submit">
-            {busy ? 'Aguarde…' : contact ? 'Enviar pedido' : login ? 'Entrar' : 'Criar conta'}
+            {busy ? 'Aguarde…' : contact ? 'Enviar pedido' : login ? loginMfaRequired ? 'Validar código e entrar' : 'Entrar' : 'Criar conta'}
             <ArrowRight size={17} />
           </Button>
           {message && <p role="alert" className="form-feedback">{message}</p>}
         </form>
+        {!contact && !(login && loginMfaRequired) && <>
+          <div className="access-or"><span>ou</span></div>
+          <GoogleSignInButton mode={login ? 'LOGIN' : 'REGISTER'} onCredential={handleGoogleCredential} disabled={busy} />
+        </>}
         {!contact && (
           <p className="access-switch">
             {login ? 'Ainda não tem conta?' : 'Já tem uma conta?'}{' '}
             <Link href={login ? '/comecar' : '/entrar'}>{login ? 'Começar grátis' : 'Entrar'}</Link>
           </p>
         )}
-        {login && <p className="access-switch"><Link href="/recuperar-palavra-passe">Esqueceu-se da palavra-passe?</Link></p>}
-        {(login || verificationPending) && (
+        {login && !loginMfaRequired && <p className="access-switch"><Link href="/recuperar-palavra-passe">Esqueceu-se da palavra-passe?</Link></p>}
+        {((login && !loginMfaRequired) || verificationPending) && (
           <p className="access-switch">
             {login ? 'Ainda não confirmou o email?' : 'Não recebeu a ligação?'}{' '}
             <Link href={verificationEmail ? `/verificar-email?email=${encodeURIComponent(verificationEmail)}` : '/verificar-email'}>

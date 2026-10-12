@@ -1,7 +1,8 @@
+import { AppText } from '@/components/app-text';
 import { Ionicons } from '@expo/vector-icons';
 import { BRAND } from '@/config';
 import { router } from 'expo-router';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { Card, Page, styles } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
 import { useDashboard } from '@/providers/dashboard-provider';
@@ -16,9 +17,11 @@ export default function More() {
   return (
     <Page>
       <Card>
-        <Text style={{ fontSize: 18, color: BRAND.ink, fontWeight: '800' }}>{user?.name}</Text>
-        <Text style={styles.subtitle}>{user?.email}</Text>
-        <Text style={styles.subtitle}>{user?.schools[0]?.name || 'Conta AgendAKI'}</Text>
+        <AppText style={{ fontSize: 18, color: BRAND.ink, fontWeight: '800' }}>
+          {user?.name}
+        </AppText>
+        <AppText style={styles.subtitle}>{user?.email}</AppText>
+        <AppText style={styles.subtitle}>{user?.schools[0]?.name || 'Conta AgendAKI'}</AppText>
       </Card>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
         {[
@@ -39,6 +42,8 @@ export default function More() {
           ['Progresso dos alunos', '/progresso'],
           ['Diário de turma', '/diario'],
           ['Comunicados', '/comunicados'],
+          ['Pendências', '/pendencias'],
+          ['Pesquisar', '/pesquisa'],
         ].map(([title, path], index) => (
           <View key={path} style={{ width: '48%' }}>
             <Card onPress={() => router.push(path as never)}>
@@ -63,6 +68,8 @@ export default function More() {
                       'trending-up-outline',
                       'book-outline',
                       'megaphone-outline',
+                      'checkbox-outline',
+                      'search-outline',
                     ] as const
                   )[index]
                 }
@@ -75,32 +82,32 @@ export default function More() {
                       : BRAND.green
                 }
               />
-              <Text style={{ color: BRAND.ink, fontWeight: '700' }}>{title}</Text>
+              <AppText style={{ color: BRAND.ink, fontWeight: '700' }}>{title}</AppText>
             </Card>
           </View>
         ))}
       </View>
       <Card>
-        <Text style={{ color: BRAND.ink, fontWeight: '800' }}>Sincronização</Text>
-        <Text style={styles.subtitle}>
+        <AppText style={{ color: BRAND.ink, fontWeight: '800' }}>Sincronização</AppText>
+        <AppText style={styles.subtitle}>
           {syncState === 'synced'
             ? 'Tudo atualizado'
             : syncState === 'offline'
               ? 'Sem internet · os dados locais estão disponíveis'
               : `${pendingCount} alteração(ões) pendentes`}
-        </Text>
-        <Text
+        </AppText>
+        <AppText
           onPress={() => void syncNow()}
           style={{ color: BRAND.forestSoft, fontWeight: '700', paddingVertical: 4 }}
         >
           Sincronizar agora
-        </Text>
+        </AppText>
       </Card>
       <Card onPress={() => router.push('/configuracoes')}>
-        <Text style={{ fontWeight: '700' }}>Ajuda e suporte →</Text>
+        <AppText style={{ fontWeight: '700' }}>Ajuda e suporte →</AppText>
       </Card>
       <Card onPress={() => void exit()}>
-        <Text style={{ color: BRAND.red, fontWeight: '800' }}>Sair da conta</Text>
+        <AppText style={{ color: BRAND.red, fontWeight: '800' }}>Sair da conta</AppText>
       </Card>
     </Page>
   );

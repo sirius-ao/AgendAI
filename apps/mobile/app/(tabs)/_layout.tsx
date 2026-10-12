@@ -1,8 +1,9 @@
+import { AppText } from '@/components/app-text';
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { router, Tabs } from 'expo-router';
 import { BRAND } from '@/config';
 import { useDashboard } from '@/providers/dashboard-provider';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { BrandLogo } from '@/components/ui';
 
 export default function TabsLayout() {
@@ -35,23 +36,49 @@ export default function TabsLayout() {
           );
         },
         headerRight: () => (
-          <Pressable onPress={() => void syncNow()} style={{ paddingHorizontal: 16 }}>
-            <Text
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Pesquisar"
+              onPress={() => router.push('/pesquisa')}
               style={{
-                color: syncState === 'error' ? BRAND.red : BRAND.forestSoft,
-                fontSize: 12,
-                fontWeight: '700',
+                minWidth: 48,
+                minHeight: 48,
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              {syncState === 'offline'
-                ? 'Offline'
-                : pendingCount
-                  ? `${pendingCount} pendente(s)`
-                  : syncState === 'loading'
-                    ? 'A sincronizar…'
-                    : 'Online'}
-            </Text>
-          </Pressable>
+              <Ionicons name="search-outline" size={22} color={BRAND.forestSoft} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Estado da sincronização"
+              onPress={() => void syncNow()}
+              style={{
+                minWidth: 48,
+                minHeight: 48,
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingHorizontal: 8,
+              }}
+            >
+              <AppText
+                style={{
+                  color: syncState === 'error' ? BRAND.red : BRAND.forestSoft,
+                  fontSize: 12,
+                  fontWeight: '700',
+                }}
+              >
+                {syncState === 'offline'
+                  ? 'Offline'
+                  : pendingCount
+                    ? `${pendingCount} pendente(s)`
+                    : syncState === 'loading'
+                      ? 'A sincronizar…'
+                      : 'Online'}
+              </AppText>
+            </Pressable>
+          </View>
         ),
       })}
     >

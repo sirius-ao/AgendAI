@@ -188,18 +188,31 @@ export class AdminService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async schoolDetail(id: string) {
+  async schoolDetail(id: string, query: AdminListQueryDto) {
     const school = await this.prisma.school.findUnique({
       where: { id },
       include: {
         _count: { select: { memberships: true, students: true, classes: true, dashboardRecords: true } },
-        memberships: { include: { user: { select: { id: true, name: true, email: true, isActive: true, emailVerifiedAt: true, lastLoginAt: true, createdAt: true } } }, orderBy: { createdAt: 'asc' } },
         auditEvents: { orderBy: { createdAt: 'desc' }, take: 30, include: { actor: { select: { name: true, email: true } } } },
       },
     });
     if (!school) throw new NotFoundException('Escola não encontrada');
+    const limit = Math.max(1, Math.min(100, Number(query.limit) || 20));
+    const rows = await this.prisma.schoolMembership.findMany({
+        where: { schoolId: id },
+        take: limit + 1,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        include: { user: { select: { id: true, name: true, email: true, isActive: true, emailVerifiedAt: true, lastLoginAt: true, createdAt: true } } },
+      });
+    const hasMore = rows.length > limit;
+    const memberships = rows.slice(0, limit);
     const { auditEvents, ...details } = school;
-    return { ...details, auditEvents };
+    return {
+      ...details,
+      memberships: { items: memberships, nextCursor: hasMore ? memberships.at(-1)?.id ?? null : null },
+      auditEvents,
+    };
   }
 
   async listSchools(query: AdminListQueryDto) {
@@ -496,17 +509,19 @@ export class AdminService implements OnModuleInit, OnModuleDestroy {
     return { success: true, reauthenticate: true };
   }
 
-  async listBackups() {
+  async listBackups(query: AdminListQueryDto) {
+    const limit = Math.max(1, Math.min(100, Number(query.limit) || 20));
     const rows = await this.prisma.adminBackup.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 50,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
       include: { requester: { select: { id: true, name: true, email: true } } },
     });
-    return rows.map(({ error, ...item }) => ({
-      ...item,
-      sizeBytes: item.sizeBytes?.toString() || null,
-      error: error || null,
+    const hasMore = rows.length > limit;
+    const items = rows.slice(0, limit).map(({ error, ...item }) => ({
+      ...item, sizeBytes: item.sizeBytes?.toString() || null, error: error || null,
     }));
+    return { items, nextCursor: hasMore ? items.at(-1)?.id ?? null : null };
   }
 
   async verifyBackup(actorId: string, id: string) {
