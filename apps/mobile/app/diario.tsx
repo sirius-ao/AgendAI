@@ -1,5 +1,6 @@
+import { AppText } from '@/components/app-text';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert } from 'react-native';
 import {
   Button,
   Card,
@@ -84,11 +85,11 @@ export default function ClassDiary() {
         back
       />
       <Card style={{ backgroundColor: BRAND.greenPale }}>
-        <Text style={{ color: BRAND.forestSoft, fontWeight: '800' }}>REGISTOS PRIVADOS</Text>
-        <Text style={styles.subtitle}>
+        <AppText style={{ color: BRAND.forestSoft, fontWeight: '800' }}>REGISTOS PRIVADOS</AppText>
+        <AppText style={styles.subtitle}>
           As observações ficam disponíveis ao professor que as registou e à administração escolar,
           conforme as permissões. Não são enviadas aos alunos.
-        </Text>
+        </AppText>
       </Card>
       <Card>
         <ChoiceField
@@ -135,19 +136,21 @@ export default function ClassDiary() {
         />
         <Button title="Guardar no diário" onPress={() => void create()} loading={busy} />
       </Card>
-      <Text style={{ color: BRAND.ink, fontSize: 17, fontWeight: '800' }}>Histórico da turma</Text>
+      <AppText style={{ color: BRAND.ink, fontSize: 17, fontWeight: '800' }}>
+        Histórico da turma
+      </AppText>
       {entries.length ? (
         entries.map((row) => {
           const student = students.find((item) => item.recordId === row.payload.studentId);
           return (
             <Card key={row.recordId}>
-              <Text style={{ color: BRAND.forestSoft, fontWeight: '800' }}>
+              <AppText style={{ color: BRAND.forestSoft, fontWeight: '800' }}>
                 {String(row.payload.category || 'Observação')} · {String(row.payload.date || '')}
-              </Text>
-              <Text style={{ color: BRAND.ink, fontWeight: '700' }}>
+              </AppText>
+              <AppText style={{ color: BRAND.ink, fontWeight: '700' }}>
                 {String(student?.payload.name || 'Turma toda')}
-              </Text>
-              <Text style={styles.subtitle}>{String(row.payload.note || '')}</Text>
+              </AppText>
+              <AppText style={styles.subtitle}>{String(row.payload.note || '')}</AppText>
             </Card>
           );
         })

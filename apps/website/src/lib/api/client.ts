@@ -4,7 +4,11 @@ const API_URL = '/api/v1';
 const TOKEN_KEY = 'agendai_access_token';
 let refreshPromise: Promise<boolean> | null = null;
 
-export type ApiUser = { id: string; name: string; email: string; phone?: string; schools: { id: string; name: string; address: string; academicYear: string; role: string }[] };
+export class ApiError extends Error {
+  constructor(message: string, readonly code?: string) { super(message); this.name = 'ApiError'; }
+}
+
+export type ApiUser = { id: string; name: string; email: string; phone?: string; isSuperAdmin?: boolean; adminRole?: 'NONE' | 'SUPPORT' | 'SUPER_ADMIN'; adminMfaEnabled?: boolean; schools: { id: string; name: string; address: string; academicYear: string; role: string }[] };
 
 function token() { return typeof window === 'undefined' ? null : sessionStorage.getItem(TOKEN_KEY); }
 function saveToken(value: string | null) { if (typeof window !== 'undefined') value ? sessionStorage.setItem(TOKEN_KEY, value) : sessionStorage.removeItem(TOKEN_KEY); }
@@ -35,21 +39,27 @@ async function request<T>(path: string, init: RequestInit = {}, authenticated = 
   let response = await send();
   if (authenticated && response.status === 401 && await refreshSession()) response = await send();
   if (!response.ok) {
-    const body = await response.json().catch(() => null) as { message?: string | string[] } | null;
+    const body = await response.json().catch(() => null) as { message?: string | string[]; code?: string } | null;
     const message = Array.isArray(body?.message) ? body.message.join(' · ') : body?.message;
-    throw new Error(message || `Pedido falhou (${response.status})`);
+    throw new ApiError(message || `Pedido falhou (${response.status})`, body?.code);
   }
   return response.json() as Promise<T>;
 }
 
-export async function apiLogin(email: string, password: string) {
-  const result = await request<{ accessToken: string; user: unknown }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }, false);
+export async function apiLogin(email: string, password: string, mfaCode?: string) {
+  const result = await request<{ accessToken: string; user: unknown }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password, ...(mfaCode ? { mfaCode } : {}) }) }, false);
   saveToken(result.accessToken);
   return result;
 }
 export async function apiRegister(input: { name: string; email: string; password: string; schoolName?: string; invitationToken?: string; turnstileToken?: string }) {
   const result = await request<{ accessToken?: string; user?: unknown; verificationRequired?: boolean; emailSent?: boolean; email?: string }>('/auth/register', { method: 'POST', body: JSON.stringify(input) }, false);
   if (result.accessToken) saveToken(result.accessToken);
+  return result;
+}
+export async function apiGoogleNonce() { return request<{ nonce: string }>('/auth/google/nonce', { method: 'GET' }, false); }
+export async function apiGoogleAuth(input: { credential: string; mode: 'LOGIN' | 'REGISTER'; name?: string; schoolName?: string; invitationToken?: string; turnstileToken?: string; mfaCode?: string }) {
+  const result = await request<{ accessToken: string; user: unknown }>('/auth/google', { method: 'POST', body: JSON.stringify(input) }, false);
+  saveToken(result.accessToken);
   return result;
 }
 export async function apiVerifyEmail(token: string) {
@@ -83,3 +93,36 @@ export async function apiLogout() {
 }
 export async function apiMe() { return request<ApiUser>('/auth/me'); }
 export async function apiRequest<T>(path: string, init?: RequestInit) { return request<T>(path, init); }
+export async function apiDownload(path: string, filename: string) {
+  type SaveHandle = { createWritable: () => Promise<WritableStream<Uint8Array>> };
+  const pickerWindow = window as Window & {
+    showSaveFilePicker?: (options: { suggestedName: string }) => Promise<SaveHandle>;
+  };
+  let fileHandle: SaveHandle | undefined;
+  if (pickerWindow.showSaveFilePicker) {
+    try {
+      fileHandle = await pickerWindow.showSaveFilePicker({ suggestedName: filename });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      throw error;
+    }
+  }
+  const send = () => fetch(`${API_URL}${path}`, { credentials: 'include', headers: token() ? { Authorization: `Bearer ${token()}` } : {} });
+  let response = await send();
+  if (response.status === 401 && await refreshSession()) response = await send();
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { message?: string } | null;
+    throw new Error(body?.message || `Pedido falhou (${response.status})`);
+  }
+  if (fileHandle && response.body) {
+    await response.body.pipeTo(await fileHandle.createWritable());
+    return;
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

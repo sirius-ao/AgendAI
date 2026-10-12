@@ -20,6 +20,9 @@ async function bootstrap() {
   }
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL é obrigatório');
   if (process.env.NODE_ENV === 'production') {
+    if (process.env.ADMIN_MFA_REQUIRED !== undefined && !['true', 'false'].includes(process.env.ADMIN_MFA_REQUIRED.trim().toLowerCase())) {
+      throw new Error('ADMIN_MFA_REQUIRED deve ser true ou false');
+    }
     const databasePassword = new URL(process.env.DATABASE_URL).password;
     if (databasePassword.length < 32) throw new Error('A palavra-passe da base de dados deve ter pelo menos 32 caracteres aleatórios');
     requireHttpsOrLocalhost(process.env.NEXT_PUBLIC_SITE_URL, 'NEXT_PUBLIC_SITE_URL');
@@ -29,6 +32,9 @@ async function bootstrap() {
     }
     if (!process.env.TURNSTILE_SECRET_KEY || !process.env.TURNSTILE_HOSTNAMES?.split(',').some((host) => host.trim())) {
       throw new Error('TURNSTILE_SECRET_KEY e TURNSTILE_HOSTNAMES são obrigatórios em produção');
+    }
+    if (!process.env.SUPER_ADMIN_EMAILS?.split(',').some((email) => email.trim()) || !/^[a-f\d]{64}$/i.test(process.env.ADMIN_BACKUP_ENCRYPTION_KEY || '') || !/^[a-f\d]{64}$/i.test(process.env.ADMIN_MFA_ENCRYPTION_KEY || '')) {
+      throw new Error('SUPER_ADMIN_EMAILS, ADMIN_BACKUP_ENCRYPTION_KEY e ADMIN_MFA_ENCRYPTION_KEY são obrigatórios em produção');
     }
   }
   if (process.env.NODE_ENV === 'production' && (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM || !process.env.CONTACT_EMAIL)) {

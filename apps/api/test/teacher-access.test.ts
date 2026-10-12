@@ -28,4 +28,16 @@ describe('teacher dashboard access', () => {
     assert.equal(teacherCanReadRecord({ ...base, value: { subjectId: 'math', classId: 'class-assigned', visibility: 'Apenas eu', teacherId: 'teacher-b' }, createdById: 'teacher-b' }), false);
     assert.equal(teacherCanReadRecord({ ...base, value: { subjectId: 'science', classId: 'class-unassigned', visibility: 'Equipa pedagógica' } }), false);
   });
+
+  it('limits direct conversations to their explicit participants', () => {
+    const base = {
+      collection: 'CONVERSATIONS',
+      recordId: 'chat-1',
+      value: { direct: true, participantIds: ['teacher-a', 'teacher-b'] },
+      scope,
+    };
+    assert.equal(teacherCanReadRecord({ ...base, userId: 'teacher-a' }), true);
+    assert.equal(teacherCanReadRecord({ ...base, userId: 'teacher-b' }), true);
+    assert.equal(teacherCanReadRecord({ ...base, userId: 'teacher-c' }), false);
+  });
 });

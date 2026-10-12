@@ -1,8 +1,9 @@
+import { AppText } from '@/components/app-text';
 import { BRAND } from '@/config';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { Card, Empty, Field, Page, styles } from '@/components/ui';
 import { SchoolDataStatus } from '@/components/school-data-status';
 import { useDashboard } from '@/providers/dashboard-provider';
@@ -47,20 +48,22 @@ export default function Classes() {
   return (
     <Page>
       <SchoolDataStatus />
-      <Text style={{ color: BRAND.ink, fontSize: 20, fontWeight: '800' }}>As minhas turmas</Text>
-      <Text style={styles.subtitle}>
+      <AppText style={{ color: BRAND.ink, fontSize: 20, fontWeight: '800' }}>
+        As minhas turmas
+      </AppText>
+      <AppText style={styles.subtitle}>
         {rows.length} turmas · {activeStudents} alunos ativos
-      </Text>
+      </AppText>
       <Field
         label="Pesquisar turma"
         value={query}
         onChangeText={setQuery}
         placeholder="Nome, ano, sala ou turno"
       />
-      <Text style={{ color: BRAND.muted, fontSize: 13, fontWeight: '700' }}>
+      <AppText style={{ color: BRAND.muted, fontSize: 13, fontWeight: '700' }}>
         {filteredRows.length}{' '}
         {filteredRows.length === 1 ? 'turma encontrada' : 'turmas encontradas'}
-      </Text>
+      </AppText>
       {filteredRows.length ? (
         filteredRows.map((row) => {
           const classStudents = students.filter(
@@ -86,13 +89,13 @@ export default function Classes() {
                   <Ionicons name="book-outline" size={24} color={BRAND.white} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: BRAND.ink, fontSize: 17, fontWeight: '800' }}>
+                  <AppText style={{ color: BRAND.ink, fontSize: 17, fontWeight: '800' }}>
                     {String(row.payload.name || row.payload.title || 'Turma')}
-                  </Text>
-                  <Text style={styles.subtitle}>{details || 'Detalhes da turma'}</Text>
-                  <Text style={{ color: BRAND.forestSoft, fontSize: 12, fontWeight: '700' }}>
+                  </AppText>
+                  <AppText style={styles.subtitle}>{details || 'Detalhes da turma'}</AppText>
+                  <AppText style={{ color: BRAND.forestSoft, fontSize: 12, fontWeight: '700' }}>
                     {activeCount} ativos · {classStudents.length} no total
-                  </Text>
+                  </AppText>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={BRAND.muted} />
               </View>

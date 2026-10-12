@@ -4,6 +4,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly code?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -12,7 +13,7 @@ export class ApiError extends Error {
 
 async function parseResponse<T>(response: Response): Promise<T> {
   const body = (await response.json().catch(() => null)) as
-    { message?: string | string[] } | T | null;
+    { message?: string | string[]; code?: string } | T | null;
   if (!response.ok) {
     const raw = body && typeof body === 'object' && 'message' in body ? body.message : undefined;
     const message = Array.isArray(raw) ? raw.join(' · ') : raw;
@@ -21,6 +22,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
         ? message
         : `Não foi possível concluir o pedido (${response.status}).`,
       response.status,
+      body && typeof body === 'object' && 'code' in body ? body.code : undefined,
     );
   }
   return body as T;

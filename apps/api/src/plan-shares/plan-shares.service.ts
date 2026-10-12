@@ -97,7 +97,7 @@ export class PlanSharesService {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token))
       throw new NotFoundException('Este link não está disponível');
     const link = await this.prisma.sharedPlanLink.findFirst({
-      where: { tokenHash: tokenHash(token), revokedAt: null, expiresAt: { gt: new Date() } },
+      where: { tokenHash: tokenHash(token), revokedAt: null, expiresAt: { gt: new Date() }, school: { isActive: true }, createdBy: { isActive: true } },
     });
     if (!link) throw new NotFoundException('Este link expirou ou foi revogado');
     const [row, author] = await Promise.all([

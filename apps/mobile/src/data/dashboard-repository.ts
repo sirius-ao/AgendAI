@@ -27,6 +27,15 @@ export async function writeSnapshot(
 
 export async function enqueueOperation(db: SQLiteDatabase, operation: QueuedOperation) {
   await db.runAsync(
+    'DELETE FROM sync_failures_v1 WHERE account_id = ? AND school_id = ? AND operation_id IN (SELECT id FROM sync_queue_v2 WHERE account_id = ? AND school_id = ? AND collection = ? AND record_id = ?)',
+    operation.accountId,
+    operation.schoolId,
+    operation.accountId,
+    operation.schoolId,
+    operation.collection,
+    operation.recordId,
+  );
+  await db.runAsync(
     'INSERT INTO sync_queue_v2 (id, account_id, school_id, collection, record_id, method, payload, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(account_id, school_id, collection, record_id) DO UPDATE SET id = excluded.id, method = excluded.method, payload = excluded.payload, created_at = excluded.created_at',
     operation.id,
     operation.accountId,
@@ -43,6 +52,7 @@ export async function getQueue(
   db: SQLiteDatabase,
   accountId: string,
   schoolId: string,
+  includeFailed = true,
 ): Promise<QueuedOperation[]> {
   const rows = await db.getAllAsync<{
     id: string;
@@ -54,7 +64,7 @@ export async function getQueue(
     payload: string | null;
     created_at: string;
   }>(
-    'SELECT id, account_id, school_id, collection, record_id, method, payload, created_at FROM sync_queue_v2 WHERE account_id = ? AND school_id = ? ORDER BY created_at ASC',
+    `SELECT q.id, q.account_id, q.school_id, q.collection, q.record_id, q.method, q.payload, q.created_at FROM sync_queue_v2 q WHERE q.account_id = ? AND q.school_id = ? ${includeFailed ? '' : 'AND NOT EXISTS (SELECT 1 FROM sync_failures_v1 f WHERE f.account_id = q.account_id AND f.school_id = q.school_id AND f.operation_id = q.id)'} ORDER BY q.created_at ASC`,
     accountId,
     schoolId,
   );
@@ -71,7 +81,54 @@ export async function getQueue(
 }
 
 export async function removeQueuedOperation(db: SQLiteDatabase, accountId: string, id: string) {
+  await db.runAsync(
+    'DELETE FROM sync_failures_v1 WHERE account_id = ? AND operation_id = ?',
+    accountId,
+    id,
+  );
   await db.runAsync('DELETE FROM sync_queue_v2 WHERE account_id = ? AND id = ?', accountId, id);
+}
+
+export async function markQueueFailure(
+  db: SQLiteDatabase,
+  accountId: string,
+  schoolId: string,
+  operationId: string,
+  message: string,
+) {
+  await db.runAsync(
+    'INSERT INTO sync_failures_v1 (account_id, school_id, operation_id, message, failed_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id, school_id, operation_id) DO UPDATE SET message = excluded.message, failed_at = excluded.failed_at',
+    accountId,
+    schoolId,
+    operationId,
+    message,
+    new Date().toISOString(),
+  );
+}
+export async function clearQueueFailure(
+  db: SQLiteDatabase,
+  accountId: string,
+  schoolId: string,
+  operationId: string,
+) {
+  await db.runAsync(
+    'DELETE FROM sync_failures_v1 WHERE account_id = ? AND school_id = ? AND operation_id = ?',
+    accountId,
+    schoolId,
+    operationId,
+  );
+}
+export async function getQueueFailures(db: SQLiteDatabase, accountId: string, schoolId: string) {
+  return db.getAllAsync<{
+    operation_id: string;
+    message: string;
+    record_id: string;
+    collection: string;
+  }>(
+    'SELECT f.operation_id, f.message, q.record_id, q.collection FROM sync_failures_v1 f JOIN sync_queue_v2 q ON q.account_id = f.account_id AND q.school_id = f.school_id AND q.id = f.operation_id WHERE f.account_id = ? AND f.school_id = ? ORDER BY f.failed_at DESC',
+    accountId,
+    schoolId,
+  );
 }
 
 export async function queueSize(db: SQLiteDatabase, accountId: string, schoolId: string) {

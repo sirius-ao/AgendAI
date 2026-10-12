@@ -1,6 +1,7 @@
+import { AppText } from '@/components/app-text';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { Button, Card, Empty, Field, Heading, Notice, Page, styles } from '@/components/ui';
 import { BRAND } from '@/config';
 import { useAuth } from '@/providers/auth-provider';
@@ -66,13 +67,13 @@ export default function Conversation() {
               <Card
                 style={{ maxWidth: '88%', backgroundColor: mine ? BRAND.greenPale : BRAND.white }}
               >
-                <Text style={{ color: BRAND.muted, fontSize: 11 }}>
+                <AppText style={{ color: BRAND.muted, fontSize: 11 }}>
                   {mine ? 'Eu' : String(message.senderName || 'Escola')}
-                </Text>
-                <Text style={{ color: BRAND.ink }}>{String(message.text || '')}</Text>
-                <Text style={styles.subtitle}>
+                </AppText>
+                <AppText style={{ color: BRAND.ink }}>{String(message.text || '')}</AppText>
+                <AppText style={styles.subtitle}>
                   {message.time ? new Date(String(message.time)).toLocaleString('pt-PT') : ''}
-                </Text>
+                </AppText>
               </Card>
             </View>
           );

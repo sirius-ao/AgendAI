@@ -51,8 +51,9 @@ export class MembersService {
   }
   async accept(userId: string, token: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    const invitation = await this.prisma.schoolInvitation.findUnique({ where: { tokenHash: digest(token) } });
+    const invitation = await this.prisma.schoolInvitation.findUnique({ where: { tokenHash: digest(token) }, include: { school: { select: { isActive: true } } } });
     if (!invitation || invitation.revokedAt || invitation.acceptedAt || invitation.expiresAt <= new Date() || invitation.email !== user.email) throw new NotFoundException('Convite inválido, expirado ou destinado a outro email');
+    if (!invitation.school.isActive) throw new ForbiddenException('Esta escola está suspensa e não pode aceitar novos membros');
     await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.schoolInvitation.updateMany({ where: { id: invitation.id, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } }, data: { acceptedAt: new Date() } });
       if (!claimed.count) throw new NotFoundException('Convite já utilizado');

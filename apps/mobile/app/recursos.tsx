@@ -1,7 +1,8 @@
+import { AppText } from '@/components/app-text';
 import { Ionicons } from '@expo/vector-icons';
 import { Directory, File, Paths } from 'expo-file-system';
 import { useMemo, useState } from 'react';
-import { Alert, Linking, Text, View } from 'react-native';
+import { Alert, Linking, View } from 'react-native';
 import { Button, Card, Empty, Field, Heading, Notice, Page, styles } from '@/components/ui';
 import { BRAND } from '@/config';
 import { useDashboard } from '@/providers/dashboard-provider';
@@ -104,18 +105,18 @@ export default function Resources() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Ionicons name="book-outline" size={25} color={BRAND.green} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>
+                  <AppText style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>
                     {String(payload.title || 'Recurso')}
-                  </Text>
-                  <Text style={styles.subtitle}>
+                  </AppText>
+                  <AppText style={styles.subtitle}>
                     {[payload.subjectName || payload.category, payload.level, payload.format]
                       .filter(Boolean)
                       .join(' · ')}
-                  </Text>
+                  </AppText>
                 </View>
               </View>
               {payload.description ? (
-                <Text style={styles.subtitle}>{String(payload.description)}</Text>
+                <AppText style={styles.subtitle}>{String(payload.description)}</AppText>
               ) : null}
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <Button

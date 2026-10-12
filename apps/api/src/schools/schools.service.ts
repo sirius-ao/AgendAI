@@ -5,7 +5,7 @@ import type { CreateSchoolDto, UpdateSchoolDto } from './schools.dto.js';
 @Injectable()
 export class SchoolsService {
   constructor(private readonly prisma: PrismaService) {}
-  list(userId: string) { return this.prisma.schoolMembership.findMany({ where: { userId }, include: { school: true }, orderBy: { createdAt: 'asc' } }).then((rows) => rows.map(({ role, school }) => ({ ...school, role }))); }
+  list(userId: string) { return this.prisma.schoolMembership.findMany({ where: { userId, school: { isActive: true } }, include: { school: true }, orderBy: { createdAt: 'asc' } }).then((rows) => rows.map(({ role, school }) => ({ ...school, role }))); }
   async create(userId: string, data: CreateSchoolDto) {
     const result = await this.prisma.$transaction(async (tx) => {
       const school = await tx.school.create({ data: { name: data.name.trim(), address: data.address?.trim(), academicYear: data.academicYear?.trim() } });
@@ -15,7 +15,7 @@ export class SchoolsService {
     return result;
   }
   async assertMembership(userId: string, schoolId: string) {
-    const membership = await this.prisma.schoolMembership.findUnique({ where: { userId_schoolId: { userId, schoolId } } });
+    const membership = await this.prisma.schoolMembership.findFirst({ where: { userId, schoolId, school: { isActive: true } } });
     if (!membership) throw new ForbiddenException('Sem acesso a esta escola');
     return membership;
   }

@@ -153,7 +153,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const storageReadable = useRef(false);
   const serverRecords = useRef<RecordIndex>({});
   const serverSchool = useRef({ id: '', name: '', address: '', academicYear: '' });
-  const serverUser = useRef({ id: '', name: '', email: '', phone: '' });
+  const serverUser = useRef({ id: '', name: '', email: '', phone: '', isSuperAdmin: false });
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -168,7 +168,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           if (!active) return;
           serverRecords.current = loaded.index;
           serverSchool.current = { id: schoolId, name: loaded.school.name, address: loaded.school.address, academicYear: loaded.school.academicYear };
-          serverUser.current = { id: user.id, name: user.name, email: user.email, phone: user.phone || '' };
+          serverUser.current = { id: user.id, name: user.name, email: user.email, phone: user.phone || '', isSuperAdmin: user.isSuperAdmin || false };
           setState(loaded.state);
           setSyncStatus('synced');
           setReady(true);

@@ -23,6 +23,12 @@ Para executar a stack completa em Docker, copie `.env.example` para `.env`, defi
 
 O Compose também inicia MinIO com bucket privado persistente (`agendai-local`), usando uma imagem Elestio fixada por digest porque a imagem upstream `minio/minio` deixou de estar disponível no Docker Hub. Essa imagem é um snapshot legado, sem atualizações recentes; para armazenamento de produção a longo prazo, configure um serviço S3 mantido e configure `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY` e `S3_SECRET_KEY`. Em Docker, `S3_ENDPOINT` é o endereço acessível pela API (`http://storage:9000`) e `S3_PUBLIC_ENDPOINT` é o endereço acessível pelo navegador (`http://localhost:9000` localmente). Use credenciais fortes, bucket privado e TLS; nunca exponha as credenciais no frontend. Mantenha backups do volume de armazenamento e da base de dados. No Coolify, remova a variável antiga `MINIO_IMAGE`; a imagem pode ser substituída por `STORAGE_IMAGE`.
 
+## Administração da plataforma
+
+A rota web `/admin` e as rotas API `/api/v1/admin/*` exigem uma sessão autenticada e autorização administrativa validada pelo servidor em cada pedido. `SUPER_ADMIN_EMAILS` identifica super administradores raiz, que não podem ser removidos pelo painel. Super administradores podem promover utilizadores ativos para suporte somente leitura ou para super administrador. O primeiro acesso administrativo exige configurar MFA com uma aplicação autenticadora. A desativação de uma conta revoga os tokens e sessões; a suspensão de uma escola bloqueia as operações de todos os seus membros. As ações administrativas pedem um motivo e ficam registadas na auditoria, que pode ser filtrada por ação, entidade e intervalo de datas. Não é possível desativar a própria conta nem remover o último super administrador.
+
+Defina `ADMIN_BACKUP_ENCRYPTION_KEY` e `ADMIN_MFA_ENCRYPTION_KEY` com valores independentes gerados por `openssl rand -hex 32` e guarde cópias seguras fora do servidor. A perda da primeira chave torna os backups cifrados irrecuperáveis; a perda da segunda exige que cada administrador volte a configurar MFA. `ADMIN_MFA_REQUIRED` controla a exigência global (padrão `true`; `false` desativa o requisito sem apagar configurações TOTP já registadas). O painel cria um dump SQL comprimido, cifrado em repouso e disponível por sete dias. A verificação descifra, descomprime e confirma tamanho e checksum SHA-256; o download está reservado a super administradores. O SQL inclui a base de dados, mas não os objetos de anexos do S3; esses objetos devem continuar a ter cópias próprias. O worker usa `pg_dump` 17 instalado na imagem da API para compatibilidade com o PostgreSQL 17 do Compose. Teste a reposição num ambiente separado antes de usar qualquer dump numa base de produção.
+
 ### Cópias de segurança
 
 Com os serviços Compose ativos, `scripts/backup-database.sh` cria um dump PostgreSQL no formato custom em `backups/database/`; `scripts/backup-storage.sh` cria um snapshot dos ficheiros em `backups/object-storage/`. Ambos aceitam `AGENDAI_BACKUP_DIR` para escolher um destino. Instale `mc` e configure o alias antes da cópia do armazenamento, por exemplo em desenvolvimento local:
@@ -32,6 +38,8 @@ mc alias set agendai http://127.0.0.1:9000 agendai-local agendai-local-secret-ch
 ```
 
 Em produção, configure o alias com o endpoint e credenciais privados do serviço S3. Agende ambos os scripts e aponte `AGENDAI_BACKUP_DIR` para armazenamento independente do servidor. Teste periodicamente a restauração com `pg_restore` numa base de dados separada e a recuperação de ficheiros. Os volumes Docker, por si só, não são cópias de segurança.
+
+Os dumps SQL solicitados em `/admin` são complementares aos scripts operacionais acima: são cifrados no volume Docker `agendai-admin-backups` e ficam retidos sete dias. Copie também os backups descarregados para armazenamento independente e protegido. Para testar um ficheiro descarregado, importe-o numa base PostgreSQL de teste (`psql -v ON_ERROR_STOP=1 -d agendai_restore_test -f agendaki-backup-AAAA-MM-DD.sql`) e valide a aplicação antes de planear uma reposição.
 
 ## Autenticação
 
@@ -45,10 +53,13 @@ Em produção, configure o alias com o endpoint e credenciais privados do servi�
 - `GET /auth/me`: utilizador e escolas associados; requer `Authorization: Bearer <accessToken>`.
 - `PATCH /auth/me`: atualiza nome e telefone. A alteração de email aguarda verificação de endereço.
 - `POST /auth/register` aceita `invitationToken` para criar a conta e aderir a uma escola existente; sem convite, `schoolName` é obrigatório.
+- `GET /auth/google/nonce` e `POST /auth/google` permitem entrar e criar conta com Google. A API valida assinatura, audiência, emissor, nonce e email verificado; o identificador `sub` do Google fica associado à conta.
 
 Os access tokens expiram em 15 minutos. O refresh token fica num cookie HttpOnly, SameSite Lax, e apenas o hash é guardado na base de dados. Em produção o cookie exige HTTPS.
 
 A recuperação, a confirmação de email, os convites, o contacto e a newsletter usam a API Resend. Defina `RESEND_API_KEY`, `EMAIL_FROM` verificado, `CONTACT_EMAIL` e `NEXT_PUBLIC_SITE_URL`. Em produção, registos novos e antigos sem email confirmado ficam sem acesso até confirmarem o endereço. O Compose exige a configuração por omissão; `REQUIRE_EMAIL_CONFIG=false` permite executar localmente sem fornecedor e desativa a confirmação obrigatória. Os pedidos de recuperação e reenvio não revelam se o endereço está registado. Configure limites de envio e alertas no fornecedor antes de abrir os formulários ao público.
+
+Para ativar Google, crie um OAuth Client ID do tipo **Web application** no Google Cloud, adicione a origem do website em *Authorized JavaScript origins* e defina o mesmo ID em `GOOGLE_CLIENT_ID` (API) e `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (build do website). O botão fica oculto sem o ID público. Não é necessário redirect URI: o website usa Google Identity Services e a API valida o ID token diretamente.
 
 ## Contacto e newsletter
 

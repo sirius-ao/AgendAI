@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
-import { ForgotPasswordDto, LoginDto, MobileRefreshDto, RegisterDto, ResendVerificationDto, ResetPasswordDto, UpdateProfileDto, VerifyEmailDto } from './auth.dto.js';
+import { ForgotPasswordDto, GoogleAuthDto, LoginDto, MobileRefreshDto, RegisterDto, ResendVerificationDto, ResetPasswordDto, UpdateProfileDto, VerifyEmailDto } from './auth.dto.js';
 import { AuthGuard } from './auth.guard.js';
 import { CurrentUser } from './current-user.decorator.js';
 import type { AccessPayload } from './auth.types.js';
@@ -9,6 +9,7 @@ import { AuthRateLimitGuard } from './auth-rate-limit.guard.js';
 import { TurnstileService } from './turnstile.service.js';
 
 const COOKIE = 'agendai_refresh';
+const GOOGLE_NONCE_COOKIE = 'agendai_google_nonce';
 const cookieOptions = () => ({ httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const, path: '/api/v1/auth', maxAge: 30 * 86400_000 });
 
 @Controller('auth')
@@ -31,6 +32,25 @@ export class AuthController {
     return this.auth.register(input);
   }
   @UseGuards(AuthRateLimitGuard) @Post('login') async login(@Body() dto: LoginDto, @Res() res: Response) { return this.send(res, await this.auth.login(dto)); }
+  @UseGuards(AuthRateLimitGuard) @Get('google/nonce') googleNonce(@Res() res: Response) {
+    const nonce = this.auth.googleNonce();
+    res.setHeader('Cache-Control', 'no-store');
+    res.cookie(GOOGLE_NONCE_COOKIE, nonce, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/api/v1/auth', maxAge: 5 * 60_000 });
+    return res.json({ nonce });
+  }
+  @UseGuards(AuthRateLimitGuard) @Post('google') async google(@Body() dto: GoogleAuthDto, @Req() req: Request, @Res() res: Response) {
+    try {
+      if (dto.mode === 'REGISTER') await this.turnstile.verify(dto.turnstileToken, 'register', req.ip);
+      const result = await this.auth.googleAuth(dto, req.cookies?.[GOOGLE_NONCE_COOKIE]);
+      res.clearCookie(GOOGLE_NONCE_COOKIE, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/api/v1/auth' });
+      return this.send(res, result);
+    } catch (error) {
+      const response = error instanceof HttpException ? error.getResponse() : null;
+      const mfaRequired = Boolean(response && typeof response === 'object' && 'code' in response && response.code === 'MFA_REQUIRED');
+      if (!mfaRequired) res.clearCookie(GOOGLE_NONCE_COOKIE, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/api/v1/auth' });
+      throw error;
+    }
+  }
   @UseGuards(AuthRateLimitGuard) @Post('mobile/login') mobileLogin(@Body() dto: LoginDto) { return this.auth.login(dto); }
   @UseGuards(AuthRateLimitGuard) @Post('mobile/refresh') mobileRefresh(@Body() dto: MobileRefreshDto) { return this.auth.refresh(dto.refreshToken); }
   @UseGuards(AuthRateLimitGuard) @Post('mobile/logout') mobileLogout(@Body() dto: MobileRefreshDto) { return this.auth.logout(dto.refreshToken); }

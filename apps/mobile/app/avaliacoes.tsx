@@ -1,7 +1,8 @@
+import { AppText } from '@/components/app-text';
 import { BRAND } from '@/config';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import {
   Button,
   Card,
@@ -199,27 +200,27 @@ export default function Assessments() {
       </Card>
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <Card style={{ flex: 1 }}>
-          <Text style={styles.subtitle}>Alunos</Text>
-          <Text style={{ color: BRAND.ink, fontWeight: '800', fontSize: 20 }}>
+          <AppText style={styles.subtitle}>Alunos</AppText>
+          <AppText style={{ color: BRAND.ink, fontWeight: '800', fontSize: 20 }}>
             {students.length}
-          </Text>
+          </AppText>
         </Card>
         <Card style={{ flex: 1 }}>
-          <Text style={styles.subtitle}>Avaliações</Text>
-          <Text style={{ color: BRAND.purpleInk, fontWeight: '800', fontSize: 20 }}>
+          <AppText style={styles.subtitle}>Avaliações</AppText>
+          <AppText style={{ color: BRAND.purpleInk, fontWeight: '800', fontSize: 20 }}>
             {history.length}
-          </Text>
+          </AppText>
         </Card>
       </View>
-      <Text style={{ fontSize: 17, color: BRAND.ink, fontWeight: '800' }}>
+      <AppText style={{ fontSize: 17, color: BRAND.ink, fontWeight: '800' }}>
         Lançar notas · 0 a 20
-      </Text>
+      </AppText>
       {students.length ? (
         students.map((student) => (
           <Card key={student.recordId}>
-            <Text style={{ color: BRAND.ink, fontWeight: '700' }}>
+            <AppText style={{ color: BRAND.ink, fontWeight: '700' }}>
               {String(student.payload.name || 'Aluno')}
-            </Text>
+            </AppText>
             <Field
               label="Nota"
               value={scores[student.recordId] || ''}
@@ -246,31 +247,31 @@ export default function Assessments() {
         loading={busy}
         disabled={!students.length}
       />
-      <Text style={{ fontSize: 17, color: BRAND.ink, fontWeight: '800' }}>
+      <AppText style={{ fontSize: 17, color: BRAND.ink, fontWeight: '800' }}>
         Histórico de avaliações
-      </Text>
+      </AppText>
       {history.length ? (
         history.map((row) => {
           const values = scoresFor(row.payload, students);
           const average = mean(values);
           return (
             <Card key={row.recordId}>
-              <Text style={{ color: BRAND.ink, fontWeight: '800' }}>
+              <AppText style={{ color: BRAND.ink, fontWeight: '800' }}>
                 {String(row.payload.title || 'Avaliação')}
-              </Text>
-              <Text style={styles.subtitle}>
+              </AppText>
+              <AppText style={styles.subtitle}>
                 {String(row.payload.date || '')} · {String(row.payload.type || 'Avaliação')}
-              </Text>
-              <Text style={{ color: BRAND.purpleInk, fontWeight: '700' }}>
+              </AppText>
+              <AppText style={{ color: BRAND.purpleInk, fontWeight: '700' }}>
                 {values.filter((value) => value !== null).length}/{students.length} notas · Média{' '}
                 {average === null ? '—' : average.toFixed(1)}
-              </Text>
+              </AppText>
               {students
                 .filter((_, index) => values[index] !== null)
                 .map((student, index) => (
-                  <Text key={student.recordId} style={styles.subtitle}>
+                  <AppText key={student.recordId} style={styles.subtitle}>
                     {String(student.payload.name || 'Aluno')}: {values[index]}/20
-                  </Text>
+                  </AppText>
                 ))}
             </Card>
           );

@@ -1,6 +1,7 @@
+import { AppText } from '@/components/app-text';
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import {
   Button,
   Card,
@@ -91,13 +92,15 @@ export default function Tasks() {
     <Page>
       <Heading title="Tarefas" subtitle="Organize preparações, correções e prazos." back />
       <Card style={{ backgroundColor: BRAND.greenPale }}>
-        <Text style={{ color: BRAND.forestSoft, fontWeight: '800' }}>{openCount} pendentes</Text>
-        <Text style={styles.subtitle}>
+        <AppText style={{ color: BRAND.forestSoft, fontWeight: '800' }}>
+          {openCount} pendentes
+        </AppText>
+        <AppText style={styles.subtitle}>
           As alterações ficam guardadas offline e sincronizam quando houver ligação.
-        </Text>
+        </AppText>
       </Card>
       <Card>
-        <Text style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>Nova tarefa</Text>
+        <AppText style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>Nova tarefa</AppText>
         <Notice text={error} type="error" />
         <Field
           label="O que precisa de fazer?"
@@ -151,7 +154,7 @@ export default function Tasks() {
                 />
               </Pressable>
               <View style={{ flex: 1 }}>
-                <Text
+                <AppText
                   style={{
                     color: row.payload.done ? BRAND.muted : BRAND.ink,
                     fontWeight: '800',
@@ -159,12 +162,12 @@ export default function Tasks() {
                   }}
                 >
                   {String(row.payload.title || 'Tarefa')}
-                </Text>
-                <Text style={styles.subtitle}>
+                </AppText>
+                <AppText style={styles.subtitle}>
                   {[group, row.payload.due ? `Prazo ${String(row.payload.due)}` : 'Sem prazo']
                     .filter(Boolean)
                     .join(' · ')}
-                </Text>
+                </AppText>
               </View>
             </Card>
           );
