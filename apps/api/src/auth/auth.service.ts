@@ -151,9 +151,15 @@ export class AuthService {
     return this.issue(user);
   }
 
-  googleNonce() { return randomBytes(32).toString('base64url'); }
+  googleAuthEnabled() { return process.env.GOOGLE_AUTH_ENABLED !== 'false'; }
+
+  googleNonce() {
+    if (!this.googleAuthEnabled()) throw new ServiceUnavailableException('O acesso com Google está desativado');
+    return randomBytes(32).toString('base64url');
+  }
 
   async googleAuth(input: GoogleAuthDto, expectedNonce: string | undefined) {
+    if (!this.googleAuthEnabled()) throw new ServiceUnavailableException('O acesso com Google está desativado');
     const clientId = process.env.GOOGLE_CLIENT_ID;
     if (!clientId) throw new ServiceUnavailableException('O acesso com Google ainda não está configurado');
     if (!expectedNonce) throw new UnauthorizedException('A sessão de autenticação Google expirou. Tente novamente.');

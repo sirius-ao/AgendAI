@@ -59,7 +59,7 @@ Os access tokens expiram em 15 minutos. O refresh token fica num cookie HttpOnly
 
 A recuperação, a confirmação de email, os convites, o contacto e a newsletter usam a API Resend. Defina `RESEND_API_KEY`, `EMAIL_FROM` verificado, `CONTACT_EMAIL` e `NEXT_PUBLIC_SITE_URL`. Em produção, registos novos e antigos sem email confirmado ficam sem acesso até confirmarem o endereço. O Compose exige a configuração por omissão; `REQUIRE_EMAIL_CONFIG=false` permite executar localmente sem fornecedor e desativa a confirmação obrigatória. Os pedidos de recuperação e reenvio não revelam se o endereço está registado. Configure limites de envio e alertas no fornecedor antes de abrir os formulários ao público.
 
-Para ativar Google, crie um OAuth Client ID do tipo **Web application** no Google Cloud, adicione a origem do website em *Authorized JavaScript origins* e defina o mesmo ID em `GOOGLE_CLIENT_ID` (API) e `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (build do website). O botão fica oculto sem o ID público. Não é necessário redirect URI: o website usa Google Identity Services e a API valida o ID token diretamente.
+Para ativar Google, crie um OAuth Client ID do tipo **Web application** no Google Cloud, adicione a origem do website em *Authorized JavaScript origins* e defina o mesmo ID em `GOOGLE_CLIENT_ID` (API) e `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (build do website). Controle o recurso com `GOOGLE_AUTH_ENABLED=true` (padrão); use `false` para ocultar o botão e bloquear os endpoints Google na API. O botão também fica oculto sem o ID público. Não é necessário redirect URI: o website usa Google Identity Services e a API valida o ID token diretamente. No website, a variável pública correspondente é `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED`.
 
 ## Contacto e newsletter
 
