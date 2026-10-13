@@ -28,7 +28,7 @@ Para a área `/admin`, configurar `SUPER_ADMIN_EMAILS` com o email que será usa
 
 Ativar `NEXT_PUBLIC_SITE_URL` **no build e no runtime**. O Dockerfile declara o argumento com esse nome. A rota relativa `/api/v1` não depende do domínio durante o build.
 
-Para mostrar o botão Google, configurar `GOOGLE_CLIENT_ID` no serviço da API e `NEXT_PUBLIC_GOOGLE_CLIENT_ID` como variável de build do website, ambos com o mesmo OAuth Client ID Web. Registar a origem pública do website (por exemplo, `https://www.agendaki.net`) em *Authorized JavaScript origins* no Google Cloud. Como o ID público é incorporado no build, uma alteração exige novo deploy do website.
+Para mostrar o botão Google, configurar `GOOGLE_CLIENT_ID` no serviço da API e `NEXT_PUBLIC_GOOGLE_CLIENT_ID` como variável de build do website, ambos com o mesmo OAuth Client ID Web, e definir `GOOGLE_AUTH_ENABLED=true` (padrão). Para desativar, definir `GOOGLE_AUTH_ENABLED=false`; no website fora do Docker, usar `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=false` na build. Registar a origem pública do website (por exemplo, `https://www.agendaki.net`) em *Authorized JavaScript origins* no Google Cloud. Como o controle público é incorporado no build, uma alteração exige novo deploy do website.
 
 O website define `NODE_ENV=production`, `PORT=3000` e `HOSTNAME=0.0.0.0`. Para login e dashboard autenticado, publicar também a API e uma base PostgreSQL; a instalação e variáveis estão em [docs/api.md](api.md). Configurar `WEB_ORIGIN` na API com a origem exata do website e guardar `JWT_ACCESS_SECRET` como segredo. O Dockerfile da API aplica as migrações ao arrancar.
 

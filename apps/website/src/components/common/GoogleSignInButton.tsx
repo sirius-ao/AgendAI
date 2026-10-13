@@ -18,6 +18,7 @@ export function GoogleSignInButton({ mode, onCredential, disabled }: {
   disabled?: boolean;
 }) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const googleAuthEnabled = process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED !== 'false';
   const localPreview = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_GOOGLE_PREVIEW === 'true';
   const container = useRef<HTMLDivElement>(null);
   const callback = useRef(onCredential);
@@ -28,7 +29,7 @@ export function GoogleSignInButton({ mode, onCredential, disabled }: {
   useEffect(() => {
     let cancelled = false;
     const target = container.current;
-    if (!clientId || !scriptReady || !target || !window.google) return;
+    if (!googleAuthEnabled || !clientId || !scriptReady || !target || !window.google) return;
     target.replaceChildren();
     setError('');
     const initialize = async () => {
@@ -49,7 +50,8 @@ export function GoogleSignInButton({ mode, onCredential, disabled }: {
     };
     void initialize();
     return () => { cancelled = true; };
-  }, [clientId, mode, scriptReady]);
+  }, [clientId, googleAuthEnabled, mode, scriptReady]);
+  if (!googleAuthEnabled) return null;
   if (!clientId && localPreview) return <div className="google-signin">
     <button type="button" className="google-preview-button" onClick={() => setError('Pré-visualização local: configure um Google Client ID válido para autenticar.')}>
       <span className="google-preview-mark" aria-hidden="true">G</span>
