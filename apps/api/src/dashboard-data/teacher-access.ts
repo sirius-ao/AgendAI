@@ -61,6 +61,11 @@ export function teacherCanReadRecord(input: {
       return classAllowed;
     case 'PLANS':
       return ownedAndInScope || (subjectAllowed && item.visibility !== 'Apenas eu');
+    case 'PLAN_DRAFTS':
+      return (
+        authored ||
+        (ownsPayload && (!classId || classAllowed) && (!subjectId || scope.subjectIds.has(subjectId)))
+      );
     case 'ASSESSMENTS':
     case 'EVENTS':
       return (

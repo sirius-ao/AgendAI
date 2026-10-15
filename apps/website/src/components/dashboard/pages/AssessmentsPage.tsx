@@ -35,7 +35,7 @@ export function AssessmentsPage({ initialClass = '10a', initialAssessment }: { i
 }
 
 function AssessmentWorkspace({ assessment: a }: { assessment: Assessment }) {
-  const { state, update, openModal, notify, error: storageError } = useDashboard();
+  const { state, update, openModal, notify, error: storageError, apiMode } = useDashboard();
   const draft = state.assessmentDrafts?.[a.id];
   const students = state.students.filter((s) => s.classId === a.classId && (s.status === 'Ativo' || a.grades[s.id] != null || a.gradeDetails?.[s.id] || draft?.[s.id]));
   const resolved = students.length > 0 && students.every((s) => !gradePending(a, s.id));
@@ -94,7 +94,7 @@ function AssessmentWorkspace({ assessment: a }: { assessment: Assessment }) {
       <Tabs items={['Detalhes', 'Lançar notas', 'Resultados']} value={tab} onChange={setTab} />
       {tab === 'Detalhes' && <><h3>{a.type} · {a.duration} minutos</h3><p style={{ whiteSpace: 'pre-wrap' }}>{a.description || 'Sem instruções adicionais.'}</p><h3>Critérios de avaliação</h3><p style={{ whiteSpace: 'pre-wrap' }}>{a.criteria || 'Defina os critérios nos detalhes. Separe-os por linha ou ponto e vírgula para acompanhar dificuldades.'}</p><button className="dash-btn secondary" onClick={() => openModal({ kind: 'assessment', id: a.id })}>Editar detalhes e peso</button><h3>Pesos da disciplina neste ano</h3>{related.map((item) => <div className="dash-list-row" key={item.id}><span>{item.title}<small>{formatDate(item.date)}</small></span><strong>{item.weight}</strong></div>)}</>}
       {tab === 'Lançar notas' && <div ref={editor}>
-        <p role="status">{storageError ? 'Armazenamento indisponível. Mantenha esta página aberta.' : draft ? 'Rascunho guardado neste dispositivo — ainda não confirmado.' : 'A mostrar valores confirmados. As alterações ficam em rascunho.'}</p>
+        <p role="status">{storageError ? apiMode ? 'Não foi possível sincronizar. Verifique a ligação antes de sair.' : 'Armazenamento indisponível. Mantenha esta página aberta.' : draft ? apiMode ? 'Rascunho guardado na escola — ainda não confirmado.' : 'Rascunho guardado neste dispositivo — ainda não confirmado.' : 'A mostrar valores confirmados. As alterações ficam em rascunho.'}</p>
         <div className="dash-toolbar"><SearchInput value={query} onChange={setQuery} placeholder="Pesquisar aluno..." /><label className="dash-check"><input type="checkbox" checked={onlyPending} onChange={(e) => setOnlyPending(e.target.checked)} />Só sem nota</label><button className="dash-btn secondary" onClick={nextPending}>Próximo por avaliar</button></div>
         <p>Use Enter ou as setas para cima/baixo para avançar nas notas. Aceita vírgula ou ponto, até duas casas decimais.</p>
         <div className="dash-table-scroll dash-grades-desktop"><table className="dash-table"><thead><tr><th>Aluno</th><th>Situação</th><th>Nota / 20</th><th>Feedback</th></tr></thead><tbody>{filtered.map((s) => <tr key={s.id}><td>{s.name}</td><td>{statusSelect(s.id, s.name)}</td><td>{input(s.id, s.name)}</td><td>{feedback(s.id, s.name)}</td></tr>)}</tbody></table></div>

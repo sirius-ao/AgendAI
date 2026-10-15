@@ -38,6 +38,9 @@ enum DashboardCollection {
   TEACHER_SUBJECTS
   DIARY
   ANNOUNCEMENTS
+  PLAN_DRAFTS
+  ASSESSMENT_DRAFTS
+  ATTENDANCE_DRAFTS
 }
 
 enum DashboardValueKind {

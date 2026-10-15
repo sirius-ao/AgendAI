@@ -32,6 +32,9 @@ const collections = new Map<string, DashboardCollection>([
   ['folders', DashboardCollection.FOLDERS],
   ['diary', DashboardCollection.DIARY],
   ['announcements', DashboardCollection.ANNOUNCEMENTS],
+  ['planDrafts', DashboardCollection.PLAN_DRAFTS],
+  ['assessmentDrafts', DashboardCollection.ASSESSMENT_DRAFTS],
+  ['attendanceDrafts', DashboardCollection.ATTENDANCE_DRAFTS],
 ]);
 const ids = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];

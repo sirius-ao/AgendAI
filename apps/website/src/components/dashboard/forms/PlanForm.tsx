@@ -80,13 +80,13 @@ export function PlanForm() {
   }
   const area = (key: 'objectives' | 'content' | 'methodology' | 'resources' | 'evaluation' | 'prerequisites', label: string) => <Field label={label}><textarea value={plan[key] || ''} maxLength={6000} rows={3} onChange={(e) => patch({ [key]: e.target.value })} /></Field>;
   if (savedPlan) return <Modal title="Plano e calendário atualizados" onClose={close} className="dash-dialog-small"><div className="dash-modal-simple">
-    <h3>{savedPlan.title}</h3><p role="status">{storageError ? 'Alterações disponíveis nesta sessão, mas não foi possível guardá-las no navegador. Mantenha esta página aberta.' : 'Plano guardado e aula atualizada no calendário deste dispositivo.'}</p>
+    <h3>{savedPlan.title}</h3><p role="status">{storageError ? apiMode ? 'Não foi possível sincronizar com o servidor. Verifique a ligação antes de sair.' : 'Alterações disponíveis nesta sessão, mas não foi possível guardá-las no navegador. Mantenha esta página aberta.' : apiMode ? 'Plano guardado na escola e aula atualizada no calendário.' : 'Plano guardado e aula atualizada no calendário deste dispositivo.'}</p>
     <p>{savedPlan.date} · {savedPlan.startTime} · {savedPlan.duration} minutos</p>
     <div className="dash-guide-actions"><Link className="dash-btn" onClick={close} href={`/dashboard/calendario?turma=${savedPlan.classId}&data=${savedPlan.date}&plano=${savedPlan.id}`}>Ver aula no calendário</Link><button className="dash-btn secondary" onClick={close}>Continuar nos planos</button></div>
   </div></Modal>;
   return <Modal title={old ? 'Editar plano de aula' : 'Novo plano de aula'} icon={FilePlus} onClose={close} className="dash-dialog-plan">
     <form className="dash-creation-form" onSubmit={submit}>
-      <div className="dash-plan-savebar" role="status"><div>{storageError ? 'Não foi possível guardar no navegador. Mantenha esta página aberta.' : state.planDrafts?.[draftKey] ? 'Rascunho automático neste dispositivo. Pode fechar e retomar aqui.' : 'As alterações são guardadas automaticamente neste dispositivo.'}
+      <div className="dash-plan-savebar" role="status"><div>{storageError ? apiMode ? 'Não foi possível sincronizar o rascunho. Verifique a ligação.' : 'Não foi possível guardar no navegador. Mantenha esta página aberta.' : state.planDrafts?.[draftKey] ? apiMode ? 'Rascunho automático guardado na escola. Pode continuar noutro dispositivo.' : 'Rascunho automático neste dispositivo. Pode fechar e retomar aqui.' : apiMode ? 'As alterações são sincronizadas automaticamente com a escola.' : 'As alterações são guardadas automaticamente neste dispositivo.'}
         {source && <p>Escolha a turma e a nova data. O plano original não será alterado.</p>}
         <p>Guardar o plano atualiza a aula correspondente no calendário.</p></div><button className="dash-btn secondary" type="button" onClick={close}>Continuar depois</button></div>
       <div className="dash-form-main">
