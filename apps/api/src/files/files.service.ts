@@ -97,44 +97,6 @@ export class FilesService {
     return `${base.origin}${path}?${query}&X-Amz-Signature=${finalSig}`;
   }
 
-  private signedPost(endpoint: string, key: string, contentType: string, size: number, expires: number) {
-    const c = this.config();
-    const base = new URL(endpoint);
-    const now = new Date();
-    const stamp = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
-    const day = stamp.slice(0, 8);
-    const scope = `${day}/${c.region}/s3/aws4_request`;
-    const credential = `${c.access}/${scope}`;
-    const policy = Buffer.from(JSON.stringify({
-      expiration: new Date(now.getTime() + expires * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z'),
-      conditions: [
-        { bucket: c.bucket },
-        { key },
-        { 'Content-Type': contentType },
-        { 'x-amz-algorithm': 'AWS4-HMAC-SHA256' },
-        { 'x-amz-credential': credential },
-        { 'x-amz-date': stamp },
-        ['content-length-range', size, size],
-      ],
-    })).toString('base64');
-    const signingKey = hmacBuffer(
-      hmacBuffer(hmacBuffer(hmacBuffer(`AWS4${c.secret}`, day), c.region), 's3'),
-      'aws4_request',
-    );
-    return {
-      uploadUrl: `${base.origin}${base.pathname.replace(/\/$/, '')}/${awsEncode(c.bucket)}`,
-      fields: {
-        key,
-        'Content-Type': contentType,
-        'x-amz-algorithm': 'AWS4-HMAC-SHA256',
-        'x-amz-credential': credential,
-        'x-amz-date': stamp,
-        policy,
-        'x-amz-signature': hmac(signingKey, policy),
-      },
-    };
-  }
-
   private async validateFileContent(item: { objectKey: string; contentType: string }) {
     const response = await fetch(this.signedUrl(this.config().endpoint, item.objectKey, 'GET', 60));
     if (!response.ok) return false;
@@ -237,13 +199,11 @@ export class FilesService {
         size: dto.size,
       },
     });
-    const signed = this.signedPost(config.publicEndpoint, key, item.contentType, item.size, 600);
     return {
       id: item.id,
-      uploadUrl: signed.uploadUrl,
-      method: 'POST',
-      fields: signed.fields,
-      fileField: 'file',
+      uploadUrl: this.signedUrl(config.endpoint, key, 'PUT', 600),
+      method: 'PUT',
+      contentType: item.contentType,
       expiresIn: 600,
     };
   }
@@ -308,7 +268,7 @@ export class FilesService {
     });
     if (!item) throw new NotFoundException('Anexo não encontrado');
     return {
-      url: this.signedUrl(this.config().publicEndpoint, item.objectKey, 'GET', 300, {
+      url: this.signedUrl(this.config().endpoint, item.objectKey, 'GET', 300, {
         'response-content-disposition': `attachment; filename*=UTF-8''${awsEncode(item.originalName)}`,
       }),
       expiresIn: 300,

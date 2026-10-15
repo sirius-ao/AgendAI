@@ -18,11 +18,8 @@ export function PlanFileAttachments({ schoolId, planId }: { schoolId?: string; p
     try {
       for (const file of Array.from(files)) {
         const contentType = file.type || mimeByExtension[file.name.split('.').pop()?.toLowerCase() || ''] || 'application/octet-stream';
-        const signed = await apiRequest<{ id: string; uploadUrl: string; method: 'POST'; fields: Record<string, string>; fileField: string }>(`${base}/upload`, { method: 'POST', body: JSON.stringify({ name: file.name, contentType, size: file.size }) });
-        const body = new FormData();
-        for (const [field, value] of Object.entries(signed.fields)) body.append(field, value);
-        body.append(signed.fileField, file, file.name);
-        const sent = await fetch(signed.uploadUrl, { method: signed.method, body });
+        const signed = await apiRequest<{ id: string; uploadUrl: string; method: 'PUT'; contentType: string }>(`${base}/upload`, { method: 'POST', body: JSON.stringify({ name: file.name, contentType, size: file.size }) });
+        const sent = await fetch(signed.uploadUrl, { method: signed.method, headers: { 'Content-Type': signed.contentType }, body: file });
         if (!sent.ok) throw new Error(`Falha no envio de ${file.name}.`);
         await apiRequest(`${base}/${signed.id}/complete`, { method: 'POST' });
       }
