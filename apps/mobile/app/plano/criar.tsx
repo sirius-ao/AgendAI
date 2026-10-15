@@ -1,9 +1,21 @@
 import { AppText } from '@/components/app-text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Switch, View } from 'react-native';
 
 import { Button, Card, ChoiceField, Field, Heading, Notice, Page, styles } from '@/components/ui';
 import { useDashboard } from '@/providers/dashboard-provider';
+import { useAuth } from '@/providers/auth-provider';
+import { BRAND } from '@/config';
+
+type AISuggestions = {
+  objectives: string;
+  content: string;
+  methodology: string;
+  resources: string;
+  evaluation: string;
+  stages: Array<{ title: string; minutes: number; teacher: string; students: string }>;
+};
 
 const newId = () => `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 const localDate = () => {
@@ -22,7 +34,8 @@ export default function CreatePlan() {
     classId?: string;
     subjectId?: string;
   }>();
-  const { snapshot, saveRecord, syncState } = useDashboard();
+  const { snapshot, saveRecord, schoolId } = useDashboard();
+  const { request } = useAuth();
   const classes = snapshot?.data.classes || [];
   const subjects = snapshot?.data.subjects || [];
   const existing = snapshot?.data.plans.find((row) => row.recordId === planId);
@@ -42,6 +55,20 @@ export default function CreatePlan() {
   const [duration, setDuration] = useState('45');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [aiAvailability, setAIAvailability] = useState<'checking' | 'available' | 'unavailable' | 'error'>('checking');
+  const [useAI, setUseAI] = useState(false);
+  const [aiLoading, setAILoading] = useState(false);
+  const [aiError, setAIError] = useState('');
+  const [aiSuggestions, setAISuggestions] = useState<AISuggestions | null>(null);
+  useEffect(() => {
+    if (!schoolId) { setAIAvailability('unavailable'); return; }
+    let active = true;
+    setAIAvailability('checking');
+    void request<{ enabled: boolean }>(`/schools/${encodeURIComponent(schoolId)}/plans/ai-status`)
+      .then(({ enabled }) => { if (active) { setAIAvailability(enabled ? 'available' : 'unavailable'); if (!enabled) setUseAI(false); } })
+      .catch(() => { if (active) { setAIAvailability('error'); setUseAI(false); } });
+    return () => { active = false; };
+  }, [request, schoolId]);
   useEffect(() => {
     if (initialized.current) return;
     if (!snapshot) return;
@@ -74,6 +101,38 @@ export default function CreatePlan() {
     }
     initialized.current = true;
   }, [classes, plan, planId, requestedClass, requestedDate, requestedSubject, snapshot, subjects]);
+  const generateWithAI = async () => {
+    if (!schoolId || !title.trim() || !classId || !subjectId || aiAvailability !== 'available') return;
+    const className = String(classes.find((row) => row.recordId === classId)?.payload.name || 'Turma');
+    const subjectName = String(subjects.find((row) => row.recordId === subjectId)?.payload.name || 'Disciplina');
+    const lessonDuration = Number(duration);
+    if (!Number.isInteger(lessonDuration) || lessonDuration < 10 || lessonDuration > 480) {
+      setAIError('Para usar a IA, indique uma duração entre 10 e 480 minutos.');
+      return;
+    }
+    setAILoading(true); setAIError(''); setAISuggestions(null);
+    try {
+      const result = await request<AISuggestions>(`/schools/${encodeURIComponent(schoolId)}/plans/generate`, {
+        method: 'POST',
+        body: JSON.stringify({
+          theme: title.trim(), subject: subjectName, className, duration: lessonDuration,
+          objectives: objectives.slice(0, 2000), content: content.slice(0, 3000),
+          lessonType: 'Aula teórica', modality: 'Presencial', materials: resources.slice(0, 2000),
+        }),
+      });
+      setAISuggestions(result);
+    } catch (cause) {
+      setAIError(cause instanceof Error ? cause.message : 'Não foi possível gerar sugestões. O seu plano não foi alterado.');
+    } finally { setAILoading(false); }
+  };
+  const useSuggestedStages = () => {
+    if (!aiSuggestions?.stages.length) return;
+    const minutesEach = Math.floor(Number(duration) / aiSuggestions.stages.length);
+    const remainder = Number(duration) % aiSuggestions.stages.length;
+    setMethodology(aiSuggestions.stages.map((stage, index) =>
+      `${index + 1}. ${stage.title} (${minutesEach + (index < remainder ? 1 : 0)} min)\nProfessor: ${stage.teacher}\nAlunos: ${stage.students}`,
+    ).join('\n\n'));
+  };
   const submit = async () => {
     if (
       !title.trim() ||
@@ -149,6 +208,74 @@ export default function CreatePlan() {
           onChangeText={setTitle}
           placeholder="Ex.: Equações do 2.º grau"
         />
+        <ChoiceField
+          label="Turma"
+          value={classId}
+          options={classes.map((item) => ({ id: item.recordId, label: String(item.payload.name || 'Turma') }))}
+          onSelect={setClassId}
+        />
+        <ChoiceField
+          label="Disciplina"
+          value={subjectId}
+          options={subjects.map((item) => ({ id: item.recordId, label: String(item.payload.name || 'Disciplina') }))}
+          onSelect={setSubjectId}
+        />
+        <Field label="Data" value={date} onChangeText={setDate} placeholder="AAAA-MM-DD" />
+        <Field label="Hora" value={time} onChangeText={setTime} placeholder="08:00" />
+        <Field
+          label="Duração (minutos)"
+          value={duration}
+          onChangeText={setDuration}
+          keyboardType="number-pad"
+        />
+        <View style={{ borderWidth: 1, borderColor: BRAND.line, borderRadius: 12, padding: 14, gap: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <View style={{ flex: 1, gap: 3 }}>
+              <AppText style={{ color: BRAND.ink, fontWeight: '700' }}>Usar IA neste plano</AppText>
+              {aiAvailability === 'available' ? <AppText style={styles.subtitle}>Ative para receber sugestões editáveis.</AppText> : null}
+            </View>
+            <Switch
+              accessibilityLabel="Usar IA neste plano"
+              value={useAI && aiAvailability === 'available'}
+              onValueChange={setUseAI}
+              disabled={aiAvailability !== 'available'}
+              trackColor={{ false: BRAND.line, true: BRAND.greenSoft }}
+              thumbColor={useAI ? BRAND.green : '#ffffff'}
+            />
+          </View>
+          {aiAvailability === 'checking' ? <AppText style={styles.subtitle}>A verificar se a IA está ativa…</AppText> : null}
+          {aiAvailability === 'unavailable' ? <AppText style={styles.subtitle}>A IA não está ativa nesta plataforma. Pode continuar a preencher o plano manualmente.</AppText> : null}
+          {aiAvailability === 'error' ? <AppText style={styles.subtitle}>Não foi possível verificar a IA. O preenchimento manual continua disponível.</AppText> : null}
+        </View>
+        {useAI && aiAvailability === 'available' ? <Card style={{ gap: 12 }}>
+          <AppText style={{ color: BRAND.ink, fontWeight: '700' }}>Assistente de IA</AppText>
+          <AppText style={styles.subtitle}>Gera propostas com base no tema, turma, disciplina, duração e textos preenchidos. Revê e aplica cada campo que quiseres.</AppText>
+          <AppText style={styles.subtitle}>Estes dados são enviados ao serviço de IA configurado. Não incluas nomes nem dados pessoais dos alunos.</AppText>
+          <Button title={aiLoading ? 'A preparar sugestões…' : aiSuggestions ? 'Gerar novas sugestões' : 'Criar com IA'} onPress={() => void generateWithAI()} loading={aiLoading} disabled={!title.trim() || !classId || !subjectId} />
+          {aiLoading ? <ActivityIndicator color={BRAND.green} /> : null}
+          <Notice text={aiError} type="error" />
+          {aiSuggestions ? <>
+            {([
+              ['objectives', 'Objetivos', objectives, setObjectives],
+              ['content', 'Conteúdo da aula', content, setContent],
+              ['methodology', 'Metodologia', methodology, setMethodology],
+              ['resources', 'Recursos', resources, setResources],
+              ['evaluation', 'Avaliação', evaluation, setEvaluation],
+            ] as const).map(([key, label, , apply]) => {
+              const suggestion = aiSuggestions[key];
+              return suggestion ? <View key={key} style={{ borderTopWidth: 1, borderTopColor: BRAND.line, paddingTop: 10, gap: 8 }}>
+                <AppText style={{ color: BRAND.ink, fontWeight: '700' }}>{label}</AppText>
+                <AppText style={{ color: BRAND.muted, lineHeight: 21 }}>{suggestion}</AppText>
+                <Button title={`Usar ${label.toLowerCase()}`} secondary onPress={() => apply(suggestion)} />
+              </View> : null;
+            })}
+            {aiSuggestions.stages.length ? <View style={{ borderTopWidth: 1, borderTopColor: BRAND.line, paddingTop: 10, gap: 8 }}>
+              <AppText style={{ color: BRAND.ink, fontWeight: '700' }}>Etapas da aula</AppText>
+              {aiSuggestions.stages.map((stage, index) => <AppText key={index} style={styles.subtitle}>{stage.title} · {stage.minutes} min{'\n'}Professor: {stage.teacher}{'\n'}Alunos: {stage.students}</AppText>)}
+              <Button title="Usar etapas na metodologia" secondary onPress={useSuggestedStages} />
+            </View> : null}
+          </> : null}
+        </Card> : null}
         <Field
           label="Objetivos"
           value={objectives}
@@ -190,32 +317,6 @@ export default function CreatePlan() {
           onChangeText={setDescription}
           multiline
           placeholder="Notas adicionais"
-        />
-        <ChoiceField
-          label="Turma"
-          value={classId}
-          options={classes.map((item) => ({
-            id: item.recordId,
-            label: String(item.payload.name || 'Turma'),
-          }))}
-          onSelect={setClassId}
-        />
-        <ChoiceField
-          label="Disciplina"
-          value={subjectId}
-          options={subjects.map((item) => ({
-            id: item.recordId,
-            label: String(item.payload.name || 'Disciplina'),
-          }))}
-          onSelect={setSubjectId}
-        />
-        <Field label="Data" value={date} onChangeText={setDate} placeholder="AAAA-MM-DD" />
-        <Field label="Hora" value={time} onChangeText={setTime} placeholder="08:00" />
-        <Field
-          label="Duração (minutos)"
-          value={duration}
-          onChangeText={setDuration}
-          keyboardType="number-pad"
         />
         <Button
           title={planId ? 'Guardar alterações' : 'Guardar plano'}

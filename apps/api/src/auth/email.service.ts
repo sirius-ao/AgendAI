@@ -48,6 +48,22 @@ export class EmailService {
       renderBrandedEmail({ siteUrl: this.siteUrl, preheader: `Convite para integrar ${schoolName}.`, title: 'Tem um convite para entrar', content }));
   }
 
+  async sendResourceShare(email: string, recipientName: string, senderName: string, resourceTitle: string) {
+    const link = new URL('/dashboard/recursos', this.siteUrl);
+    link.searchParams.set('q', resourceTitle);
+    const safeTitle = escapeEmailHtml(resourceTitle);
+    const safeSender = escapeEmailHtml(senderName);
+    const text = `${senderName} partilhou consigo o recurso "${resourceTitle}" no AgendAKI. Entre na sua conta para o consultar:\n${link}`;
+    const content = [
+      emailParagraph(`Olá ${escapeEmailHtml(recipientName)},`),
+      emailParagraph(`<strong>${safeSender}</strong> partilhou consigo o recurso <strong>${safeTitle}</strong> no AgendAKI.`),
+      emailButton('Abrir recursos partilhados', link.toString()),
+      emailNotice('Inicie sessão na conta AgendAKI associada a este endereço para aceder ao recurso.'),
+    ].join('');
+    await this.deliver(email, `${senderName} partilhou um recurso consigo no AgendAKI`, text,
+      renderBrandedEmail({ siteUrl: this.siteUrl, preheader: `${senderName} partilhou um recurso consigo.`, title: 'Tem um recurso partilhado', content }));
+  }
+
   async sendVerification(email: string, name: string, token: string) {
     const link = new URL('/verificar-email', this.siteUrl);
     link.hash = `token=${token}`;

@@ -50,6 +50,34 @@ const mimeByExtension: Record<string, string> = {
   xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   csv: 'text/csv', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', mp4: 'video/mp4', mp3: 'audio/mpeg',
 };
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
+function uploadWithProgress(url: string, file: File, onProgress: (loaded: number) => void, onRetry: () => void) {
+  const contentType = file.type || mimeByExtension[file.name.split('.').pop()?.toLowerCase() || ''] || 'application/octet-stream';
+  const attempt = (number: number) => new Promise<void>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    const retry = () => {
+      if (number >= 2) return false;
+      onRetry();
+      window.setTimeout(() => { void attempt(number + 1).then(resolve, reject); }, 500);
+      return true;
+    };
+    request.open('PUT', url);
+    request.setRequestHeader('Content-Type', contentType);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(event.loaded);
+    };
+    request.onerror = () => {
+      if (!retry()) reject(new Error('Não foi possível comunicar com o bucket. Confirme as políticas CSP e CORS e tente novamente.'));
+    };
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) resolve();
+      else if (request.status >= 500 && retry()) return;
+      else reject(new Error(`O armazenamento recusou o ficheiro (HTTP ${request.status}).`));
+    };
+    request.send(file);
+  });
+  return attempt(1);
+}
 export function ResourcesPage({
   library = false,
   initialQuery = '',
@@ -70,10 +98,16 @@ export function ResourcesPage({
     [error, setError] = useState('');
   const [destination, setDestination] = useState<{ href: string; label: string } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [shareMode, setShareMode] = useState<NonNullable<Resource['shareMode']>>('PRIVATE');
+  const [shareEmails, setShareEmails] = useState('');
+  const [loadingSharing, setLoadingSharing] = useState(false);
   const clearFilters = () => { setQuery(''); setCategory('Todos'); setSubject(''); setLevel(''); setFolder(''); setTab('Todos'); setSort('Mais recentes'); };
   const personal = state.resources.filter((r) =>
     state.library.some(
-      (l) => l.resourceId === r.id && (tab === 'Lixeira' ? l.deleted : !l.deleted),
+      (l) => l.resourceId === r.id && l.sourceSchoolId === r.sourceSchoolId && (tab === 'Lixeira' ? l.deleted : !l.deleted),
     ),
   );
   const base = library ? personal : state.resources;
@@ -84,10 +118,10 @@ export function ResourcesPage({
         (category === 'Todos' || r.category === category) &&
         (!subject || r.subjectId === subject) &&
         (!level || r.level === level) &&
-        (!folder || state.library.some((l) => l.resourceId === r.id && l.folder === folder)) &&
+        (!folder || state.library.some((l) => l.resourceId === r.id && l.sourceSchoolId === r.sourceSchoolId && l.folder === folder)) &&
         (tab !== 'Favoritos' ||
           (library
-            ? state.library.some((l) => l.resourceId === r.id && l.favorite)
+            ? state.library.some((l) => l.resourceId === r.id && l.sourceSchoolId === r.sourceSchoolId && l.favorite)
             : r.favorite)) &&
         (tab !== 'Os meus recursos' || r.ownerId === state.user.id),
     )
@@ -123,12 +157,12 @@ export function ResourcesPage({
   );
   const favorite = (r: Resource) =>
     update((s) =>
-      library
+      library || r.sourceSchoolId || r.readOnly
         ? {
             ...s,
-            library: s.library.map((l) =>
-              l.resourceId === r.id ? { ...l, favorite: !l.favorite } : l,
-            ),
+            library: s.library.some((l) => l.resourceId === r.id && l.sourceSchoolId === r.sourceSchoolId)
+              ? s.library.map((l) => l.resourceId === r.id && l.sourceSchoolId === r.sourceSchoolId ? { ...l, favorite: !l.favorite } : l)
+              : [...s.library, { id: localId('lib'), resourceId: r.id, sourceSchoolId: r.sourceSchoolId, folder: 'Materiais Pessoais', favorite: true, deleted: false, shared: false }],
           }
         : {
             ...s,
@@ -140,13 +174,15 @@ export function ResourcesPage({
   const save = (r: Resource) => {
     update((s) => ({
       ...s,
-      library: s.library.some((l) => l.resourceId === r.id)
-        ? s.library.map((l) => (l.resourceId === r.id ? { ...l, deleted: false } : l))
+      library: s.library.some((l) => l.resourceId === r.id && l.sourceSchoolId === r.sourceSchoolId)
+        ? s.library.map((l) => (l.resourceId === r.id && l.sourceSchoolId === r.sourceSchoolId ? { ...l, deleted: false } : l))
         : [
             ...s.library,
             {
               id: localId('lib'),
               resourceId: r.id,
+              ...(r.sourceSchoolId ? { sourceSchoolId: r.sourceSchoolId } : {}),
+              ...(r.sourceSchoolId ? { sourceSchoolId: r.sourceSchoolId } : {}),
               folder: 'Materiais Pessoais',
               favorite: false,
               deleted: false,
@@ -161,6 +197,7 @@ export function ResourcesPage({
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const get = (n: string) => String(f.get(n) || '').trim();
+    let shareNotificationMessage = '';
     if (dialog === 'folder') {
       const name = get('name');
       if (state.folders.some((n) => normalize(n) === normalize(name))) {
@@ -171,10 +208,11 @@ export function ResourcesPage({
       setFolder(name);
     } else if (dialog === 'upload') {
       const file = f.get('file') as File;
-      if (!file?.name || file.size > 10 * 1024 * 1024) {
+      if (!file?.name || file.size > MAX_UPLOAD_SIZE) {
         setError('Selecione um ficheiro até 10 MB.');
         return;
       }
+      setUploadProgress(0);
       const id = localId('resource');
       const resource: Resource = {
         id,
@@ -187,6 +225,9 @@ export function ResourcesPage({
         bytes: file.size,
         downloads: 0,
         ownerId: state.user.id,
+        shared: false,
+        shareMode: 'PRIVATE',
+        sharedWithUserIds: [],
         description: get('description'),
         objectives: get('objectives'), author: state.user.name, editable: f.get('editable') === 'on',
         favorite: false,
@@ -194,6 +235,7 @@ export function ResourcesPage({
       if (apiMode) {
         if (!state.activeSchoolId) { setError('Selecione uma escola antes de enviar o ficheiro.'); return; }
         setUploading(true);
+        setUploadStatus('A preparar o envio…');
         const schoolId = encodeURIComponent(state.activeSchoolId);
         const resourceId = encodeURIComponent(id);
         const recordPath = `/schools/${schoolId}/data/resources/${resourceId}`;
@@ -206,13 +248,13 @@ export function ResourcesPage({
             method: 'POST', body: JSON.stringify({ name: file.name, contentType, size: file.size }),
           });
           attachmentId = signed.id;
-          let sent: Response;
-          try {
-            sent = await fetch(signed.uploadUrl, { method: signed.method, headers: { 'Content-Type': signed.contentType }, body: file });
-          } catch {
-            throw new Error('O envio ao R2 foi bloqueado. Confirme a política CORS do bucket para o domínio deste site.');
-          }
-          if (!sent.ok) throw new Error(`O armazenamento recusou o ficheiro (HTTP ${sent.status}).`);
+          setUploadStatus('A enviar para o bucket…');
+          await uploadWithProgress(signed.uploadUrl, file, (loaded) => {
+            setUploadStatus('A enviar para o bucket…');
+            setUploadProgress(Math.min(100, Math.round((loaded / file.size) * 100)));
+          }, () => { setUploadStatus('A tentar novamente…'); setUploadProgress(0); });
+          setUploadProgress(100);
+          setUploadStatus('A confirmar o ficheiro…');
           await apiRequest(`${attachmentPath}/${encodeURIComponent(attachmentId)}/complete`, { method: 'POST' });
           resource.attachmentId = attachmentId;
           await apiRequest(recordPath, { method: 'PUT', body: JSON.stringify({ id, payload: resource }) });
@@ -223,6 +265,7 @@ export function ResourcesPage({
           return;
         } finally {
           setUploading(false);
+          setUploadStatus('');
         }
       }
       update((s) => ({
@@ -240,6 +283,48 @@ export function ResourcesPage({
           },
         ],
       }));
+    } else if (dialog === 'edit' && selected) {
+      const nextResource: Resource = {
+        ...selected,
+        title: get('title'),
+        category: get('category') as ResourceCategory,
+        subjectId: get('subject'),
+        level: get('level'),
+        description: get('description'),
+        objectives: get('objectives'),
+        editable: f.get('editable') === 'on',
+      };
+      const schoolId = selected.sourceSchoolId || state.activeSchoolId;
+      if (apiMode && schoolId) {
+        try {
+          await apiRequest(`/schools/${encodeURIComponent(schoolId)}/data/resources/${encodeURIComponent(selected.id)}`, {
+            method: 'PUT', body: JSON.stringify({ id: selected.id, payload: nextResource }),
+          });
+        } catch (cause) {
+          setError(cause instanceof Error ? cause.message : 'Não foi possível atualizar os detalhes do material.');
+          return;
+        }
+      }
+      update((s) => ({ ...s, resources: s.resources.map((resource) => resource.id === selected.id ? nextResource : resource) }));
+      setSelected(nextResource);
+    } else if (dialog === 'sharing' && selected) {
+      const emails = get('emails').split(/[;,\n]/).map((email) => email.trim()).filter(Boolean);
+      const schoolId = selected.sourceSchoolId || state.activeSchoolId;
+      try {
+        const result = apiMode && schoolId
+          ? await apiRequest<{ mode: NonNullable<Resource['shareMode']>; recipients: { id: string; email: string; name: string }[]; notificationsSent?: number; notificationsFailed?: number }>(
+              `/schools/${encodeURIComponent(schoolId)}/resources/${encodeURIComponent(selected.id)}/sharing`,
+              { method: 'POST', body: JSON.stringify({ mode: shareMode, emails }) },
+            )
+          : { mode: shareMode, recipients: emails.map((email) => ({ id: '', email, name: '' })) };
+        const nextResource = { ...selected, shareMode: result.mode, shared: result.mode === 'SCHOOL', sharedWithUserIds: result.recipients.map(({ id }) => id).filter(Boolean) };
+        update((s) => ({ ...s, resources: s.resources.map((resource) => resource.id === selected.id ? nextResource : resource) }));
+        setSelected(nextResource);
+        if (result.notificationsFailed) shareNotificationMessage = ` A partilha está ativa, mas ${result.notificationsFailed} email(s) não puderam ser enviados.`;
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : 'Não foi possível guardar as permissões de partilha.');
+        return;
+      }
     } else if (dialog === 'attach' && selected) {
       if (!state.plans.some((p) => p.id === get('plan'))) { setError('Escolha um plano existente ou crie um novo.'); return; }
       setDestination({ href: `/dashboard/planos-de-aula?plano=${encodeURIComponent(get('plan'))}`, label: 'Abrir plano de aula' });
@@ -262,12 +347,15 @@ export function ResourcesPage({
     }
     setDialog('');
     setError('');
-    notify(apiMode ? dialog === 'upload' ? 'Ficheiro enviado para o armazenamento da escola.' : 'Alteração sincronizada com a escola.' : 'Alteração guardada localmente.');
+    notify(dialog === 'sharing'
+      ? (shareMode === 'PRIVATE' ? 'O recurso ficou privado.' : shareMode === 'SCHOOL' ? 'Recurso partilhado com professores da escola.' : shareMode === 'PLATFORM' ? 'Recurso disponível a todos os utilizadores da plataforma.' : 'Permissões guardadas. Os destinatários recebem um email e precisam de iniciar sessão com essa conta.') + shareNotificationMessage
+      : apiMode ? dialog === 'upload' ? 'Ficheiro enviado para o armazenamento da escola.' : 'Alteração sincronizada com a escola.' : 'Alteração guardada localmente.');
   }
   async function downloadOriginal(resource: Resource) {
-    if (!apiMode || !state.activeSchoolId || !resource.attachmentId) return;
+    const sourceSchoolId = resource.sourceSchoolId || state.activeSchoolId;
+    if (!apiMode || !sourceSchoolId || !resource.attachmentId) return;
     try {
-      const path = `/schools/${encodeURIComponent(state.activeSchoolId)}/resources/${encodeURIComponent(resource.id)}/attachments/${encodeURIComponent(resource.attachmentId)}/download`;
+      const path = `/schools/${encodeURIComponent(sourceSchoolId)}/resources/${encodeURIComponent(resource.id)}/attachments/${encodeURIComponent(resource.attachmentId)}/download`;
       const result = await apiRequest<{ url: string }>(path);
       const anchor = document.createElement('a');
       anchor.href = result.url;
@@ -280,7 +368,31 @@ export function ResourcesPage({
   }
   const open = (name: string) => {
     setError('');
+    if (name === 'upload') {
+      setSelectedFile(null);
+      setUploadProgress(0);
+      setUploadStatus('');
+    }
     setDialog(name);
+  };
+  const editResourceSharing = async (resource: Resource) => {
+    setSelected(resource);
+    setShareMode(resource.shareMode || (resource.shared ? 'SCHOOL' : 'PRIVATE'));
+    setShareEmails('');
+    setError('');
+    setDialog('sharing');
+    const schoolId = resource.sourceSchoolId || state.activeSchoolId;
+    if (!apiMode || !schoolId) return;
+    setLoadingSharing(true);
+    try {
+      const result = await apiRequest<{ mode: NonNullable<Resource['shareMode']>; recipients: { email: string }[] }>(`/schools/${encodeURIComponent(schoolId)}/resources/${encodeURIComponent(resource.id)}/sharing`);
+      setShareMode(result.mode);
+      setShareEmails(result.recipients.map(({ email }) => email).join(', '));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível carregar as opções de partilha.');
+    } finally {
+      setLoadingSharing(false);
+    }
   };
   return (
     <>
@@ -334,7 +446,7 @@ export function ResourcesPage({
 
           <div className="dash-resource-grid">
             {resources.map((r) => {
-              const item = state.library.find((l) => l.resourceId === r.id);
+              const item = state.library.find((l) => l.resourceId === r.id && l.sourceSchoolId === r.sourceSchoolId);
               return (
                 <article className="dash-resource-card" key={r.id}>
                   <button
@@ -392,7 +504,7 @@ export function ResourcesPage({
                       {r.title}
                     </button>
                     <p>
-                      {state.subjects.find((s) => s.id === r.subjectId)?.name} · {r.level}
+                      {state.subjects.find((s) => s.id === r.subjectId)?.name || 'Geral'} · {r.level || 'Sem classe'}
                     </p>
                     <p className="dash-resource-description">{r.description}</p>
                     <small>{r.editable === undefined ? 'Editabilidade não indicada' : r.editable ? 'Material editável' : 'Material de consulta'}</small>
@@ -404,13 +516,13 @@ export function ResourcesPage({
                       </small>
                       <button
                         className="dash-icon-button"
-                        aria-label={`${(library ? item?.favorite : r.favorite) ? 'Remover favorito' : 'Favoritar'}: ${r.title}`}
-                        aria-pressed={library ? item?.favorite : r.favorite}
+                        aria-label={`${(library || r.sourceSchoolId || r.readOnly ? item?.favorite : r.favorite) ? 'Remover favorito' : 'Favoritar'}: ${r.title}`}
+                        aria-pressed={library || r.sourceSchoolId || r.readOnly ? item?.favorite : r.favorite}
                         onClick={() => favorite(r)}
                       >
                         <Bookmark
                           size={16}
-                          fill={(library ? item?.favorite : r.favorite) ? 'currentColor' : 'none'}
+                          fill={(library || r.sourceSchoolId || r.readOnly ? item?.favorite : r.favorite) ? 'currentColor' : 'none'}
                         />
                       </button>
                       <ActionMenu
@@ -432,18 +544,13 @@ export function ResourcesPage({
                                     open('move');
                                   },
                                 },
-                                {
-                                  label: item?.shared
-                                    ? 'Remover partilha local'
-                                    : 'Marcar como partilhado (local)',
-                                  action: () =>
-                                    update((s) => ({
-                                      ...s,
-                                      library: s.library.map((l) =>
-                                        l.resourceId === r.id ? { ...l, shared: !l.shared } : l,
-                                      ),
-                                    })),
-                                },
+                                ...(r.ownerId === state.user.id ? [{
+                                  label: 'Editar detalhes',
+                                  action: () => { setSelected(r); open('edit'); },
+                                }, {
+                                  label: 'Gerir partilha',
+                                  action: () => void editResourceSharing(r),
+                                }] : []),
                                 {
                                   label: item?.deleted
                                     ? 'Restaurar material'
@@ -458,6 +565,7 @@ export function ResourcesPage({
                                 },
                               ]
                             : [
+                                ...(r.ownerId === state.user.id ? [{ label: 'Editar detalhes', action: () => { setSelected(r); open('edit'); } }] : []),
                                 { label: 'Guardar na biblioteca', action: () => save(r) },
                                 {
                                   label: 'Associar a plano',
@@ -550,6 +658,8 @@ export function ResourcesPage({
           title={
             dialog === 'upload'
               ? 'Carregar material'
+              : dialog === 'edit'
+                ? 'Editar detalhes do material'
               : dialog === 'folder'
                 ? 'Nova pasta'
                 : dialog === 'attach'
@@ -569,7 +679,7 @@ export function ResourcesPage({
               <p>Autoria: {selected.author || (selected.ownerId === state.user.id ? state.user.name : 'Não indicada — material de demonstração')}</p>
               <p>Disciplina: {state.subjects.find((s) => s.id === selected.subjectId)?.name || 'Geral'}</p>
               <p>
-                <strong>{selected.format}</strong> · {fileSize(selected.bytes)} · {selected.level}
+                <strong>{selected.format}</strong> · {fileSize(selected.bytes)} · {selected.level || 'Sem classe'}
               </p>
               {selected.attachmentId && apiMode ? (
                 <button className="dash-btn secondary" onClick={() => void downloadOriginal(selected)}>
@@ -578,6 +688,12 @@ export function ResourcesPage({
               ) : (
                 <div className="dash-tip">
                   {apiMode ? 'Este recurso não tem um ficheiro original associado. Pode exportar a ficha descritiva.' : 'Pré-visualização de demonstração. O ficheiro não é conservado; pode exportar a ficha descritiva.'}
+                </div>
+              )}
+              {apiMode && selected.ownerId === state.user.id && (
+                <div className="dash-form-actions">
+                  <button className="dash-btn secondary" onClick={() => { setSelected(selected); open('edit'); }}>Editar detalhes</button>
+                  <button className="dash-btn secondary" onClick={() => void editResourceSharing(selected)}>Gerir partilha</button>
                 </div>
               )}
               <div className="dash-form-actions">
@@ -600,11 +716,35 @@ export function ResourcesPage({
               </div>
             </div>
           ) : (
-            <form className="dash-modal-simple" onSubmit={submit}>
+            <form className={`dash-modal-simple ${dialog === 'sharing' ? 'dash-sharing-modal' : dialog === 'upload' ? 'dash-upload-modal' : ''}`} onSubmit={submit}>
               {dialog === 'folder' ? (
                 <Field label="Nome da pasta" required>
                   <input name="name" required maxLength={60} />
                 </Field>
+              ) : dialog === 'sharing' ? (
+                <>
+                  <p>Todos os destinatários têm de iniciar sessão na plataforma. A partilha pode ser alterada ou revogada pelo autor.</p>
+                  {loadingSharing ? <p role="status">A carregar as permissões atuais…</p> : (
+                    <>
+                      <fieldset className="dash-share-mode-list"><legend>Quem pode aceder?</legend>
+                        {([
+                          ['PRIVATE', 'Só eu', 'Apenas o autor do recurso.'],
+                          ['SCHOOL', 'Professores da minha escola', 'Professores com conta nesta escola.'],
+                          ['PEOPLE', 'Pessoas específicas', 'Convida contas pelo endereço de email.'],
+                          ['PLATFORM', 'Todos na plataforma', 'Qualquer utilizador autenticado.'],
+                        ] as const).map(([mode, label, description]) => <label key={mode}>
+                          <input type="radio" name="shareMode" value={mode} checked={shareMode === mode} onChange={() => setShareMode(mode)} />
+                          <span><strong>{label}</strong><small>{description}</small></span>
+                        </label>)}
+                      </fieldset>
+                      {shareMode === 'PEOPLE' && (
+                        <Field label="Emails dos destinatários" hint="Separe vários emails por vírgulas ou linhas. Cada pessoa precisa de uma conta ativa e email confirmado." required>
+                          <textarea name="emails" value={shareEmails} onChange={(event) => setShareEmails(event.target.value)} required rows={4} placeholder="pessoa@exemplo.com, outra@exemplo.com" />
+                        </Field>
+                      )}
+                    </>
+                  )}
+                </>
               ) : dialog === 'attach' ? (
                 <><button className="dash-btn secondary" type="button" onClick={() => { if (!selected) return; setDialog(''); openModal({ kind: 'plan', resourceId: selected.id, subjectId: selected.subjectId, date: new Date().toLocaleDateString('en-CA') }); }}>Preparar uma nova aula com este recurso</button><Field label="Plano de aula" required>
                   <select name="plan" required defaultValue=""><option value="" disabled>Selecionar plano existente</option>
@@ -621,7 +761,7 @@ export function ResourcesPage({
                     <>
                       <Field
                         label="Ficheiro (até 10 MB)"
-                        hint={apiMode ? 'O ficheiro será enviado para o armazenamento da escola.' : 'Na demonstração, guardamos apenas o nome e os metadados.'}
+                        hint={apiMode ? 'Envio direto e seguro para o armazenamento da escola (máximo 10 MB).' : 'Na demonstração, guardamos apenas o nome e os metadados.'}
                         required
                       >
                         <input
@@ -629,22 +769,34 @@ export function ResourcesPage({
                           name="file"
                           required
                           accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.png,.jpg,.webp,.mp4,.mp3"
+                          onChange={(event) => setSelectedFile(event.currentTarget.files?.[0] || null)}
                         />
                       </Field>
+                      {selectedFile && <p className="dash-connection">Selecionado: {selectedFile.name} · {fileSize(selectedFile.size)}</p>}
+                      {uploading && (
+                        <div aria-live="polite" className="dash-connection">
+                          <p>{uploadStatus} {uploadStatus.startsWith('A enviar') ? `${uploadProgress}% · ${fileSize(Math.round((selectedFile?.size || 0) * uploadProgress / 100))} / ${fileSize(selectedFile?.size || 0)}` : ''}</p>
+                          {uploadStatus.startsWith('A enviar') && (
+                            <progress aria-label="Progresso do envio" max={100} value={uploadProgress} style={{ width: '100%' }} />
+                          )}
+                        </div>
+                      )}
                       <Field label="Título do material" required>
                         <input name="title" required />
                       </Field>
-                      <p className="dash-connection">O ficheiro fica associado ao recurso e só fica acessível ao autor.</p>
-                      <Field label="Categoria">
-                        <select name="category">
+                      <p className="dash-connection">Por padrão, só tu podes aceder. Depois do envio podes escolher partilhar com a escola, pessoas por email ou todos os utilizadores da plataforma.</p>
+                      <Field label="Categoria" required>
+                        <select name="category" required defaultValue="">
+                          <option value="" disabled>Escolher categoria</option>
                           {categories.slice(1).map((c) => (
                             <option key={c}>{c}</option>
                           ))}
                         </select>
                       </Field>
-                      <details><summary>Descrição, objetivos e edição (opcional)</summary><Field label="Descrição"><textarea name="description" maxLength={2000} /></Field><Field label="Objetivos"><textarea name="objectives" maxLength={2000} /></Field><label className="dash-check"><input type="checkbox" name="editable" />O material pode ser editado</label></details>
+                      <details><summary>Disciplina, classe e outros detalhes (opcional)</summary>
                       <Field label="Disciplina">
-                        <select name="subject">
+                        <select name="subject" defaultValue="">
+                          <option value="">Sem disciplina</option>
                           {state.subjects.map((s) => (
                             <option value={s.id} key={s.id}>
                               {s.name}
@@ -653,21 +805,33 @@ export function ResourcesPage({
                         </select>
                       </Field>
                       <Field label="Classe">
-                        <select name="level">
+                        <select name="level" defaultValue="">
+                          <option value="">Sem classe</option>
                           <option>9ª Classe</option>
                           <option>10ª Classe</option>
                           <option>11ª Classe</option>
                         </select>
                       </Field>
+                      <Field label="Descrição"><textarea name="description" maxLength={2000} /></Field>
+                      <Field label="Objetivos"><textarea name="objectives" maxLength={2000} /></Field>
+                      <label className="dash-check"><input type="checkbox" name="editable" />O material pode ser editado</label>
+                      </details>
                     </>
                   )}
-                  <Field label="Pasta">
-                    <select name="folder">
-                      {state.folders.map((f) => (
-                        <option key={f}>{f}</option>
-                      ))}
+                  {dialog === 'upload' && <Field label="Pasta">
+                    <select name="folder" defaultValue=""><option value="">Sem pasta (organizar depois)</option>
+                      {state.folders.map((f) => <option key={f}>{f}</option>)}
                     </select>
-                  </Field>
+                  </Field>}
+                  {dialog === 'edit' && selected && <>
+                    <Field label="Título do material" required><input name="title" required defaultValue={selected.title} /></Field>
+                    <Field label="Categoria" required><select name="category" required defaultValue={selected.category}>{categories.slice(1).map((c) => <option key={c}>{c}</option>)}</select></Field>
+                    <Field label="Disciplina"><select name="subject" defaultValue={selected.subjectId || ''}><option value="">Sem disciplina</option>{state.subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+                    <Field label="Classe"><select name="level" defaultValue={selected.level || ''}><option value="">Sem classe</option><option>9ª Classe</option><option>10ª Classe</option><option>11ª Classe</option></select></Field>
+                    <Field label="Descrição"><textarea name="description" maxLength={2000} defaultValue={selected.description} /></Field>
+                    <Field label="Objetivos"><textarea name="objectives" maxLength={2000} defaultValue={selected.objectives} /></Field>
+                    <label className="dash-check"><input type="checkbox" name="editable" defaultChecked={selected.editable} />O material pode ser editado</label>
+                  </>}
                 </>
               )}
               {error && <p role="alert">{error}</p>}
@@ -675,7 +839,7 @@ export function ResourcesPage({
                 <button className="dash-btn secondary" type="button" onClick={() => setDialog('')}>
                   Cancelar
                 </button>
-                <button className="dash-btn" disabled={uploading || (dialog === 'attach' && !state.plans.length)}>{uploading ? 'A enviar ficheiro…' : dialog === 'attach' ? 'Associar ao plano' : 'Guardar'}</button>
+                <button className="dash-btn" disabled={uploading || loadingSharing || (dialog === 'attach' && !state.plans.length)}>{uploading ? 'A enviar ficheiro…' : dialog === 'attach' ? 'Associar ao plano' : dialog === 'sharing' ? 'Guardar partilha' : 'Guardar'}</button>
               </div>
             </form>
           )}

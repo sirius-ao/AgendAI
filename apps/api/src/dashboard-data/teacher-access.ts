@@ -72,7 +72,11 @@ export function teacherCanReadRecord(input: {
         ownedAndInScope || ((classAllowed || subjectAllowed) && item.visibility !== 'Apenas eu')
       );
     case 'RESOURCES':
-      return authored || subjectAllowed;
+      return authored ||
+        item.shared === true ||
+        item.shareMode === 'SCHOOL' ||
+        item.shareMode === 'PLATFORM' ||
+        (item.shareMode === 'PEOPLE' && ids(item.sharedWithUserIds).includes(userId));
     case 'LIBRARY':
     case 'FOLDERS':
     case 'ONBOARDING':

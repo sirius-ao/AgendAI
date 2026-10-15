@@ -7,12 +7,13 @@ import {
 import { DashboardCollection } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SchoolsService } from '../schools/schools.service.js';
-import type { SaveDashboardRecordDto } from './dashboard-data.dto.js';
+import type { SaveDashboardRecordDto, SetResourceSharingDto } from './dashboard-data.dto.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { AuditService } from '../audit/audit.service.js';
 import { TeachingService } from '../teaching/teaching.service.js';
 import { deriveTeacherScope, teacherCanReadRecord } from './teacher-access.js';
 import { randomUUID } from 'node:crypto';
+import { EmailService } from '../auth/email.service.js';
 
 const collections = new Map<string, DashboardCollection>([
   ['subjects', DashboardCollection.SUBJECTS],
@@ -47,6 +48,7 @@ export class DashboardDataService {
     private readonly schools: SchoolsService,
     private readonly audit: AuditService,
     private readonly teaching: TeachingService,
+    private readonly email: EmailService,
   ) {}
   private collection(value: string) {
     const collection = collections.get(value);
@@ -60,6 +62,85 @@ export class DashboardDataService {
       select: { user: { select: { id: true, name: true, email: true } } },
       orderBy: { user: { name: 'asc' } },
     }).then((rows) => rows.map(({ user }) => user));
+  }
+  private async ownResource(userId: string, schoolId: string, resourceId: string) {
+    await this.schools.assertMembership(userId, schoolId);
+    const row = await this.prisma.dashboardRecord.findUnique({
+      where: { schoolId_collection_recordId: { schoolId, collection: DashboardCollection.RESOURCES, recordId: resourceId } },
+    });
+    if (!row) throw new NotFoundException('Recurso não encontrado');
+    const payload = row.payload as RecordPayload;
+    if (row.createdById !== userId && payload.ownerId !== userId && payload.teacherId !== userId)
+      throw new ForbiddenException('Só o autor pode alterar a partilha deste recurso');
+    return { row, payload };
+  }
+  async resourceSharing(userId: string, schoolId: string, resourceId: string) {
+    const { payload } = await this.ownResource(userId, schoolId, resourceId);
+    const idsForSharing = ids(payload.sharedWithUserIds);
+    const recipients = idsForSharing.length
+      ? await this.prisma.user.findMany({ where: { id: { in: idsForSharing } }, select: { id: true, name: true, email: true } })
+      : [];
+    const mode = ['PRIVATE', 'SCHOOL', 'PLATFORM', 'PEOPLE'].includes(String(payload.shareMode))
+      ? String(payload.shareMode)
+      : payload.shared === true ? 'SCHOOL' : 'PRIVATE';
+    return { mode, recipients };
+  }
+  async setResourceSharing(userId: string, schoolId: string, resourceId: string, dto: SetResourceSharingDto) {
+    const { row, payload } = await this.ownResource(userId, schoolId, resourceId);
+    const emails = [...new Set((dto.emails || []).map((email) => email.trim().toLowerCase()).filter(Boolean))];
+    if (dto.mode === 'PEOPLE' && emails.length === 0)
+      throw new BadRequestException('Indique pelo menos um email para partilhar o recurso');
+    if (dto.mode !== 'PEOPLE' && emails.length)
+      throw new BadRequestException('Emails só podem ser indicados no modo de partilha com pessoas específicas');
+    const recipients = emails.length
+      ? await this.prisma.user.findMany({
+          where: { email: { in: emails }, isActive: true, emailVerifiedAt: { not: null } },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
+    if (recipients.length !== emails.length)
+      throw new BadRequestException('Cada destinatário precisa de uma conta ativa na plataforma com email confirmado');
+    if (recipients.some((recipient) => recipient.id === userId))
+      throw new BadRequestException('Não é necessário partilhar o recurso consigo próprio');
+    const nextPayload = {
+      ...payload,
+      shareMode: dto.mode,
+      shared: dto.mode === 'SCHOOL',
+      sharedWithUserIds: recipients.map(({ id }) => id),
+    };
+    await this.prisma.dashboardRecord.update({
+      where: { id: row.id },
+      data: { payload: nextPayload as Prisma.InputJsonValue },
+    });
+    await this.audit.write({ schoolId, actorId: userId, action: 'UPDATE', entity: 'resource-sharing', recordId: resourceId, details: { mode: dto.mode, recipientCount: recipients.length } });
+    const previousIds = payload.shareMode === 'PEOPLE' ? ids(payload.sharedWithUserIds) : [];
+    const toNotify = dto.mode === 'PEOPLE' ? recipients.filter(({ id }) => !previousIds.includes(id)) : [];
+    const sender = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+    const deliveries = await Promise.allSettled(toNotify.map((recipient) => this.email.sendResourceShare(recipient.email, recipient.name, sender?.name || 'Um professor', String(payload.title || 'um recurso'))));
+    return {
+      mode: dto.mode,
+      recipients,
+      notificationsSent: deliveries.filter((delivery) => delivery.status === 'fulfilled').length,
+      notificationsFailed: deliveries.filter((delivery) => delivery.status === 'rejected').length,
+    };
+  }
+  async sharedResources(userId: string) {
+    const rows = await this.prisma.dashboardRecord.findMany({
+      where: { collection: DashboardCollection.RESOURCES, school: { isActive: true } },
+      orderBy: { updatedAt: 'desc' },
+      take: 2000,
+      select: { schoolId: true, recordId: true, payload: true, createdById: true },
+    });
+    return rows.flatMap((row) => {
+      const payload = row.payload as RecordPayload;
+      const mode = payload.shareMode || (payload.shared === true ? 'SCHOOL' : 'PRIVATE');
+      if (mode === 'PLATFORM' || (mode === 'PEOPLE' && ids(payload.sharedWithUserIds).includes(userId))) {
+        const { sharedWithUserIds: _privateRecipients, ...safePayload } = payload;
+        const owns = row.createdById === userId || [payload.ownerId, payload.teacherId].includes(userId);
+        return [{ schoolId: row.schoolId, recordId: row.recordId, payload: { ...safePayload, id: row.recordId, sourceSchoolId: row.schoolId, readOnly: !owns } }];
+      }
+      return [];
+    });
   }
   async createDirectConversation(userId: string, schoolId: string, recipientId: string) {
     await this.schools.assertMembership(userId, schoolId);
@@ -198,18 +279,18 @@ export class DashboardDataService {
       orderBy: { createdAt: 'asc' },
       select: { recordId: true, payload: true, updatedAt: true, createdById: true },
     });
-    if (membership.role !== 'TEACHER') return rows;
-    const scope = await this.teacherScope(userId, schoolId);
-    return rows.filter((row) =>
-      teacherCanReadRecord({
-        collection,
-        recordId: row.recordId,
-        value: row.payload,
-        userId,
-        scope,
-        createdById: row.createdById,
-      }),
+    const scope = membership.role === 'TEACHER' ? await this.teacherScope(userId, schoolId) : undefined;
+    const visible = !scope ? rows : rows.filter((row) =>
+      teacherCanReadRecord({ collection, recordId: row.recordId, value: row.payload, userId, scope, createdById: row.createdById }),
     );
+    return visible.map((row) => {
+      if (collection !== DashboardCollection.RESOURCES) return row;
+      const payload = row.payload as RecordPayload;
+      const owns = row.createdById === userId || [payload.ownerId, payload.teacherId].includes(userId);
+      if (owns) return row;
+      const { sharedWithUserIds: _privateRecipients, ...safePayload } = payload;
+      return { ...row, payload: { ...safePayload, sourceSchoolId: schoolId, readOnly: true } };
+    });
   }
   async save(userId: string, schoolId: string, name: string, dto: SaveDashboardRecordDto) {
     const membership = await this.schools.assertMembership(userId, schoolId);
@@ -422,7 +503,14 @@ export class DashboardDataService {
                 createdById: row.createdById,
               })),
         )
-        .map((row) => ({ id: row.recordId, payload: row.payload, updatedAt: row.updatedAt }));
+        .map((row) => {
+          if (collection !== DashboardCollection.RESOURCES) return { id: row.recordId, payload: row.payload, updatedAt: row.updatedAt };
+          const payload = row.payload as RecordPayload;
+          const owns = row.createdById === userId || [payload.ownerId, payload.teacherId].includes(userId);
+          if (owns) return { id: row.recordId, payload: row.payload, updatedAt: row.updatedAt };
+          const { sharedWithUserIds: _privateRecipients, ...safePayload } = payload;
+          return { id: row.recordId, payload: { ...safePayload, sourceSchoolId: schoolId, readOnly: true }, updatedAt: row.updatedAt };
+        });
     const [school, classes, students] = await Promise.all([
       this.prisma.school.findUniqueOrThrow({ where: { id: schoolId } }),
       this.prisma.schoolClass.findMany({

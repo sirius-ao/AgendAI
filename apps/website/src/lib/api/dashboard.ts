@@ -28,7 +28,7 @@ function savedRecords(state: DashboardState, schoolId: string): Record<Collectio
   const drafts = <T>(items: Record<string, T> | undefined, wrap: (id: string, value: T) => Record<string, unknown>) => Object.entries(items || {}).map(([id, value]) => ({ id, payload: wrap(id, value) }));
   return {
     subjects: record(state.subjects), classes: record(state.classes), students: record(state.students), plans: record(state.plans), attendance,
-    assessments: record(state.assessments), events: record(state.events), resources: record(state.resources), library: record(state.library),
+    assessments: record(state.assessments), events: record(state.events), resources: record(state.resources.filter((resource) => !resource.readOnly && (!resource.sourceSchoolId || resource.sourceSchoolId === schoolId))), library: record(state.library),
     reports: record(state.reports), conversations: record(state.conversations), tasks: record(state.tasks),
     folders: state.folders.map((folder) => ({ id: folder, payload: { id: folder, name: folder } })),
     planDrafts: drafts(state.planDrafts, (id, value) => ({ id, ...value as object })),
@@ -41,6 +41,7 @@ function savedRecords(state: DashboardState, schoolId: string): Record<Collectio
 
 export async function loadApiDashboard(user: ApiUser, schoolId: string) {
   const snapshot = await apiRequest<Snapshot>(`/schools/${encodeURIComponent(schoolId)}/dashboard`);
+  const sharedResources = await apiRequest<Record<string, unknown>[]>(`/resources/shared`).catch(() => []);
   const teacherSubjects = await apiRequest<{ subjectIds: string[] }>(`/schools/${encodeURIComponent(schoolId)}/teachers/me/subjects`);
   const seed = createDashboardSeed();
   const data = fromRows(snapshot);
@@ -64,7 +65,12 @@ export async function loadApiDashboard(user: ApiUser, schoolId: string) {
     attendance: (data.attendance || []).map(({ id: _id, ...item }) => item) as unknown as DashboardState['attendance'],
     assessments: (data.assessments || []) as unknown as DashboardState['assessments'],
     events: (data.events || []) as unknown as DashboardState['events'],
-    resources: (data.resources || []) as unknown as DashboardState['resources'],
+    resources: [
+      ...((data.resources || []) as unknown as DashboardState['resources']),
+      ...sharedResources
+        .filter((resource) => resource.sourceSchoolId !== schoolId)
+        .map((resource) => resource as unknown as DashboardState['resources'][number]),
+    ],
     library: (data.library || []) as unknown as DashboardState['library'],
     reports: (data.reports || []) as unknown as DashboardState['reports'],
     conversations: (data.conversations || []) as unknown as DashboardState['conversations'],

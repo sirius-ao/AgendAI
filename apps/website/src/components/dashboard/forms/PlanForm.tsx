@@ -1,17 +1,21 @@
 'use client';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { FilePlus } from 'lucide-react';
 import { useDashboard } from '../state/DashboardProvider';
 import { Attachments, Field, Modal, Switch } from '../ui/Primitives';
 import { PlanFileAttachments } from './PlanFileAttachments';
+import { LinkedPlanResources } from './LinkedPlanResources';
 import { planModels, planRows } from '@/lib/dashboard/plan-models';
 import { printLessonPlan } from '@/lib/dashboard/print-lesson-plan';
 import { syncPlanEvent } from '@/lib/dashboard/plan-calendar';
 import { planExamples } from '@/data/dashboard/plan-examples';
 import { localId } from '@/lib/dashboard/selectors';
+import { apiRequest } from '@/lib/api/client';
 import { DEMO_DATE } from '@/data/dashboard/seed';
 import type { LessonPlan } from '@/types/dashboard';
+
+type AISuggestions = Pick<LessonPlan, 'objectives' | 'content' | 'methodology' | 'resources' | 'evaluation'> & { stages: NonNullable<LessonPlan['stages']> };
 
 export function PlanForm() {
   const { state, modal, update, openModal, notify, error: storageError, apiMode } = useDashboard();
@@ -47,6 +51,20 @@ export function PlanForm() {
   const [preview, setPreview] = useState(false);
   const [preferred, setPreferred] = useState(!old);
   const [error, setError] = useState('');
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(null);
+  const [generatingAI, setGeneratingAI] = useState(false);
+  const [aiError, setAIError] = useState('');
+  const [aiAvailability, setAIAvailability] = useState<'checking' | 'available' | 'unavailable' | 'error'>('checking');
+  const [useAI, setUseAI] = useState(false);
+  useEffect(() => {
+    if (!apiMode || !state.activeSchoolId) { setAIAvailability('unavailable'); setUseAI(false); return; }
+    let cancelled = false;
+    setAIAvailability('checking');
+    void apiRequest<{ enabled: boolean }>(`/schools/${encodeURIComponent(state.activeSchoolId)}/plans/ai-status`)
+      .then(({ enabled }) => { if (!cancelled) { setAIAvailability(enabled ? 'available' : 'unavailable'); if (!enabled) setUseAI(false); } })
+      .catch(() => { if (!cancelled) { setAIAvailability('error'); setUseAI(false); } });
+    return () => { cancelled = true; };
+  }, [apiMode, state.activeSchoolId]);
   const patch = (value: Partial<LessonPlan>) => {
     const next = { ...plan, ...value };
     setPlan(next);
@@ -79,6 +97,34 @@ export function PlanForm() {
     setSavedPlan(saved);
   }
   const area = (key: 'objectives' | 'content' | 'methodology' | 'resources' | 'evaluation' | 'prerequisites', label: string) => <Field label={label}><textarea value={plan[key] || ''} maxLength={6000} rows={3} onChange={(e) => patch({ [key]: e.target.value })} /></Field>;
+  async function generateWithAI() {
+    if (!state.activeSchoolId || !plan.classId || !plan.subjectId || !plan.title.trim()) return;
+    setGeneratingAI(true); setAIError(''); setAiSuggestions(null);
+    try {
+      const className = state.classes.find((item) => item.id === plan.classId)?.name || 'Turma';
+      const subject = state.subjects.find((item) => item.id === plan.subjectId)?.name || 'Disciplina';
+      const materials = [plan.resources, ...(plan.resourceIds || []).map((id) => state.resources.find((resource) => resource.id === id)?.title).filter(Boolean)].filter(Boolean).join('\n');
+      const result = await apiRequest<AISuggestions>(`/schools/${encodeURIComponent(state.activeSchoolId)}/plans/generate`, {
+        method: 'POST',
+        body: JSON.stringify({ theme: plan.title, subject, className, duration: plan.duration, objectives: plan.objectives, content: plan.content, lessonType: plan.lessonType, modality: plan.modality, materials }),
+      });
+      setAiSuggestions(result);
+    } catch (cause) {
+      setAIError(cause instanceof Error ? cause.message : 'Não foi possível gerar as sugestões. O seu rascunho continua guardado.');
+    } finally { setGeneratingAI(false); }
+  }
+  function applyAIField(field: keyof Omit<AISuggestions, 'stages'>) {
+    if (!aiSuggestions) return;
+    patch({ [field]: aiSuggestions[field] });
+    setAiSuggestions({ ...aiSuggestions, [field]: '' });
+  }
+  function applyAIStages() {
+    if (!aiSuggestions?.stages.length) return;
+    const each = Math.floor(plan.duration / aiSuggestions.stages.length);
+    const remainder = plan.duration % aiSuggestions.stages.length;
+    patch({ modelId: plan.modelId === 'simple' ? 'detailed' : plan.modelId, stages: aiSuggestions.stages.map((stage, index) => ({ ...stage, minutes: each + (index < remainder ? 1 : 0) })) });
+    setAiSuggestions({ ...aiSuggestions, stages: [] });
+  }
   if (savedPlan) return <Modal title="Plano e calendário atualizados" onClose={close} className="dash-dialog-small"><div className="dash-modal-simple">
     <h3>{savedPlan.title}</h3><p role="status">{storageError ? apiMode ? 'Não foi possível sincronizar com o servidor. Verifique a ligação antes de sair.' : 'Alterações disponíveis nesta sessão, mas não foi possível guardá-las no navegador. Mantenha esta página aberta.' : apiMode ? 'Plano guardado na escola e aula atualizada no calendário.' : 'Plano guardado e aula atualizada no calendário deste dispositivo.'}</p>
     <p>{savedPlan.date} · {savedPlan.startTime} · {savedPlan.duration} minutos</p>
@@ -90,7 +136,7 @@ export function PlanForm() {
         {source && <p>Escolha a turma e a nova data. O plano original não será alterado.</p>}
         <p>Guardar o plano atualiza a aula correspondente no calendário.</p></div><button className="dash-btn secondary" type="button" onClick={close}>Continuar depois</button></div>
       <div className="dash-form-main">
-        <nav className="dash-plan-section-nav" aria-label="Secções do plano"><a href="#plan-data">Dados da aula</a><a href="#plan-content">Conteúdo</a>{plan.modelId !== 'simple' && <a href="#plan-stages">Etapas</a>}<a href="#plan-document">Documento</a></nav>
+        <nav className="dash-plan-section-nav" aria-label="Secções do plano"><a href="#plan-data">Dados</a><a href="#plan-content">Conteúdo</a><a href="#plan-ai-toggle">IA</a><a href="#plan-linked-resources">Materiais</a>{plan.modelId !== 'simple' && <a href="#plan-stages">Etapas</a>}<a href="#plan-document">Documento</a></nav>
         <section id="plan-data" className="dash-plan-section"><h2>1. Dados da aula</h2>
         <Field label="Modelo de plano"><select value={plan.modelId} onChange={(e) => patch({ modelId: e.target.value as LessonPlan['modelId'] })}>{planModels.map((model) => <option value={model.id} key={model.id}>{model.name}</option>)}</select></Field>
         <p>{planModels.find((m) => m.id === plan.modelId)?.description} Mudar de modelo preserva os campos preenchidos; a pré-visualização mostra os campos do modelo escolhido.</p>
@@ -115,12 +161,32 @@ export function PlanForm() {
           <Field label="Modalidade"><select value={plan.modality} onChange={(e) => patch({ modality: e.target.value })}>{['Presencial', 'Online', 'Híbrida'].map((v) => <option key={v}>{v}</option>)}</select></Field>
         </div>
         </section>
+        <section id="plan-ai-toggle" className="dash-plan-ai-toggle" aria-labelledby="plan-ai-toggle-heading">
+          <h3 id="plan-ai-toggle-heading">Como queres preparar o plano?</h3>
+          {aiAvailability === 'available' ? <Switch label="Usar IA neste plano" checked={useAI} onChange={setUseAI} hint="Desativado: preenche todos os campos manualmente. Ativado: recebe sugestões e escolhe quais aplicar." /> :
+            aiAvailability === 'checking' ? <p role="status">A verificar se a geração com IA está ativa…</p> :
+              <p role="status">{aiAvailability === 'error' ? 'Não foi possível verificar a IA. Podes continuar a preencher o plano manualmente.' : 'A geração com IA não está ativa nesta plataforma. Podes continuar a preencher o plano manualmente.'}</p>}
+        </section>
+        {useAI && aiAvailability === 'available' && <section className="dash-plan-ai" aria-labelledby="plan-ai-heading">
+          <h3 id="plan-ai-heading">Assistente de IA</h3>
+          <p>Gera sugestões com base no tema, turma, disciplina e duração. Revê cada sugestão antes de a aplicar; nada é guardado no plano sem a tua escolha.</p>
+          <small>O tema, disciplina, turma, duração e textos que preencher serão enviados ao serviço de IA configurado. Não inclua nomes ou dados pessoais de alunos.</small>
+          <button className="dash-btn secondary" type="button" onClick={() => void generateWithAI()} disabled={!apiMode || !state.activeSchoolId || !plan.title.trim() || !plan.classId || !plan.subjectId || generatingAI}>
+            {generatingAI ? 'A preparar sugestões…' : aiSuggestions ? 'Gerar novas sugestões' : 'Gerar sugestões com IA'}
+          </button>
+          {(!plan.title.trim() || !plan.classId || !plan.subjectId) && <small>Preenche o tema, a turma e a disciplina para começar.</small>}
+          {aiError && <p role="alert" className="dash-error-text">{aiError}</p>}
+          {aiSuggestions && <div className="dash-plan-ai-results" aria-live="polite">
+            {(['objectives', 'content', 'methodology', 'resources', 'evaluation'] as const).map((field) => aiSuggestions[field] && <article key={field}><div><strong>{{ objectives: 'Objetivos', content: 'Conteúdos', methodology: 'Atividades', resources: 'Recursos', evaluation: 'Avaliação' }[field]}</strong><p>{aiSuggestions[field]}</p></div><button type="button" className="dash-btn secondary" onClick={() => applyAIField(field)}>Usar sugestão</button></article>)}
+            {!!aiSuggestions.stages.length && <article><div><strong>Etapas da aula</strong>{aiSuggestions.stages.map((stage, index) => <p key={index}><b>{stage.title}</b> · {stage.minutes} min<br />Professor: {stage.teacher}<br />Alunos: {stage.students}</p>)}</div><button type="button" className="dash-btn secondary" onClick={applyAIStages}>Usar etapas</button></article>}
+          </div>}
+        </section>}
         <section id="plan-content" className="dash-plan-section"><h2>2. Conteúdo da aula</h2>
-        {modal?.ai && <div className="dash-tip"><div><strong>Estrutura de exemplo, sem serviço de IA</strong><p>Insere sugestões apenas nos campos vazios.</p><button className="dash-btn secondary" type="button" onClick={() => patch({ objectives: plan.objectives || 'Identificar conceitos e explicar o raciocínio.', content: plan.content || 'Introdução ao tema e exemplos orientados.', methodology: plan.methodology || 'Discussão inicial, prática em pares e síntese.', ai: true })}>Inserir exemplo</button></div></div>}
         {area('objectives', 'Objetivos de aprendizagem')}
         {area('content', 'Conteúdos programáticos')}
         {area('methodology', 'Atividades / Estratégias de ensino')}
         {area('resources', 'Recursos necessários')}
+        <LinkedPlanResources resourceIds={plan.resourceIds || []} onChange={(resourceIds) => patch({ resourceIds })} />
         {area('evaluation', 'Avaliação da aprendizagem')}
         </section>
         {plan.modelId !== 'simple' && <section id="plan-stages" className="dash-plan-section"><h2>3. Etapas da aula</h2>

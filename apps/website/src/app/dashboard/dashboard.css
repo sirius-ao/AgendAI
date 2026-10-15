@@ -1497,6 +1497,7 @@
   z-index: 2;
 }
 .dash-calendar-event {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   text-align: left;
@@ -1508,15 +1509,20 @@
   height: 100%;
   min-width: 0;
   overflow: hidden;
+  overflow-wrap: anywhere;
   font-size: 10px;
 }
 .dash-calendar-event strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 10px;
   color: #111729;
   line-height: 1.35;
   margin: 3px 0;
 }
 .dash-calendar-event span {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: #465574;
   font-size: 10px;
   line-height: 1.3;
@@ -1583,6 +1589,7 @@
   margin-bottom: 4px;
   padding: 4px;
   min-height: 43px;
+  max-width: 100%;
 }
 .dash-month-grid .other-month {
   background: var(--dash-bg);
@@ -3943,6 +3950,27 @@
 .dash-plan-section { border-bottom: 1px solid var(--dash-border); margin-bottom: 24px; padding-bottom: 12px; }
 .dash-plan-section > h2 { margin-bottom: 18px; }
 .dash-plan-section, #plan-document { scroll-margin-top: 140px; }
+.dash-plan-linked-resources { border: 1px solid var(--dash-border); border-radius: 8px; padding: 14px; margin: 18px 0; min-width: 0; }
+.dash-plan-linked-resources h3 { margin: 0 0 8px; }
+.dash-plan-linked-resources > p { color: var(--dash-muted); font-size: 13px; }
+.dash-plan-linked-picker { border: 1px solid var(--dash-border); border-radius: 6px; padding: 10px; margin: 12px 0; min-width: 0; }
+.dash-plan-linked-picker legend { font-weight: 600; padding: 0 5px; }
+.dash-plan-linked-picker .dash-check { min-width: 0; overflow-wrap: anywhere; }
+.dash-plan-linked-resources li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--dash-border); min-width: 0; }
+.dash-plan-linked-resources li > span { display: grid; min-width: 0; overflow-wrap: anywhere; }
+.dash-plan-linked-resources li small { color: var(--dash-muted); }
+@media (max-width: 600px) { .dash-plan-linked-resources li { align-items: flex-start; flex-direction: column; } }
+.dash-plan-ai { border: 1px solid var(--dash-border); border-radius: 8px; padding: 16px; margin: 18px 0; min-width: 0; }
+.dash-plan-ai-toggle { border: 1px solid var(--dash-border); border-radius: 8px; padding: 16px; margin: 18px 0; min-width: 0; }
+.dash-plan-ai-toggle h3 { margin-top: 0; }
+.dash-plan-ai-toggle > p { color: var(--dash-muted); }
+.dash-plan-ai h3 { margin-top: 0; }
+.dash-plan-ai > p, .dash-plan-ai > small { color: var(--dash-muted); }
+.dash-plan-ai-results { display: grid; gap: 10px; margin-top: 14px; }
+.dash-plan-ai-results article { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding: 12px; border: 1px solid var(--dash-border); border-radius: 6px; min-width: 0; }
+.dash-plan-ai-results article > div { min-width: 0; overflow-wrap: anywhere; }
+.dash-plan-ai-results article p { white-space: pre-wrap; }
+@media (max-width: 600px) { .dash-plan-ai-results article { flex-direction: column; } }
 .dash-plan-advanced { margin: 18px 0; }
 .dash-plan-advanced summary { padding: 12px 0; cursor: pointer; font-size: 13px; }
 @media (max-width: 700px) {
@@ -4292,3 +4320,65 @@
 .dash-share-links > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; background: #edf5ef; font-size: 13px; }
 .dash-share-links button { border: 0; background: transparent; color: #b42318; font: inherit; font-weight: 700; cursor: pointer; }
 .dash-share-links button:disabled { opacity: .55; cursor: wait; }
+
+/* Small-screen ergonomics for calendar, resource dialogs and lesson plans. */
+.dash-share-mode-list { display: grid; gap: 8px; border: 0; padding: 0; margin: 0 0 16px; min-width: 0; }
+.dash-share-mode-list legend { margin-bottom: 8px; font-size: 13px; font-weight: 650; }
+.dash-share-mode-list label { display: flex; align-items: flex-start; gap: 10px; border: 1px solid var(--dash-border); border-radius: 8px; padding: 12px; min-width: 0; cursor: pointer; }
+.dash-share-mode-list label:has(input:checked) { border-color: var(--dash-green); background: var(--dash-green-soft); }
+.dash-share-mode-list input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 2px; accent-color: var(--dash-green); }
+.dash-share-mode-list label > span { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+.dash-share-mode-list small { color: var(--dash-muted); line-height: 1.45; }
+
+@media (max-width: 700px) {
+  .dash-calendar-scroll { -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; scroll-snap-type: x proximity; }
+  .dash-week-day { scroll-snap-align: start; }
+  .dash-week .dash-calendar-event { padding: 4px 5px; }
+  .dash-week .dash-calendar-event strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; line-height: 1.25; }
+  .dash-week .dash-calendar-event span { display: none; }
+  .dash-week .dash-calendar-event small { white-space: nowrap; }
+  .dash-month-grid > div { overflow: visible; align-content: start; }
+  .dash-month-grid .dash-calendar-event { min-height: 44px; max-height: none; overflow: visible; }
+  .dash-month-grid .dash-calendar-event strong { display: block; overflow: visible; white-space: normal; overflow-wrap: anywhere; }
+
+  .dash-dialog-small { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); }
+  .dash-dialog-small .dash-modal-heading { padding: 14px; }
+  .dash-modal-simple { padding: 14px; min-width: 0; }
+  .dash-upload-modal .dash-field input[type='file'] { box-sizing: border-box; display: block; width: 100%; max-width: 100%; min-height: 48px; padding: 8px; font-size: 14px !important; }
+  .dash-upload-modal details > summary { min-height: 48px; display: flex; align-items: center; cursor: pointer; line-height: 1.4; }
+  .dash-upload-modal .dash-connection { padding: 10px; overflow-wrap: anywhere; line-height: 1.5; }
+  .dash-upload-modal progress { height: 10px; }
+  .dash-sharing-modal .dash-share-mode-list label { min-height: 48px; }
+  .dash-sharing-modal textarea[name='emails'] { min-height: 116px; resize: vertical; overflow-wrap: anywhere; }
+  .dash-upload-modal .dash-form-actions,
+  .dash-sharing-modal .dash-form-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .dash-upload-modal .dash-form-actions > .dash-btn,
+  .dash-sharing-modal .dash-form-actions > .dash-btn { width: 100%; min-height: 48px; white-space: normal; }
+
+  .dash-dialog-plan .dash-form-main { min-width: 0; padding: 14px 12px; }
+  .dash-dialog-plan .dash-fields-row { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .dash-dialog-plan .dash-fields-row > * { min-width: 0; }
+  .dash-plan-section-nav { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x proximity; margin: -2px -4px 18px; padding: 2px 4px 8px; -webkit-overflow-scrolling: touch; }
+  .dash-plan-section-nav a { flex: 0 0 auto; min-width: 76px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; scroll-snap-align: start; }
+  .dash-plan-section, #plan-document, #plan-ai-toggle, #plan-linked-resources { scroll-margin-top: 120px; }
+  .dash-plan-section textarea { min-height: 104px; }
+  .dash-plan-savebar > div { min-width: 0; flex: 1; overflow-wrap: anywhere; line-height: 1.4; }
+  .dash-plan-savebar .dash-btn { min-width: 106px; white-space: normal; }
+  .dash-plan-ai-toggle, .dash-plan-ai { padding: 14px; }
+  .dash-plan-ai-toggle .dash-switch-row { min-height: 52px; gap: 14px; }
+  .dash-plan-ai-toggle .dash-switch-row > span:first-child { min-width: 0; }
+  .dash-plan-ai-toggle .dash-switch-row small { line-height: 1.45; }
+  .dash-plan-ai > .dash-btn,
+  .dash-plan-ai-results .dash-btn,
+  .dash-plan-linked-resources .dash-btn { width: 100%; min-height: 48px; white-space: normal; justify-content: center; }
+  .dash-plan-ai > p, .dash-plan-ai > small { display: block; line-height: 1.5; overflow-wrap: anywhere; }
+  .dash-plan-ai-results article { align-items: stretch; padding: 12px; }
+  .dash-plan-ai-results article p { line-height: 1.5; overflow-wrap: anywhere; }
+  .dash-plan-linked-resources { padding: 12px; }
+  .dash-plan-linked-picker { padding: 8px; }
+  .dash-plan-linked-picker .dash-check { min-height: 48px; align-items: flex-start; padding-block: 10px; }
+  .dash-plan-linked-picker .dash-check input { flex: 0 0 auto; width: 20px; height: 20px; margin-top: 1px; }
+  .dash-plan-linked-resources li { align-items: stretch; flex-direction: column; gap: 8px; }
+  .dash-plan-linked-resources li > span { line-height: 1.45; }
+  .dash-plan-linked-resources li > button { min-height: 48px; }
+}

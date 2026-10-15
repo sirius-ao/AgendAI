@@ -22,6 +22,7 @@ import type { LessonPlan } from '@/types/dashboard';
 import { PlanModels } from '../PlanModels';
 import { planModels, planRows } from '@/lib/dashboard/plan-models';
 import { SharePlanDialog } from '../SharePlanDialog';
+import { LinkedPlanResources } from '../forms/LinkedPlanResources';
 
 type Entry = { key: string; plan: LessonPlan; saved: boolean; unfinished: boolean };
 export function PlansPage({
@@ -408,6 +409,7 @@ export function PlansPage({
                 <p style={{ whiteSpace: 'pre-wrap' }}>{text || 'Por preencher'}</p>
               </section>
             ))}
+            <LinkedPlanResources resourceIds={selected.plan.resourceIds || []} />
             <button
               className="dash-btn"
               onClick={() => {

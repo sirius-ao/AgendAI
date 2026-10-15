@@ -155,6 +155,11 @@ export type ResourceCategory =
   | 'Outros';
 export interface Resource {
   attachmentId?: Id;
+  shared?: boolean;
+  shareMode?: 'PRIVATE' | 'SCHOOL' | 'PLATFORM' | 'PEOPLE';
+  sharedWithUserIds?: Id[];
+  sourceSchoolId?: Id;
+  readOnly?: boolean;
   objectives?: string;
   author?: string;
   editable?: boolean;
@@ -175,6 +180,7 @@ export interface Resource {
 export interface LibraryItem {
   id: Id;
   resourceId: Id;
+  sourceSchoolId?: Id;
   folder: string;
   favorite: boolean;
   deleted: boolean;

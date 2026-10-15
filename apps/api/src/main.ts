@@ -26,7 +26,6 @@ async function bootstrap() {
     const databasePassword = new URL(process.env.DATABASE_URL).password;
     if (databasePassword.length < 32) throw new Error('A palavra-passe da base de dados deve ter pelo menos 32 caracteres aleatórios');
     requireHttpsOrLocalhost(process.env.NEXT_PUBLIC_SITE_URL, 'NEXT_PUBLIC_SITE_URL');
-    requireHttpsOrLocalhost(process.env.S3_PUBLIC_ENDPOINT, 'S3_PUBLIC_ENDPOINT');
     if (!process.env.S3_ACCESS_KEY || process.env.S3_ACCESS_KEY.length < 16 || !process.env.S3_SECRET_KEY || process.env.S3_SECRET_KEY.length < 32) {
       throw new Error('S3_ACCESS_KEY e S3_SECRET_KEY devem ser segredos únicos e fortes em produção');
     }

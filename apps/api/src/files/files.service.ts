@@ -62,7 +62,6 @@ export class FilesService {
       throw new ServiceUnavailableException('O armazenamento de ficheiros não está configurado');
     return {
       endpoint: endpoint.replace(/\/$/, ''),
-      publicEndpoint: (process.env.S3_PUBLIC_ENDPOINT || endpoint).replace(/\/$/, ''),
       bucket,
       access,
       secret,
@@ -141,7 +140,9 @@ export class FilesService {
     recordId: string,
     mutate = false,
   ) {
-    const membership = await this.schools.assertMembership(userId, schoolId);
+    const membership = collection === DashboardCollection.RESOURCES
+      ? await this.prisma.schoolMembership.findUnique({ where: { userId_schoolId: { userId, schoolId } } })
+      : await this.schools.assertMembership(userId, schoolId);
     const row = await this.prisma.dashboardRecord.findUnique({
       where: {
         schoolId_collection_recordId: {
@@ -152,15 +153,24 @@ export class FilesService {
       },
     });
     if (!row) throw new NotFoundException(collection === DashboardCollection.PLANS ? 'Plano não encontrado' : 'Recurso não encontrado');
-    const record = row.payload as { subjectId?: unknown; teacherId?: unknown; ownerId?: unknown; visibility?: unknown };
-    if (membership.role === 'TEACHER') {
+    const record = row.payload as { subjectId?: unknown; teacherId?: unknown; ownerId?: unknown; visibility?: unknown; shared?: unknown; shareMode?: unknown; sharedWithUserIds?: unknown };
+    if (collection === DashboardCollection.RESOURCES) {
+      const recipients = Array.isArray(record.sharedWithUserIds) ? record.sharedWithUserIds : [];
+      const mode = record.shareMode;
       const owns = row.createdById === userId || record.teacherId === userId || record.ownerId === userId;
-      if (collection === DashboardCollection.RESOURCES) {
-        if (mutate && !owns)
-          throw new ForbiddenException('Só pode gerir ficheiros dos seus próprios recursos');
-        if (!owns) throw new ForbiddenException('Só o autor pode aceder ao ficheiro deste recurso');
-        return membership;
-      }
+      const schoolManager = membership && membership.role !== 'TEACHER';
+      if (mutate && !membership) throw new ForbiddenException('É necessário pertencer à escola para gerir este ficheiro');
+      if (mutate && !owns && !schoolManager)
+        throw new ForbiddenException('Só o autor pode gerir ficheiros deste recurso');
+      const allowedToRead = owns || Boolean(schoolManager) ||
+        Boolean(membership && (mode === 'SCHOOL' || record.shared === true)) ||
+        mode === 'PLATFORM' || (mode === 'PEOPLE' && recipients.includes(userId));
+      if (!mutate && !allowedToRead)
+        throw new ForbiddenException('Este recurso não foi partilhado contigo');
+      return membership;
+    }
+    if (!membership) throw new ForbiddenException('É necessário pertencer à escola');
+    if (membership.role === 'TEACHER') {
       if (mutate && record.teacherId !== userId)
         throw new ForbiddenException('Só pode gerir anexos dos seus próprios planos');
       if (typeof record.subjectId !== 'string' && record.teacherId !== userId)
@@ -229,10 +239,10 @@ export class FilesService {
     });
     return {
       id: item.id,
-      uploadUrl: this.signedUrl(config.endpoint, key, 'PUT', 600),
+      uploadUrl: this.signedUrl(config.endpoint, key, 'PUT', 300),
       method: 'PUT',
       contentType: item.contentType,
-      expiresIn: 600,
+      expiresIn: 300,
     };
   }
 
@@ -320,10 +330,10 @@ export class FilesService {
     });
     if (!item) throw new NotFoundException('Anexo não encontrado');
     return {
-      url: this.signedUrl(this.config().endpoint, item.objectKey, 'GET', 300, {
+      url: this.signedUrl(this.config().endpoint, item.objectKey, 'GET', 180, {
         'response-content-disposition': `attachment; filename*=UTF-8''${awsEncode(item.originalName)}`,
       }),
-      expiresIn: 300,
+      expiresIn: 180,
       name: item.originalName,
     };
   }
@@ -338,6 +348,7 @@ export class FilesService {
 
   private async removeRecord(userId: string, schoolId: string, collection: FileCollection, recordId: string, id: string) {
     const membership = await this.authorizeRecord(userId, schoolId, collection, recordId, true);
+    if (!membership) throw new ForbiddenException('É necessário pertencer à escola para gerir este ficheiro');
     const item = await this.prisma.fileAttachment.findFirst({
       where: {
         id,

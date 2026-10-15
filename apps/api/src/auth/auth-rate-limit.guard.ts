@@ -14,7 +14,9 @@ export class AuthRateLimitGuard implements CanActivate {
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<Request & { user?: { sub?: string } }>();
     const route = `${request.method}:${request.route?.path || request.path}`;
-    const policy = route.includes('register')
+    const policy = route.includes('plans/generate')
+      ? 5
+      : route.includes('register')
       ? 5
       : route.includes('login')
         ? 12

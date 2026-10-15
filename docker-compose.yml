@@ -96,6 +96,9 @@ services:
       ADMIN_MFA_REQUIRED: ${ADMIN_MFA_REQUIRED:-true}
       ADMIN_BACKUP_DIR: /var/lib/agendai/backups
       RESEND_API_KEY: ${RESEND_API_KEY:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
       EMAIL_FROM: ${EMAIL_FROM:-}
       CONTACT_EMAIL: ${CONTACT_EMAIL:-}
       REQUIRE_EMAIL_CONFIG: 'true'

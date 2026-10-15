@@ -1,10 +1,10 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, ConflictException, ForbiddenException, GatewayTimeoutException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { DashboardCollection } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SchoolsService } from '../schools/schools.service.js';
 import { AuditService } from '../audit/audit.service.js';
-import type { CreateSubjectRequestDto, ReplaceTeacherSubjectsDto, ResolveSubjectRequestDto } from './teaching.dto.js';
+import type { CreateSubjectRequestDto, GenerateLessonPlanDto, ReplaceTeacherSubjectsDto, ResolveSubjectRequestDto } from './teaching.dto.js';
 
 const managers = ['OWNER', 'ADMIN', 'COORDINATOR'];
 const ids = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
@@ -13,6 +13,53 @@ const normalize = (value: string) => value.trim().normalize('NFD').replace(/[\u0
 @Injectable()
 export class TeachingService {
   constructor(private readonly prisma: PrismaService, private readonly schools: SchoolsService, private readonly audit: AuditService) {}
+  async lessonPlanAIStatus(userId: string, schoolId: string) {
+    await this.schools.assertMembership(userId, schoolId);
+    return { enabled: Boolean(process.env.AI_API_KEY) };
+  }
+  async generateLessonPlan(userId: string, schoolId: string, input: GenerateLessonPlanDto) {
+    await this.schools.assertMembership(userId, schoolId);
+    const apiKey = process.env.AI_API_KEY;
+    if (!apiKey) throw new ServiceUnavailableException('A geração com IA ainda não está configurada nesta plataforma.');
+    const baseUrl = (process.env.AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
+    const model = process.env.AI_MODEL || 'gpt-4o-mini';
+    let response: Response;
+    try {
+      response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(45_000),
+        body: JSON.stringify({
+          model,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: 'És um assistente de planificação pedagógica para professores. Responde em português claro, adequado ao nível indicado. Usa apenas os dados fornecidos; não inventes normas curriculares, factos sobre a escola, alunos ou materiais. Produz propostas práticas e editáveis. Retorna apenas JSON válido com as chaves objectives, content, methodology, resources, evaluation e stages. Cada campo textual deve ser uma string. stages deve conter de 2 a 5 objetos com title, minutes (número), teacher e students.' },
+            { role: 'user', content: JSON.stringify({ tema: input.theme, disciplina: input.subject, turma: input.className, duracaoMinutos: input.duration, objetivoInformado: input.objectives || '', conteudosInformados: input.content || '', tipoDeAula: input.lessonType || 'Aula teórica', modalidade: input.modality || 'Presencial', materiaisDisponiveis: input.materials || '' }) },
+          ],
+        }),
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'TimeoutError') throw new GatewayTimeoutException('A geração demorou demasiado. Tente novamente.');
+      throw new BadGatewayException('Não foi possível contactar o serviço de IA. O seu rascunho continua guardado.');
+    }
+    if (!response.ok) {
+      if (response.status === 429) throw new ServiceUnavailableException('O serviço de IA está temporariamente ocupado. Tente novamente mais tarde.');
+      throw new BadGatewayException('O serviço de IA não conseguiu gerar o plano. Tente novamente.');
+    }
+    const payload = await response.json().catch(() => null) as { choices?: { message?: { content?: unknown } }[] } | null;
+    const content = payload?.choices?.[0]?.message?.content;
+    if (typeof content !== 'string') throw new BadGatewayException('O serviço de IA devolveu uma resposta inválida. Tente novamente.');
+    let result: unknown;
+    try { result = JSON.parse(content); } catch { throw new BadGatewayException('O serviço de IA devolveu uma resposta inválida. Tente novamente.'); }
+    if (!result || typeof result !== 'object') throw new BadGatewayException('O serviço de IA devolveu uma resposta inválida. Tente novamente.');
+    const output = result as Record<string, unknown>;
+    const text = (key: string) => typeof output[key] === 'string' ? (output[key] as string).slice(0, 6000) : '';
+    const stages = Array.isArray(output.stages) ? output.stages.slice(0, 5).map((stage, index) => {
+      const item = stage && typeof stage === 'object' ? stage as Record<string, unknown> : {};
+      return { title: typeof item.title === 'string' ? item.title.slice(0, 120) : `Etapa ${index + 1}`, minutes: typeof item.minutes === 'number' && Number.isFinite(item.minutes) ? Math.max(1, Math.min(input.duration, Math.round(item.minutes))) : Math.max(1, Math.floor(input.duration / 3)), teacher: typeof item.teacher === 'string' ? item.teacher.slice(0, 2000) : '', students: typeof item.students === 'string' ? item.students.slice(0, 2000) : '' };
+    }) : [];
+    return { objectives: text('objectives'), content: text('content'), methodology: text('methodology'), resources: text('resources'), evaluation: text('evaluation'), stages };
+  }
   private async manager(userId: string, schoolId: string) {
     const membership = await this.schools.assertMembership(userId, schoolId);
     if (!managers.includes(membership.role)) throw new ForbiddenException('Apenas a direção ou coordenação pode gerir o catálogo e as atribuições das turmas');

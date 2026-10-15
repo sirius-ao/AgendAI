@@ -60,6 +60,9 @@ export function CalendarPage({ initialClass = '', initialDate = DEMO_DATE, initi
     events
       .filter((e) => e.date <= d && e.endDate >= d)
       .sort((a, b) => a.start.localeCompare(b.start));
+  const dayLayouts = days.map((day) => layoutDay(inDay(day), firstHour));
+  const maxDayColumns = Math.max(1, ...dayLayouts.map((layout) => layout.columns));
+  const dayMinWidth = Math.max(103, maxDayColumns * 120);
   const step = (n: number) => {
     if (mode === 'Mês') {
       const d = new Date(monthStart + 'T12:00:00');
@@ -68,7 +71,7 @@ export function CalendarPage({ initialClass = '', initialDate = DEMO_DATE, initi
     } else setDate(add(date, n * 7));
   };
   const eventButton = (e: CalendarEvent, compact = false) => (
-    <button key={e.id} className={`dash-calendar-event ${e.color}`} onClick={() => setSelected(e)}>
+    <button key={e.id} type="button" aria-label={`${e.title} · ${e.allDay ? 'Dia inteiro' : `${e.start} às ${e.end}`}${e.location ? ` · ${e.location}` : ''}`} title={`${e.title}${e.allDay ? '' : ` · ${e.start} às ${e.end}`}`} className={`dash-calendar-event ${e.color}`} onClick={() => setSelected(e)}>
       <small>{e.allDay ? 'Dia inteiro' : `${e.start}${compact ? '' : ` – ${e.end}`}`}</small>
       <strong>{e.title}</strong>
       {!compact && (
@@ -129,7 +132,7 @@ export function CalendarPage({ initialClass = '', initialDate = DEMO_DATE, initi
           </div>
           {mode === 'Semana' ? (
             <div className="dash-calendar-scroll">
-              <div className="dash-week">
+              <div className="dash-week" style={{ gridTemplateColumns: `57px repeat(7, minmax(${dayMinWidth}px, 1fr))` }}>
                 <div className="dash-week-hours">
                   <div>Hora</div>
                   {Array.from({ length: hourCount }, (_, i) => (
@@ -143,9 +146,9 @@ export function CalendarPage({ initialClass = '', initialDate = DEMO_DATE, initi
                       <small>{formatDate(d, { day: '2-digit', month: 'short' })}</small>
                     </header>
                     <div className="dash-day-track" style={{ height: hourCount * 52 }}>
-                      {layoutDay(inDay(d), firstHour).positioned.map(
+                      {dayLayouts[i].positioned.map(
                         ({ event: e, start: hour, end: endHour, lane }) => {
-                          const columns = layoutDay(inDay(d), firstHour).columns;
+                          const columns = dayLayouts[i].columns;
                           return (
                             <div
                               key={e.id}
