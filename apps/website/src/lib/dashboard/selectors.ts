@@ -1,8 +1,12 @@
 import { gradePending } from '@/lib/dashboard/assessment-grades';
 import type { Assessment, DashboardState } from '@/types/dashboard';
-export const formatDate = (date: string, options?: Intl.DateTimeFormatOptions) =>
+export const formatDate = (
+  date: string,
+  options?: Intl.DateTimeFormatOptions,
+  locale = typeof window !== 'undefined' && window.localStorage.getItem('agendai-locale') === 'en' ? 'en-GB' : 'pt-PT',
+) =>
   new Date(`${date}T12:00:00`).toLocaleDateString(
-    'pt-PT',
+    locale,
     options || { day: '2-digit', month: 'short', year: 'numeric' },
   );
 export const normalize = (value: string) =>

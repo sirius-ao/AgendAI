@@ -3,13 +3,15 @@ import Link from 'next/link';
 import { ArrowRight, MousePointerClick, ClipboardCheck, Smartphone } from 'lucide-react';
 import { Container, buttonClass } from '@agendai/ui';
 import { DemoButton } from '../common/DemoButton';
+import { useLocale } from '../i18n/LocaleProvider';
 export function Hero() {
+  const { t } = useLocale();
   return (
     <section className="home-hero">
       <div className="hero-photo">
         <Image
           src="/images/home/hero-teacher.jpg"
-          alt="Professora com um tablet numa sala de aula"
+          alt={t('Professora com um tablet numa sala de aula')}
           fill
           priority
           sizes="(max-width: 700px) 100vw, 66vw"
@@ -18,23 +20,23 @@ export function Hero() {
       <Container>
         <div className="hero-copy">
           <h1>
-            O planeamento
+            {t('O planeamento')}
             <br />
-            que dá tempo
+            {t('que dá tempo')}
             <br />
-            ao que realmente
+            {t('ao que realmente')}
             <br />
-            importa: <span>ensinar.</span>
+            {t('importa:')} <span>{t('ensinar.')}</span>
           </h1>
           <p>
-            Com o AgendAKI, professores criam planos de aula,
-            <br className="desktop-break" /> registam presenças e acompanham as avaliações
-            <br className="desktop-break" /> dos seus alunos — de forma simples, rápida e
-            organizada.
+            {t('Com o AgendAKI, professores criam planos de aula,')}
+            <br className="desktop-break" /> {t('registam presenças e acompanham as avaliações')}
+            <br className="desktop-break" /> {t('dos seus alunos — de forma simples, rápida e')}
+            {' '}{t('organizada.')}
           </p>
           <div className="button-row">
             <Link className={buttonClass()} href="/comecar">
-              Começar grátis
+              {t('Começar grátis')}
               <ArrowRight size={18} />
             </Link>
             <DemoButton />
@@ -42,13 +44,13 @@ export function Hero() {
         </div>
         <div className="hero-benefits">
           {[
-            { icon: MousePointerClick, title: 'Simples de usar', text: 'Em poucos minutos' },
+            { icon: MousePointerClick, title: t('Simples de usar'), text: t('Em poucos minutos') },
             {
               icon: ClipboardCheck,
-              title: 'Feito para professores',
-              text: 'Com foco no seu dia a dia',
+              title: t('Feito para professores'),
+              text: t('Com foco no seu dia a dia'),
             },
-            { icon: Smartphone, title: 'Acessível em qualquer lugar', text: 'Web e telemóvel' },
+            { icon: Smartphone, title: t('Acessível em qualquer lugar'), text: t('Web e telemóvel') },
           ].map(({ icon: Icon, title, text }) => (
             <div key={title}>
               <span>

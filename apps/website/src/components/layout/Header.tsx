@@ -6,6 +6,7 @@ import { ArrowRight, Globe, Menu, X, ChevronDown, Check } from 'lucide-react';
 import { buttonClass, Container } from '@agendai/ui';
 import { Logo } from '../common/Logo';
 import { FeaturesMegaMenu } from '../navigation/FeaturesMegaMenu';
+import { useLocale } from '../i18n/LocaleProvider';
 const links = [
   { href: '/', label: 'Início' },
   { href: '/planos', label: 'Planos' },
@@ -13,11 +14,11 @@ const links = [
   { href: '/blog', label: 'Blog' },
 ];
 export function Header() {
+  const { locale, setLocale, t } = useLocale();
   const pathname = usePathname();
   const [mega, setMega] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
-  const [language, setLanguage] = useState('pt');
   const languageButton = useRef<HTMLButtonElement>(null);
   const featureButton = useRef<HTMLButtonElement>(null);
   const mobileButton = useRef<HTMLButtonElement>(null);
@@ -77,7 +78,7 @@ export function Header() {
             aria-current={pathname === '/' ? 'page' : undefined}
             href="/"
           >
-            Início
+            {t('Início')}
           </Link>
           <div onMouseEnter={enter} onMouseLeave={leave}>
             <button
@@ -87,7 +88,7 @@ export function Header() {
               aria-expanded={mega}
               aria-controls="features-menu"
             >
-              Funcionalidades
+              {t('Funcionalidades')}
               <ChevronDown size={14} />
             </button>
             {mega && (
@@ -104,7 +105,7 @@ export function Header() {
               aria-current={pathname === href ? 'page' : undefined}
               href={href}
             >
-              {label}
+            {t(label)}
             </Link>
           ))}
         </nav>
@@ -115,7 +116,7 @@ export function Header() {
           <button
             ref={languageButton}
             className="icon-button language-toggle"
-            aria-label={`Escolher idioma: ${language === 'pt' ? 'Português' : 'English (exemplo)'}`}
+            aria-label={t(`Escolher idioma: ${locale === 'pt' ? 'Português' : 'English'}`)}
             aria-expanded={languageOpen}
             aria-controls="header-language-options"
             onClick={() => {
@@ -129,29 +130,29 @@ export function Header() {
           {languageOpen && <div className="header-language-options" id="header-language-options" role="group" aria-label="Idioma">
             {[
               { code: 'pt', label: 'Português', caption: 'PT' },
-              { code: 'en', label: 'English', caption: 'ENG · exemplo' },
-            ].map((option) => <button key={option.code} type="button" aria-pressed={language === option.code} onClick={() => {
-              setLanguage(option.code);
+              { code: 'en', label: 'English', caption: 'ENG' },
+            ].map((option) => <button key={option.code} type="button" aria-pressed={locale === option.code} onClick={() => {
+              setLocale(option.code as 'pt' | 'en');
               setLanguageOpen(false);
               languageButton.current?.focus();
             }}>
               <span>{option.label}<small>{option.caption}</small></span>
-              {language === option.code && <Check size={17} aria-hidden="true" />}
+              {locale === option.code && <Check size={17} aria-hidden="true" />}
             </button>)}
-            <p>English é apenas um exemplo. O conteúdo permanece em português.</p>
+            <p>{t('English é apenas um exemplo. O conteúdo permanece em português.')}</p>
           </div>}
           </div>
           <Link className={buttonClass('ghost', 'login-link')} href="/entrar" onClick={close}>
-            Entrar
+            {t('Entrar')}
           </Link>
           <Link className={buttonClass('primary', 'header-cta')} href="/comecar" onClick={close}>
-            Começar grátis
+            {t('Começar grátis')}
             <ArrowRight size={17} />
           </Link>
           <button
             ref={mobileButton}
             className="icon-button mobile-toggle"
-            aria-label={mobile ? 'Fechar menu' : 'Abrir menu'}
+            aria-label={t(mobile ? 'Fechar menu' : 'Abrir menu')}
             aria-expanded={mobile}
             aria-controls="mobile-navigation"
             onClick={() => setMobile(!mobile)}
@@ -174,12 +175,12 @@ export function Header() {
               onClick={close}
               aria-current={pathname === href ? 'page' : undefined}
             >
-              {label}
+              {t(label)}
               <ArrowRight size={16} />
             </Link>
           ))}
           <Link href="/comecar" className={buttonClass()} onClick={close}>
-            Começar grátis
+            {t('Começar grátis')}
           </Link>
         </nav>
       )}

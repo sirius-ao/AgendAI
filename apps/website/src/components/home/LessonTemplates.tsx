@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, Check } from 'lucide-react';
 import { Container, buttonClass } from '@agendai/ui';
+import { useLocale } from '../i18n/LocaleProvider';
 export const templateNames = [
   'Modelo Tradicional',
   'Modelo Detalhado',
@@ -8,17 +9,18 @@ export const templateNames = [
   'Modelo da Escola (Personalizado)',
 ];
 export function DocumentPreview({ index = 0 }: { index?: number }) {
+  const { t } = useLocale();
   return (
     <div className="document-preview">
       <div className="document-school">
-        ◇ Escola demonstração <span>2026</span>
+        ◇ {t('Escola demonstração')} <span>2026</span>
       </div>
-      <h4>{index === 0 ? 'PLANO TRADICIONAL' : 'PLANO DE AULA'}</h4>
-      <p>{index === 3 ? 'PLANIFICAÇÃO DE COMPETÊNCIAS' : 'PLANIFICAÇÃO DIÁRIA'}</p>
+      <h4>{t(index === 0 ? 'PLANO TRADICIONAL' : 'PLANO DE AULA')}</h4>
+      <p>{t(index === 3 ? 'PLANIFICAÇÃO DE COMPETÊNCIAS' : 'PLANIFICAÇÃO DIÁRIA')}</p>
       <div className="document-fields">
-        {['Professor', 'Disciplina', 'Classe / Turma', 'Tema', 'Objetivos'].map((t) => (
-          <div key={t}>
-            <b>{t}:</b>
+        {['Professor', 'Disciplina', 'Classe / Turma', 'Tema', 'Objetivos'].map((label) => (
+          <div key={label}>
+            <b>{t(label)}:</b>
             <span />
           </div>
         ))}
@@ -26,42 +28,42 @@ export function DocumentPreview({ index = 0 }: { index?: number }) {
       <table>
         <thead>
           <tr>
-            <th>Tempo</th>
-            <th>Conteúdos / Atividades</th>
-            <th>Recursos</th>
+            <th>{t('Tempo')}</th>
+            <th>{t('Conteúdos / Atividades')}</th>
+            <th>{t('Recursos')}</th>
           </tr>
         </thead>
         <tbody>
           {Array.from({ length: index === 1 ? 10 : 7 }, (_, i) => (
             <tr key={i}>
               <td>{i === 0 ? '10 min' : ''}</td>
-              <td>{i === 0 ? 'Introdução ao tema' : ''}</td>
+              <td>{i === 0 ? t('Introdução ao tema') : ''}</td>
               <td />
             </tr>
           ))}
         </tbody>
       </table>
-      <div className="document-signature">Observações: ______________________</div>
+      <div className="document-signature">{t('Observações: ______________________')}</div>
     </div>
   );
 }
 export function LessonTemplates() {
+  const { t } = useLocale();
   return (
     <section className="lesson-templates" id="modelos">
       <Container>
         <div className="templates-box">
           <div>
-            <p className="eyebrow">— Modelos prontos</p>
+            <p className="eyebrow">{t('— Modelos prontos')}</p>
             <h2>
-              Planos de aula
-              <br />à sua medida.
+              {t('Planos de aula')}
+              <br />{t('à sua medida.')}
             </h2>
             <p>
-              Escolha entre vários modelos ou use o modelo da sua escola. Preencha, personalize e
-              gere o documento em PDF num clique.
+              {t('Escolha entre vários modelos ou use o modelo da sua escola. Preencha, personalize e gere o documento em PDF num clique.')}
             </p>
             <Link className={buttonClass()} href="/funcionalidades#modelos">
-              Ver modelos de planos
+              {t('Ver modelos de planos')}
               <ArrowRight size={16} />
             </Link>
           </div>
@@ -78,7 +80,7 @@ export function LessonTemplates() {
                   </span>
                 )}
                 <DocumentPreview index={i} />
-                <strong>{name}</strong>
+                <strong>{t(name)}</strong>
               </Link>
             ))}
           </div>

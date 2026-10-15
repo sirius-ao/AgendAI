@@ -6,6 +6,7 @@ import {
   Settings, ShieldCheck, Sun, User,
 } from 'lucide-react';
 import { useDashboard } from '../state/DashboardProvider';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 import { Avatar, ConfirmDialog, Field, PageHeader, Panel, Switch } from '../ui/Primitives';
 import { downloadText } from '@/lib/dashboard/export';
 import { localId } from '@/lib/dashboard/selectors';
@@ -21,6 +22,7 @@ const sections = [
 ] as const;
 
 export function SettingsPage() {
+  const { locale, setLocale, t } = useLocale();
   const { state, update, notify, reset, apiMode, selectSchool } = useDashboard();
   const [active, setActive] = useState('profile');
   const [confirm, setConfirm] = useState(false);
@@ -362,7 +364,7 @@ export function SettingsPage() {
                     <button key={value} aria-pressed={state.settings.theme === value} onClick={() => update((s) => ({ ...s, settings: { ...s.settings, theme: value } }))}><Icon />{label}</button>
                   ))}
                 </div>
-                <div className="dash-settings-language"><span>Idioma da interface</span><strong>{state.settings.language}</strong><small>Outros idiomas serão disponibilizados numa versão futura.</small></div>
+                <label className="dash-settings-language"><span>{t('Idioma da interface')}</span><select value={locale} onChange={(event) => setLocale(event.target.value as 'pt' | 'en')}><option value="pt">Português</option><option value="en">English</option></select><small>{t('Outros idiomas serão disponibilizados numa versão futura.')}</small></label>
                 <Field label="Fuso horário"><select value={state.settings.timezone} onChange={(e) => update((s) => ({ ...s, settings: { ...s.settings, timezone: e.target.value } }))}><option value="Africa/Luanda">Luanda (GMT+1)</option><option value="Europe/Lisbon">Lisboa</option><option value="UTC">UTC</option></select></Field>
                 <small>O fuso horário é usado nos horários das mensagens e atividades.</small>
               </Panel>

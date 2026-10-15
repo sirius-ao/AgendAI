@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { Container } from '@agendai/ui';
 import { Logo } from '../common/Logo';
 import { Instagram, Linkedin, Youtube } from 'lucide-react';
+import { useLocale } from '../i18n/LocaleProvider';
 export function Footer() {
+  const { locale, t } = useLocale();
   return (
     <footer className="site-footer">
       <Container>
@@ -19,7 +21,7 @@ export function Footer() {
             ['/termos', 'Termos'],
           ].map(([href, label]) => (
             <Link href={href} key={href}>
-              {label}
+              {t(label)}
             </Link>
           ))}
         </nav>
@@ -39,9 +41,9 @@ export function Footer() {
                 <Icon size={16} />
               </span>
             ))}
-            <span lang="pt">PT · Português</span>
+            <span lang={locale === 'en' ? 'en' : 'pt'}>{t('PT · Português')}</span>
           </div>
-          <small>© 2026 AgendAKI. Todos os direitos reservados.</small>
+          <small>{t('© 2026 AgendAKI. Todos os direitos reservados.')}</small>
         </div>
       </Container>
     </footer>

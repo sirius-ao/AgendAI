@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { Tone } from '@/types/dashboard';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 export function PageHeader({
   title,
   description,
@@ -24,12 +25,13 @@ export function PageHeader({
   actions?: ReactNode;
   eyebrow?: ReactNode;
 }) {
+  const { t } = useLocale();
   return (
     <div className="dash-page-header">
       <div>
         {eyebrow && <div className="dash-breadcrumb">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {description && <p>{description}</p>}
+        <h1>{t(title)}</h1>
+        {description && <p>{t(description)}</p>}
       </div>
       {actions && <div className="dash-header-actions">{actions}</div>}
     </div>
@@ -46,11 +48,12 @@ export function Panel({
   children: ReactNode;
   className?: string;
 }) {
+  const { t } = useLocale();
   return (
     <section className={`dash-panel ${className}`}>
       {(title || action) && (
         <div className="dash-panel-heading">
-          <h2>{title}</h2>
+          <h2>{typeof title === 'string' ? t(title) : title}</h2>
           {action}
         </div>
       )}
@@ -98,8 +101,9 @@ export function Tabs({
   onChange: (value: string) => void;
   label?: string;
 }) {
+  const { t } = useLocale();
   return (
-    <div className="dash-tabs" role="group" aria-label={label}>
+    <div className="dash-tabs" role="group" aria-label={t(label)}>
       {items.map((item) => (
         <button
           key={item}
@@ -107,17 +111,18 @@ export function Tabs({
           className={value === item ? 'active' : ''}
           onClick={() => onChange(item)}
         >
-          {item}
+          {t(item)}
         </button>
       ))}
     </div>
   );
 }
 export function StatusBadge({ children, tone = 'green' }: { children: ReactNode; tone?: Tone }) {
+  const { t } = useLocale();
   return (
     <span className={`dash-badge ${tone}`}>
       <span />
-      {children}
+      {typeof children === 'string' ? t(children) : children}
     </span>
   );
 }
@@ -132,14 +137,15 @@ export function SearchInput({
   placeholder?: string;
   label?: string;
 }) {
+  const { t } = useLocale();
   return (
     <label className="dash-search">
       <Search size={17} />
-      <span className="sr-only">{label || placeholder}</span>
+      <span className="sr-only">{t(label || placeholder)}</span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder={t(placeholder)}
         type="search"
       />
     </label>
@@ -153,16 +159,17 @@ export function SelectField({
   label: string;
   options: (string | { value: string; label: string })[];
 }) {
+  const { t } = useLocale();
   return (
     <label className="dash-select">
-      <span>{label}</span>
-      <select aria-label={label} {...props}>
+      <span>{t(label)}</span>
+      <select aria-label={t(label)} {...props}>
         {options.map((o) => (
           <option
             value={typeof o === 'string' ? o : o.value}
             key={typeof o === 'string' ? o : o.value}
           >
-            {typeof o === 'string' ? o : o.label}
+            {t(typeof o === 'string' ? o : o.label)}
           </option>
         ))}
       </select>
@@ -180,14 +187,15 @@ export function Field({
   children: ReactNode;
   hint?: string;
 }) {
+  const { t } = useLocale();
   return (
     <label className="dash-field">
       <span>
-        {label}
+        {t(label)}
         {required && <b aria-hidden="true"> *</b>}
       </span>
       {children}
-      {hint && <small>{hint}</small>}
+      {hint && <small>{t(hint)}</small>}
     </label>
   );
 }
@@ -202,11 +210,12 @@ export function Switch({
   onChange: (checked: boolean) => void;
   hint?: string;
 }) {
+  const { t } = useLocale();
   return (
     <label className="dash-switch-row">
       <span>
-        <strong>{label}</strong>
-        {hint && <small>{hint}</small>}
+        <strong>{t(label)}</strong>
+        {hint && <small>{t(hint)}</small>}
       </span>
       <input
         type="checkbox"
@@ -253,17 +262,18 @@ export function Pagination({
   pageSize: number;
   onChange: (page: number) => void;
 }) {
+  const { t } = useLocale();
   const pages = Math.max(1, Math.ceil(total / pageSize));
   return (
     <div className="dash-pagination">
       <span>
         {total
           ? `A mostrar ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} de ${total}`
-          : 'Nenhum resultado'}
+          : t('Nenhum resultado')}
       </span>
       <div>
         <button
-          aria-label="Página anterior"
+          aria-label={t('Página anterior')}
           disabled={page <= 1}
           onClick={() => onChange(page - 1)}
         >
@@ -284,7 +294,7 @@ export function Pagination({
             </span>
           ))}
         <button
-          aria-label="Página seguinte"
+          aria-label={t('Página seguinte')}
           disabled={page >= pages}
           onClick={() => onChange(page + 1)}
         >
@@ -303,11 +313,12 @@ export function EmptyState({
   description?: string;
   action?: ReactNode;
 }) {
+  const { t } = useLocale();
   return (
     <div className="dash-empty">
       <Inbox />
-      <h3>{title}</h3>
-      <p>{description}</p>
+      <h3>{t(title)}</h3>
+      <p>{t(description)}</p>
       {action}
     </div>
   );
@@ -317,6 +328,7 @@ export function QuickActions({
 }: {
   items: { label: string; icon: LucideIcon; href?: string; onClick?: () => void }[];
 }) {
+  const { t } = useLocale();
   return (
     <Panel title="Ações rápidas">
       <div className="dash-quick-actions">
@@ -324,12 +336,12 @@ export function QuickActions({
           href ? (
             <Link href={href} key={label}>
               <Icon size={19} />
-              {label}
+              {t(label)}
             </Link>
           ) : (
             <button key={label} onClick={onClick}>
               <Icon size={19} />
-              {label}
+              {t(label)}
             </button>
           ),
         )}
@@ -344,6 +356,7 @@ export function ActionMenu({
   label?: string;
   items: { label: string; action: () => void; danger?: boolean }[];
 }) {
+  const { t } = useLocale();
   const ref = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const close = (event: PointerEvent) => {
@@ -360,7 +373,7 @@ export function ActionMenu({
         if (e.key === 'Escape' && ref.current) ref.current.open = false;
       }}
     >
-      <summary aria-label={label}>
+      <summary aria-label={t(label)}>
         <MoreHorizontal size={19} />
       </summary>
       <div>
@@ -373,7 +386,7 @@ export function ActionMenu({
               item.action();
             }}
           >
-            {item.label}
+            {t(item.label)}
           </button>
         ))}
       </div>
@@ -395,6 +408,7 @@ export function Modal({
   onClose: () => void;
   className?: string;
 }) {
+  const { t } = useLocale();
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const el = dialog.current;
@@ -405,7 +419,7 @@ export function Modal({
     <dialog
       ref={dialog}
       className={`dash-dialog ${className}`}
-      aria-label={title}
+      aria-label={t(title)}
       onKeyDownCapture={(e) => {
         if (e.key === 'Escape') {
           e.preventDefault();
@@ -428,10 +442,10 @@ export function Modal({
           </span>
         )}
         <div>
-          <h2>{title}</h2>
-          {description && <p>{description}</p>}
+          <h2>{t(title)}</h2>
+          {description && <p>{t(description)}</p>}
         </div>
-        <button className="dash-icon-button" aria-label="Fechar janela" onClick={onClose}>
+        <button className="dash-icon-button" aria-label={t('Fechar janela')} onClick={onClose}>
           <X />
         </button>
       </div>
@@ -450,13 +464,14 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  const { t } = useLocale();
   return (
     <Modal title={title} onClose={onClose} className="dash-dialog-small">
       <div className="dash-modal-simple">
         <p>{description}</p>
         <div className="dash-form-actions">
           <button className="dash-btn secondary" onClick={onClose}>
-            Cancelar
+            {t('Cancelar')}
           </button>
           <button
             className="dash-btn danger"
@@ -465,7 +480,7 @@ export function ConfirmDialog({
               onClose();
             }}
           >
-            Confirmar
+            {t('Confirmar')}
           </button>
         </div>
       </div>
@@ -483,19 +498,20 @@ export function Attachments({
   accept?: string;
   maxMB?: number;
 }) {
+  const { t } = useLocale();
   const [names, setNames] = useState<string[]>(initialNames);
   const [error, setError] = useState('');
   return (
     <div className="dash-attachments">
       <label>
         <Upload />
-        <strong>Adicionar ficheiros</strong>
+        <strong>{t('Adicionar ficheiros')}</strong>
         <small>PDF, DOC, PPT, IMAGEM (máx. {maxMB} MB)</small>
         <input
           type="file"
           multiple
           accept={accept}
-          aria-label="Adicionar ficheiros"
+          aria-label={t('Adicionar ficheiros')}
           onChange={(e) => {
             const files = Array.from(e.target.files || []);
             const extensions = accept.split(',');
@@ -542,7 +558,7 @@ export function Attachments({
           {error}
         </p>
       )}
-      <small>Seleção local. Os ficheiros não são enviados nesta demonstração.</small>
+      <small>{t('Seleção local. Os ficheiros não são enviados nesta demonstração.')}</small>
     </div>
   );
 }

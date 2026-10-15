@@ -7,9 +7,11 @@ import { formatDate, normalize, studentAverage } from '@/lib/dashboard/selectors
 import { exportCSV, printDocument } from '@/lib/dashboard/export';
 import { gradeDetail, gradePending, validGrade } from '@/lib/dashboard/assessment-grades';
 import type { Assessment, GradeDetail } from '@/types/dashboard';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 const states: GradeDetail['status'][] = ['Sem nota', 'Avaliado', 'Faltou', 'Dispensado'];
 const todayDate = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 export function AssessmentsPage({ initialClass = '10a', initialAssessment }: { initialClass?: string; initialAssessment?: string }) {
+  const { t, locale } = useLocale();
   const { state, openModal } = useDashboard();
   const availableSubjects = state.subjects.filter((item) => state.user.role !== 'Professor' || state.teacherSubjectIds.includes(item.id));
   const [selected, setSelected] = useState(initialAssessment || '');
@@ -24,17 +26,18 @@ export function AssessmentsPage({ initialClass = '10a', initialAssessment }: { i
   const status = (a: Assessment) => state.assessmentDrafts?.[a.id] ? 'Por corrigir' : active(a).length && progress(a) === active(a).length ? 'Concluídas' : a.date > todayDate() ? 'Agendadas' : 'Por corrigir';
   const list = state.assessments.filter((a) => (state.user.role !== 'Professor' || state.teacherSubjectIds.includes(a.subjectId)) && (!teacherId || a.teacherId === teacherId) && (!classId || a.classId === classId) && (!subject || a.subjectId === subject) && normalize(a.title).includes(normalize(query)) && (tab === 'Todas' || status(a) === tab)).sort((a, b) => a.date.localeCompare(b.date));
   return <>
-    <PageHeader title="Avaliações" description="Prepare, corrija e acompanhe a aprendizagem, na escala de 0 a 20." actions={<button className="dash-btn" onClick={() => openModal({ kind: 'assessment', classId, subjectId: subject, date: todayDate() })}><Plus size={18} />Nova avaliação</button>} />
-    {assessment ? <><button className="dash-btn secondary" onClick={() => setSelected('')}>Voltar às avaliações</button><AssessmentWorkspace key={assessment.id} assessment={assessment} /></> : <>
+    <PageHeader title="Avaliações" description="Prepare, corrija e acompanhe a aprendizagem, na escala de 0 a 20." actions={<button className="dash-btn" onClick={() => openModal({ kind: 'assessment', classId, subjectId: subject, date: todayDate() })}><Plus size={18} />{t('Nova avaliação')}</button>} />
+    {assessment ? <><button className="dash-btn secondary" onClick={() => setSelected('')}>{t('Voltar às avaliações')}</button><AssessmentWorkspace key={assessment.id} assessment={assessment} /></> : <>
       <div className="dash-toolbar"><SelectField label="Turma" value={classId} onChange={(e) => setClassId(e.target.value)} options={[{ value: '', label: 'Todas' }, ...state.classes.map((c) => ({ value: c.id, label: c.name }))]} /><SelectField label="Disciplina" value={subject} onChange={(e) => setSubject(e.target.value)} options={[{ value: '', label: 'Todas' }, ...availableSubjects.map((s) => ({ value: s.id, label: s.name }))]} /><SelectField label="Professor" value={teacherId} onChange={(e) => setTeacherId(e.target.value)} options={[{ value: '', label: 'Todos' }, ...(state.teacherDirectory || [{ id: state.user.id, name: state.user.name }]).map((teacher) => ({ value: teacher.id, label: teacher.name }))]} /><SearchInput value={query} onChange={setQuery} placeholder="Pesquisar avaliações..." /></div>
       <Tabs items={['Todas', 'Agendadas', 'Por corrigir', 'Concluídas']} value={tab} onChange={setTab} />
-      <div className="dash-assessment-list">{list.map((a) => <article key={a.id}><div><StatusBadge tone={status(a) === 'Concluídas' ? 'green' : status(a) === 'Agendadas' ? 'blue' : 'amber'}>{status(a)}</StatusBadge><h2>{a.title}</h2><p>{state.classes.find((c) => c.id === a.classId)?.name} · {state.subjects.find((s) => s.id === a.subjectId)?.name} · {formatDate(a.date)}</p><small>{active(a).filter((s) => a.grades[s.id] != null).length} de {active(a).length} alunos com nota · {progress(a)} situações resolvidas{state.assessmentDrafts?.[a.id] && ' · Rascunho pendente'}</small><progress max={active(a).length || 1} value={progress(a)} aria-label={`Progresso de ${a.title}`} /></div><button className="dash-btn secondary" onClick={() => setSelected(a.id)}>{status(a) === 'Agendadas' ? 'Preparar avaliação' : status(a) === 'Concluídas' ? 'Ver resultados' : 'Lançar notas'}<ArrowRight size={16} /></button></article>)}</div>
+      <div className="dash-assessment-list">{list.map((a) => <article key={a.id}><div><StatusBadge tone={status(a) === 'Concluídas' ? 'green' : status(a) === 'Agendadas' ? 'blue' : 'amber'}>{t(status(a))}</StatusBadge><h2>{a.title}</h2><p>{state.classes.find((c) => c.id === a.classId)?.name} · {state.subjects.find((s) => s.id === a.subjectId)?.name} · {formatDate(a.date, undefined, locale === 'en' ? 'en-GB' : 'pt-PT')}</p><small>{active(a).filter((s) => a.grades[s.id] != null).length} {t('de')} {active(a).length} {t('alunos com nota')} · {progress(a)} {t('situações resolvidas')}{state.assessmentDrafts?.[a.id] && ` · ${t('Rascunho pendente')}`}</small><progress max={active(a).length || 1} value={progress(a)} aria-label={`${t('Progresso de')} ${a.title}`} /></div><button className="dash-btn secondary" onClick={() => setSelected(a.id)}>{t(status(a) === 'Agendadas' ? 'Preparar avaliação' : status(a) === 'Concluídas' ? 'Ver resultados' : 'Lançar notas')}<ArrowRight size={16} /></button></article>)}</div>
       {!list.length && <EmptyState title="Nenhuma avaliação corresponde aos filtros" />}
     </>}
   </>;
 }
 
 function AssessmentWorkspace({ assessment: a }: { assessment: Assessment }) {
+  const { t, locale } = useLocale();
   const { state, update, openModal, notify, error: storageError, apiMode } = useDashboard();
   const draft = state.assessmentDrafts?.[a.id];
   const students = state.students.filter((s) => s.classId === a.classId && (s.status === 'Ativo' || a.grades[s.id] != null || a.gradeDetails?.[s.id] || draft?.[s.id]));
@@ -85,7 +88,7 @@ function AssessmentWorkspace({ assessment: a }: { assessment: Assessment }) {
       for (const [id, detail] of Object.entries(draft)) grades[id] = detail.status === 'Avaliado' ? Number(detail.value.replace(',', '.')) : null;
       return { ...item, grades, gradeDetails: nextDetails, gradesConfirmedAt: new Date().toISOString(), gradeVersions: [...(item.gradeVersions || []), { confirmedAt: item.gradesConfirmedAt, grades: item.grades, details: item.gradeDetails || {} }] };
     }), assessmentDrafts: Object.fromEntries(Object.entries(s.assessmentDrafts || {}).filter(([id]) => id !== a.id)) }));
-    setReview(false); setTab('Resultados'); notify('Notas confirmadas. Os relatórios usam os valores confirmados.');
+    setReview(false); setTab('Resultados'); notify(t('Notas confirmadas. Os relatórios usam os valores confirmados.'));
   }
   return <div className="dash-assessment-workspace">
     <Panel title={a.title} action={<ActionMenu label="Opções da avaliação" items={[{ label: 'Editar detalhes e peso', action: () => openModal({ kind: 'assessment', id: a.id }) }, { label: 'Exportar notas confirmadas (CSV)', action: () => exportCSV('notas.csv', [['Aluno', 'Situação', 'Nota / 20', 'Feedback', 'Reforço'], ...exportRows(a)]) }, { label: 'Imprimir resultados', action: () => { if (!printDocument(a.title, ['Aluno', 'Situação', 'Nota / 20', 'Feedback', 'Reforço'], exportRows(a))) notify('Permita janelas para imprimir.'); } }]} />}>

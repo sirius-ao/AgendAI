@@ -10,12 +10,14 @@ import { CreationModals } from './forms/CreationModals';
 import { ConnectionStatus } from './ConnectionStatus';
 import { normalize } from '@/lib/dashboard/selectors';
 import { apiLogout, hasApiSession } from '@/lib/api/client';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 const subscribeCompact = (callback: () => void) => {
   const media = window.matchMedia('(max-width: 950px)');
   media.addEventListener('change', callback);
   return () => media.removeEventListener('change', callback);
 };
 export function DashboardShell({ children }: { children: ReactNode }) {
+  const { t } = useLocale();
   const { state, ready, update, selectSchool, apiMode } = useDashboard();
   const compact = useSyncExternalStore(subscribeCompact, () => window.matchMedia('(max-width: 950px)').matches, () => false);
   const collapsed = state.settings.sidebarCollapsed ?? compact;
@@ -63,7 +65,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     .filter((r) => normalize(r.title).includes(normalize(query)))
     .slice(0, 12);
   if (accountRequired && ready && (!apiMode || !hasApiSession())) {
-    return <main className="dash-loading" role="status">A encaminhar para iniciar sessão…</main>;
+    return <main className="dash-loading" role="status">{t('A encaminhar para iniciar sessão…')}</main>;
   }
   const renderNavigationLink = ({ href, label, icon: Icon }: DashboardNavigationItem) => (
     <Link
@@ -71,17 +73,17 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       key={href}
       href={href}
       title={href === '/dashboard/mensagens' && unreadConversations
-        ? `${label} · ${unreadConversations} conversas por ler`
-        : label}
+        ? `${t(label)} · ${unreadConversations} ${t('conversas por ler')}`
+        : t(label)}
       aria-label={href === '/dashboard/mensagens' && unreadConversations
-        ? `${label}, ${unreadConversations} conversas por ler`
-        : label}
+        ? `${t(label)}, ${unreadConversations} ${t('conversas por ler')}`
+        : t(label)}
       aria-current={
         (href === '/dashboard' ? pathname === href : pathname.startsWith(href)) ? 'page' : undefined
       }
     >
       <Icon size={21} />
-      <span>{label}</span>
+      <span>{t(label)}</span>
       {href === '/dashboard/mensagens' && unreadConversations > 0 && (
         <span className="dash-nav-unread" aria-hidden="true">{unreadConversations > 99 ? '99+' : unreadConversations}</span>
       )}
@@ -94,12 +96,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <BookOpen />
           <span>
             Agend<span>AKI</span>
-            <small>Planear hoje. Ensinar melhor.</small>
+            <small>{t('Planear hoje. Ensinar melhor.')}</small>
           </span>
         </Link>
         <button
           className="dash-mobile-close"
-          aria-label="Fechar navegação"
+          aria-label={t('Fechar navegação')}
           onClick={() => setMenu(false)}
         >
           <X />
@@ -110,17 +112,17 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               if (dashboardNavigation[index - 1]?.section === 'Materiais') return null;
               return (
                 <div className="dash-nav-group" key={item.section}>
-                  <span className="dash-nav-section-label">{item.section}</span>
+                  <span className="dash-nav-section-label">{t(item.section)}</span>
                   {dashboardNavigation.filter((entry) => entry.section === item.section).map(renderNavigationLink)}
                 </div>
               );
             }
             return renderNavigationLink(item);
           })}
-          {(state.user.isSuperAdmin || state.user.adminRole === 'SUPPORT') && <Link href="/admin" onClick={() => setMenu(false)} aria-current={pathname.startsWith('/admin') ? 'page' : undefined}><Crown size={21} /><span>Administração</span></Link>}
-          <button type="button" onClick={() => void logout()} className="dash-sidebar-exit" aria-label="Sair" title="Terminar sessão">
+          {(state.user.isSuperAdmin || state.user.adminRole === 'SUPPORT') && <Link href="/admin" onClick={() => setMenu(false)} aria-current={pathname.startsWith('/admin') ? 'page' : undefined}><Crown size={21} /><span>{t('Administração')}</span></Link>}
+          <button type="button" onClick={() => void logout()} className="dash-sidebar-exit" aria-label={t('Sair')} title={t('Terminar sessão')}>
             <LogOut size={21} />
-            <span>Sair</span>
+            <span>{t('Sair')}</span>
           </button>
         </nav>
         <div className="dash-pro">
@@ -128,13 +130,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <Crown /> AgendAKI Pro
           </strong>
           <p>
-            Mais recursos.
+            {t('Mais recursos.')}
             <br />
-            Mais organização.
+            {t('Mais organização.')}
             <br />
-            Mais tempo para ensinar.
+            {t('Mais tempo para ensinar.')}
           </p>
-          <Link href="/dashboard/planos">Ver planos</Link>
+          <Link href="/dashboard/planos">{t('Ver planos')}</Link>
         </div>
       </aside>
       {menu && (
@@ -145,8 +147,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             className="dash-sidebar-toggle dash-icon-button"
-            aria-label={collapsed ? 'Expandir menu lateral' : 'Comprimir menu lateral'}
-            title={collapsed ? 'Expandir menu lateral' : 'Comprimir menu lateral'}
+            aria-label={t(collapsed ? 'Expandir menu lateral' : 'Comprimir menu lateral')}
+            title={t(collapsed ? 'Expandir menu lateral' : 'Comprimir menu lateral')}
             aria-expanded={!collapsed}
             aria-controls="dashboard-sidebar"
             onClick={() => update((s) => ({ ...s, settings: { ...s.settings, sidebarCollapsed: !collapsed } }))}
@@ -155,28 +157,28 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </button>
           <button
             className="dash-menu-button"
-            aria-label="Abrir navegação"
+            aria-label={t('Abrir navegação')}
             aria-expanded={menu}
             aria-controls="dashboard-sidebar"
             onClick={() => setMenu(true)}
           >
             <Menu />
           </button>
-          <button className="dash-global-search" aria-label="Pesquisar turmas, planos e alunos" onClick={() => setSearch(true)}>
+          <button className="dash-global-search" aria-label={t('Pesquisar turmas, planos e alunos')} onClick={() => setSearch(true)}>
             <Search size={18} />
-            <span>Pesquisar turmas, planos, alunos...</span>
+            <span>{t('Pesquisar turmas, planos, alunos...')}</span>
             <kbd>Ctrl + K</kbd>
           </button>
           <label className="dash-school-switch">
-            <span>Escola ativa</span>
-            <select aria-label="Escola ativa" value={state.activeSchoolId || ''} onChange={(event) => selectSchool(event.target.value)}>
+            <span>{t('Escola ativa')}</span>
+            <select aria-label={t('Escola ativa')} value={state.activeSchoolId || ''} onChange={(event) => selectSchool(event.target.value)}>
               {(state.schools || []).map((school) => <option value={school.id} key={school.id}>{school.name}</option>)}
             </select>
           </label>
-          <span className="dash-demo">{apiMode ? 'Conta ligada' : 'Demonstração'}</span>
+          <span className="dash-demo">{t(apiMode ? 'Conta ligada' : 'Demonstração')}</span>
           <div className="dash-notification">
             <button
-              aria-label="Notificações"
+              aria-label={t('Notificações')}
               className="dash-icon-button"
               onClick={() => setBell(!bell)}
             >

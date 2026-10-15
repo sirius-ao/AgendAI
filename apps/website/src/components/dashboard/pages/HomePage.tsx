@@ -9,6 +9,7 @@ import { PageHeader, Panel } from '../ui/Primitives';
 import { DEMO_DATE } from '@/data/dashboard/seed';
 import { formatDate } from '@/lib/dashboard/selectors';
 import type { CalendarEvent } from '@/types/dashboard';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 
 function localClock(now: Date, timeZone: string) {
   let parts: Intl.DateTimeFormatPart[];
@@ -22,6 +23,7 @@ function localClock(now: Date, timeZone: string) {
 }
 
 export function HomePage() {
+  const { t } = useLocale();
   const { state, update, openModal } = useDashboard();
   const [now, setNow] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState('');
@@ -32,8 +34,8 @@ export function HomePage() {
   }, []);
   const clock = localClock(now, state.settings.timezone);
   const day = selectedDay || clock.date;
-  const greeting = clock.hour < 12 ? 'Bom dia' : clock.hour < 18 ? 'Boa tarde' : 'Boa noite';
-  const firstName = state.user.name.trim().split(/\s+/)[0] || 'Professor';
+  const greeting = t(clock.hour < 12 ? 'Bom dia' : clock.hour < 18 ? 'Boa tarde' : 'Boa noite');
+  const firstName = state.user.name.trim().split(/\s+/)[0] || t('Professor');
   const events = state.events.filter((event) => event.date <= day && event.endDate >= day).sort((a, b) => a.start.localeCompare(b.start));
   const planFor = (event: CalendarEvent) => state.plans.find((p) => p.id === event.sourceId) || state.plans.find((p) => p.classId === event.classId && p.subjectId === event.subjectId && p.date === event.date);
   const studentsFor = (classId: string) => state.students.filter((student) => student.classId === classId && student.status === 'Ativo');
@@ -51,32 +53,32 @@ export function HomePage() {
   const assessments = state.assessments.filter((assessment) => assessment.date <= day && studentsFor(assessment.classId).some((student) => gradePending(assessment, student.id))).sort((a, b) => a.date.localeCompare(b.date));
   const pendingCount = drafts.length + unfinished.length + calls.length + assessments.length;
   const resume = (key: string) => openModal({ kind: 'plan', ...(key === 'new' ? {} : key.startsWith('copy-') ? { copyFrom: key.slice(5) } : key.startsWith('example-') ? { example: key.slice(8) as 'math' | 'portuguese' } : { id: key }) });
-  const className = (id: string) => state.classes.find((c) => c.id === id)?.name || 'Turma';
+  const className = (id: string) => state.classes.find((c) => c.id === id)?.name || t('Turma');
   const nextPlan = next && planFor(next);
   const needsPlan = next && (!nextPlan || nextPlan.status === 'Rascunho' || Boolean(state.planDrafts?.[nextPlan.id]));
   const complete = (id: string) => update((s) => ({ ...s, plans: s.plans.map((p) => p.id === id ? { ...p, status: 'Concluído' } : p) }));
   return <div className="dash-home-focus">
-    <PageHeader title={`${greeting}, ${firstName}`} description={formatDate(clock.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} actions={<button className="dash-btn secondary" onClick={() => openModal({ kind: 'plan', date: day })}><Plus size={18} />Preparar aula</button>} />
+    <PageHeader title={`${greeting}, ${firstName}`} description={formatDate(clock.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} actions={<button className="dash-btn secondary" onClick={() => openModal({ kind: 'plan', date: day })}><Plus size={18} />{t('Preparar aula')}</button>} />
     <div className="dash-home-datebar">
-      <label>Dia da agenda<input type="date" value={day} onChange={(e) => { if (e.target.value) { setSelectedDay(e.target.value); setExamples(false); } }} /></label>
-      <button className="dash-btn secondary" onClick={() => { setNow(new Date()); setSelectedDay(''); setExamples(false); }}>Hoje</button>
-      <button className="dash-text-link" aria-pressed={examples} onClick={() => { setSelectedDay(DEMO_DATE); setExamples(true); }}>Explorar exemplos · outubro de 2026</button>
-      {examples && <span className="dash-badge amber">Agenda de exemplo</span>}
+      <label>{t('Dia da agenda')}<input type="date" value={day} onChange={(e) => { if (e.target.value) { setSelectedDay(e.target.value); setExamples(false); } }} /></label>
+      <button className="dash-btn secondary" onClick={() => { setNow(new Date()); setSelectedDay(''); setExamples(false); }}>{t('Hoje')}</button>
+      <button className="dash-text-link" aria-pressed={examples} onClick={() => { setSelectedDay(DEMO_DATE); setExamples(true); }}>{t('Explorar exemplos · outubro de 2026')}</button>
+      {examples && <span className="dash-badge amber">{t('Agenda de exemplo')}</span>}
     </div>
     <div className="dash-home-workday">
       <section className="dash-next-lesson" aria-labelledby="next-lesson-title">
-        <span className="dash-home-eyebrow"><CalendarDays size={16} />{day === clock.date && !examples ? 'A sua rotina de hoje' : formatDate(day)}</span>
-        <h2 id="next-lesson-title">{next ? day === clock.date && next.start <= clock.time && !examples ? 'Aula em curso' : 'Próxima aula' : 'Sem aulas por iniciar neste dia'}</h2>
+        <span className="dash-home-eyebrow"><CalendarDays size={16} />{day === clock.date && !examples ? t('A sua rotina de hoje') : formatDate(day)}</span>
+        <h2 id="next-lesson-title">{t(next ? day === clock.date && next.start <= clock.time && !examples ? 'Aula em curso' : 'Próxima aula' : 'Sem aulas por iniciar neste dia')}</h2>
         {next ? <>
           <h3>{next.title}</h3>
-          <p className="dash-next-meta">{className(next.classId)} · {state.subjects.find((s) => s.id === next.subjectId)?.name || 'Disciplina por definir'}</p>
+          <p className="dash-next-meta">{className(next.classId)} · {state.subjects.find((s) => s.id === next.subjectId)?.name || t('Disciplina por definir')}</p>
           <p>{next.start}–{next.end} {next.location && `· ${next.location}`}</p>
-          <span className="dash-next-state">{needsPlan ? 'Plano por preparar' : !called(next) ? 'Plano preparado · chamada por confirmar' : 'Plano e chamada preparados'}</span>
+          <span className="dash-next-state">{t(needsPlan ? 'Plano por preparar' : !called(next) ? 'Plano preparado · chamada por confirmar' : 'Plano e chamada preparados')}</span>
           <div className="dash-guide-actions">
-            {needsPlan ? <button className="dash-btn" onClick={() => prepare(next)}>Preparar plano <ArrowRight size={16} /></button> : !called(next) ? <Link className="dash-btn" href={attendanceHref(next)}>Marcar presenças <ArrowRight size={16} /></Link> : nextPlan && <button className="dash-btn" onClick={() => complete(nextPlan.id)}><Check size={16} />Concluir aula</button>}
-            {!needsPlan && <button className="dash-text-link" onClick={() => prepare(next)}>Abrir plano</button>}
-            {needsPlan && <Link className="dash-text-link" href={attendanceHref(next)}>Ir para presenças</Link>}
-            <button className="dash-text-link" onClick={() => openModal({ kind: 'assessment', classId: next.classId, subjectId: next.subjectId, date: next.date })}>Criar avaliação</button>
+            {needsPlan ? <button className="dash-btn" onClick={() => prepare(next)}>{t('Preparar plano')} <ArrowRight size={16} /></button> : !called(next) ? <Link className="dash-btn" href={attendanceHref(next)}>{t('Marcar presenças')} <ArrowRight size={16} /></Link> : nextPlan && <button className="dash-btn" onClick={() => complete(nextPlan.id)}><Check size={16} />{t('Concluir aula')}</button>}
+            {!needsPlan && <button className="dash-text-link" onClick={() => prepare(next)}>{t('Abrir plano')}</button>}
+            {needsPlan && <Link className="dash-text-link" href={attendanceHref(next)}>{t('Ir para presenças')}</Link>}
+            <button className="dash-text-link" onClick={() => openModal({ kind: 'assessment', classId: next.classId, subjectId: next.subjectId, date: next.date })}>{t('Criar avaliação')}</button>
           </div>
         </> : <><p>Consulte as pendências ou prepare a próxima aula. Os exemplos continuam disponíveis no seletor acima.</p><button className="dash-btn" onClick={() => openModal({ kind: 'plan', date: day })}>Preparar uma aula</button></>}
       </section>
