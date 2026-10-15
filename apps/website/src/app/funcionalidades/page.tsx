@@ -2,7 +2,8 @@ import { Container, buttonClass } from '@agendai/ui';
 import Link from 'next/link';
 import { FeaturesMegaMenu } from '@/components/navigation/FeaturesMegaMenu';
 import { featureGroups } from '@/data/features';
-import { DocumentPreview, templateNames } from '@/components/home/LessonTemplates';
+import { DocumentPreview } from '@/components/home/LessonTemplates';
+import { templateNames } from '@/data/dashboard/template-names';
 import { CTA } from '@/components/common/CTA';
 import { pageMetadata } from '@/lib/site';
 export const metadata = pageMetadata(

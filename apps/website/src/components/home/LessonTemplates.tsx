@@ -1,13 +1,9 @@
+'use client';
 import Link from 'next/link';
 import { ArrowRight, Check } from 'lucide-react';
 import { Container, buttonClass } from '@agendai/ui';
 import { useLocale } from '../i18n/LocaleProvider';
-export const templateNames = [
-  'Modelo Tradicional',
-  'Modelo Detalhado',
-  'Modelo Simplificado',
-  'Modelo da Escola (Personalizado)',
-];
+import { templateNames } from '@/data/dashboard/template-names';
 export function DocumentPreview({ index = 0 }: { index?: number }) {
   const { t } = useLocale();
   return (

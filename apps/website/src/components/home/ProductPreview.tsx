@@ -1,3 +1,4 @@
+'use client';
 import { Check } from 'lucide-react';
 import { Container, SectionHeader } from '@agendai/ui';
 import { Dashboard, PhonePreview } from '../common/Dashboard';

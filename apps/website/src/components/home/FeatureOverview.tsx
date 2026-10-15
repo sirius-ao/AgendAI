@@ -1,3 +1,4 @@
+'use client';
 import { BookOpen, Users, ChartNoAxesColumnIncreasing, Cloud } from 'lucide-react';
 import { Container, SectionHeader } from '@agendai/ui';
 import { useLocale } from '../i18n/LocaleProvider';

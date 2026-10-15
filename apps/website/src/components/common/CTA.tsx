@@ -1,3 +1,4 @@
+'use client';
 import Link from 'next/link';
 import { ArrowRight, GraduationCap, School } from 'lucide-react';
 import { Container, buttonClass } from '@agendai/ui';
