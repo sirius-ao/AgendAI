@@ -31,6 +31,7 @@ import {
 import { Donut } from '../ui/Charts';
 import { fileSize, formatDate, localId, normalize } from '@/lib/dashboard/selectors';
 import { downloadText } from '@/lib/dashboard/export';
+import { apiRequest } from '@/lib/api/client';
 import type { Resource, ResourceCategory } from '@/types/dashboard';
 const categories = [
   'Todos',
@@ -43,6 +44,12 @@ const categories = [
   'Documentos',
   'Imagens',
 ];
+const mimeByExtension: Record<string, string> = {
+  pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  csv: 'text/csv', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', mp4: 'video/mp4', mp3: 'audio/mpeg',
+};
 export function ResourcesPage({
   library = false,
   initialQuery = '',
@@ -50,7 +57,7 @@ export function ResourcesPage({
   library?: boolean;
   initialQuery?: string;
 }) {
-  const { state, update, notify, openModal } = useDashboard();
+  const { state, update, notify, openModal, apiMode } = useDashboard();
   const [query, setQuery] = useState(initialQuery),
     [category, setCategory] = useState('Todos'),
     [tab, setTab] = useState('Todos'),
@@ -62,6 +69,7 @@ export function ResourcesPage({
     [selected, setSelected] = useState<Resource | null>(null),
     [error, setError] = useState('');
   const [destination, setDestination] = useState<{ href: string; label: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
   const clearFilters = () => { setQuery(''); setCategory('Todos'); setSubject(''); setLevel(''); setFolder(''); setTab('Todos'); setSort('Mais recentes'); };
   const personal = state.resources.filter((r) =>
     state.library.some(
@@ -149,7 +157,7 @@ export function ResourcesPage({
     setDestination({ href: '/dashboard/biblioteca', label: 'Abrir Biblioteca' });
     notify('Material guardado na biblioteca.');
   };
-  function submit(e: FormEvent<HTMLFormElement>) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const get = (n: string) => String(f.get(n) || '').trim();
@@ -179,10 +187,44 @@ export function ResourcesPage({
         bytes: file.size,
         downloads: 0,
         ownerId: state.user.id,
-        description: get('description') || `Referência local: ${file.name}.`,
+        description: get('description'),
         objectives: get('objectives'), author: state.user.name, editable: f.get('editable') === 'on',
         favorite: false,
       };
+      if (apiMode) {
+        if (!state.activeSchoolId) { setError('Selecione uma escola antes de enviar o ficheiro.'); return; }
+        setUploading(true);
+        const schoolId = encodeURIComponent(state.activeSchoolId);
+        const resourceId = encodeURIComponent(id);
+        const recordPath = `/schools/${schoolId}/data/resources/${resourceId}`;
+        const attachmentPath = `/schools/${schoolId}/resources/${resourceId}/attachments`;
+        let attachmentId = '';
+        try {
+          const contentType = file.type || mimeByExtension[file.name.split('.').pop()?.toLowerCase() || ''] || 'application/octet-stream';
+          await apiRequest(recordPath, { method: 'PUT', body: JSON.stringify({ id, payload: resource }) });
+          const signed = await apiRequest<{ id: string; uploadUrl: string; method: 'PUT'; contentType: string }>(`${attachmentPath}/upload`, {
+            method: 'POST', body: JSON.stringify({ name: file.name, contentType, size: file.size }),
+          });
+          attachmentId = signed.id;
+          let sent: Response;
+          try {
+            sent = await fetch(signed.uploadUrl, { method: signed.method, headers: { 'Content-Type': signed.contentType }, body: file });
+          } catch {
+            throw new Error('O envio ao R2 foi bloqueado. Confirme a política CORS do bucket para o domínio deste site.');
+          }
+          if (!sent.ok) throw new Error(`O armazenamento recusou o ficheiro (HTTP ${sent.status}).`);
+          await apiRequest(`${attachmentPath}/${encodeURIComponent(attachmentId)}/complete`, { method: 'POST' });
+          resource.attachmentId = attachmentId;
+          await apiRequest(recordPath, { method: 'PUT', body: JSON.stringify({ id, payload: resource }) });
+        } catch (cause) {
+          if (attachmentId) await apiRequest(`${attachmentPath}/${encodeURIComponent(attachmentId)}`, { method: 'DELETE' }).catch(() => undefined);
+          await apiRequest(recordPath, { method: 'DELETE' }).catch(() => undefined);
+          setError(cause instanceof Error ? cause.message : 'Não foi possível guardar o ficheiro no R2.');
+          return;
+        } finally {
+          setUploading(false);
+        }
+      }
       update((s) => ({
         ...s,
         resources: [resource, ...s.resources],
@@ -220,7 +262,21 @@ export function ResourcesPage({
     }
     setDialog('');
     setError('');
-    notify('Alteração guardada localmente.');
+    notify(apiMode ? dialog === 'upload' ? 'Ficheiro enviado para o armazenamento da escola.' : 'Alteração sincronizada com a escola.' : 'Alteração guardada localmente.');
+  }
+  async function downloadOriginal(resource: Resource) {
+    if (!apiMode || !state.activeSchoolId || !resource.attachmentId) return;
+    try {
+      const path = `/schools/${encodeURIComponent(state.activeSchoolId)}/resources/${encodeURIComponent(resource.id)}/attachments/${encodeURIComponent(resource.attachmentId)}/download`;
+      const result = await apiRequest<{ url: string }>(path);
+      const anchor = document.createElement('a');
+      anchor.href = result.url;
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      anchor.click();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Não foi possível abrir o ficheiro.');
+    }
   }
   const open = (name: string) => {
     setError('');
@@ -515,10 +571,15 @@ export function ResourcesPage({
               <p>
                 <strong>{selected.format}</strong> · {fileSize(selected.bytes)} · {selected.level}
               </p>
-              <div className="dash-tip">
-                Pré-visualização de demonstração. Não existe um ficheiro original para descarregar;
-                pode exportar a ficha descritiva.
-              </div>
+              {selected.attachmentId && apiMode ? (
+                <button className="dash-btn secondary" onClick={() => void downloadOriginal(selected)}>
+                  <Download size={17} /> Descarregar ficheiro original
+                </button>
+              ) : (
+                <div className="dash-tip">
+                  {apiMode ? 'Este recurso não tem um ficheiro original associado. Pode exportar a ficha descritiva.' : 'Pré-visualização de demonstração. O ficheiro não é conservado; pode exportar a ficha descritiva.'}
+                </div>
+              )}
               <div className="dash-form-actions">
                 <button
                   className="dash-btn secondary"
@@ -560,7 +621,7 @@ export function ResourcesPage({
                     <>
                       <Field
                         label="Ficheiro (até 10 MB)"
-                        hint="Guardamos apenas o nome e os metadados. O conteúdo não é enviado nem conservado."
+                        hint={apiMode ? 'O ficheiro será enviado para o armazenamento da escola.' : 'Na demonstração, guardamos apenas o nome e os metadados.'}
                         required
                       >
                         <input
@@ -573,7 +634,7 @@ export function ResourcesPage({
                       <Field label="Título do material" required>
                         <input name="title" required />
                       </Field>
-                      <p className="dash-connection">Visibilidade: pessoal, neste dispositivo. Não será publicado para outros professores.</p>
+                      <p className="dash-connection">O ficheiro fica associado ao recurso e só fica acessível ao autor.</p>
                       <Field label="Categoria">
                         <select name="category">
                           {categories.slice(1).map((c) => (
@@ -614,7 +675,7 @@ export function ResourcesPage({
                 <button className="dash-btn secondary" type="button" onClick={() => setDialog('')}>
                   Cancelar
                 </button>
-                <button className="dash-btn" disabled={dialog === 'attach' && !state.plans.length}>{dialog === 'attach' ? 'Associar ao plano' : 'Guardar'}</button>
+                <button className="dash-btn" disabled={uploading || (dialog === 'attach' && !state.plans.length)}>{uploading ? 'A enviar ficheiro…' : dialog === 'attach' ? 'Associar ao plano' : 'Guardar'}</button>
               </div>
             </form>
           )}

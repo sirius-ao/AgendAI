@@ -154,6 +154,7 @@ export type ResourceCategory =
   | 'Áudios'
   | 'Outros';
 export interface Resource {
+  attachmentId?: Id;
   objectives?: string;
   author?: string;
   editable?: boolean;

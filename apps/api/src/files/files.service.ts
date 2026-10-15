@@ -24,7 +24,11 @@ const allowed = new Set([
   'image/png',
   'image/jpeg',
   'image/webp',
+  'video/mp4',
+  'audio/mpeg',
+  'audio/mp4',
 ]);
+type FileCollection = typeof DashboardCollection.PLANS | typeof DashboardCollection.RESOURCES;
 const safeName = (name: string) =>
   name
     .normalize('NFKC')
@@ -108,6 +112,9 @@ export class FilesService {
       case 'image/png': return starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
       case 'image/jpeg': return starts(0xff, 0xd8, 0xff);
       case 'image/webp': return text.startsWith('RIFF') && text.slice(8, 12) === 'WEBP';
+      case 'video/mp4':
+      case 'audio/mp4': return text.slice(4, 8) === 'ftyp';
+      case 'audio/mpeg': return text.startsWith('ID3') || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0);
       case 'text/csv': {
         try {
           const csv = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
@@ -127,39 +134,60 @@ export class FilesService {
     }
   }
 
-  private async authorize(userId: string, schoolId: string, planId: string, mutate = false) {
+  private async authorizeRecord(
+    userId: string,
+    schoolId: string,
+    collection: FileCollection,
+    recordId: string,
+    mutate = false,
+  ) {
     const membership = await this.schools.assertMembership(userId, schoolId);
     const row = await this.prisma.dashboardRecord.findUnique({
       where: {
         schoolId_collection_recordId: {
           schoolId,
-          collection: DashboardCollection.PLANS,
-          recordId: planId,
+          collection,
+          recordId,
         },
       },
     });
-    if (!row) throw new NotFoundException('Plano não encontrado');
-    const plan = row.payload as { subjectId?: unknown; teacherId?: unknown; visibility?: unknown };
+    if (!row) throw new NotFoundException(collection === DashboardCollection.PLANS ? 'Plano não encontrado' : 'Recurso não encontrado');
+    const record = row.payload as { subjectId?: unknown; teacherId?: unknown; ownerId?: unknown; visibility?: unknown };
     if (membership.role === 'TEACHER') {
-      if (mutate && plan.teacherId !== userId)
+      const owns = row.createdById === userId || record.teacherId === userId || record.ownerId === userId;
+      if (collection === DashboardCollection.RESOURCES) {
+        if (mutate && !owns)
+          throw new ForbiddenException('Só pode gerir ficheiros dos seus próprios recursos');
+        if (!owns) throw new ForbiddenException('Só o autor pode aceder ao ficheiro deste recurso');
+        return membership;
+      }
+      if (mutate && record.teacherId !== userId)
         throw new ForbiddenException('Só pode gerir anexos dos seus próprios planos');
-      if (typeof plan.subjectId !== 'string' && plan.teacherId !== userId)
+      if (typeof record.subjectId !== 'string' && record.teacherId !== userId)
         throw new ForbiddenException('Este plano não está associado ao seu perfil');
-      if (typeof plan.subjectId === 'string') {
+      if (typeof record.subjectId === 'string') {
         const assigned = await this.teaching.subjectsForTeacher(userId, schoolId);
-        if (!assigned.subjectIds.includes(plan.subjectId))
+        if (!assigned.subjectIds.includes(record.subjectId))
           throw new ForbiddenException(
             'Este plano não pertence às disciplinas associadas ao seu perfil',
           );
       }
-      if (!mutate && plan.teacherId !== userId && plan.visibility === 'Apenas eu')
+      if (!mutate && record.teacherId !== userId && record.visibility === 'Apenas eu')
         throw new ForbiddenException('Este plano é privado');
     }
     return membership;
   }
 
   async createUpload(userId: string, schoolId: string, planId: string, dto: CreatePlanUploadDto) {
-    await this.authorize(userId, schoolId, planId, true);
+    return this.createRecordUpload(userId, schoolId, DashboardCollection.PLANS, planId, dto);
+  }
+
+  async createResourceUpload(userId: string, schoolId: string, resourceId: string, dto: CreatePlanUploadDto) {
+    return this.createRecordUpload(userId, schoolId, DashboardCollection.RESOURCES, resourceId, dto);
+  }
+
+  private async createRecordUpload(userId: string, schoolId: string, collection: FileCollection, recordId: string, dto: CreatePlanUploadDto) {
+    await this.authorizeRecord(userId, schoolId, collection, recordId, true);
     const config = this.config();
     if (!allowed.has(dto.contentType.toLowerCase()))
       throw new BadRequestException('Tipo de ficheiro não permitido');
@@ -185,14 +213,14 @@ export class FilesService {
       throw new BadRequestException('A sua conta atingiu o limite de armazenamento de anexos.');
     const filename = safeName(dto.name);
     const id = randomUUID();
-    const key = `${schoolId}/plans/${planId}/${id}`;
+    const key = `${schoolId}/${collection === DashboardCollection.PLANS ? 'plans' : 'resources'}/${recordId}/${id}`;
     const item = await this.prisma.fileAttachment.create({
       data: {
         id,
         schoolId,
         userId,
-        collection: DashboardCollection.PLANS,
-        recordId: planId,
+        collection,
+        recordId,
         objectKey: key,
         originalName: filename,
         contentType: dto.contentType.toLowerCase(),
@@ -209,9 +237,17 @@ export class FilesService {
   }
 
   async complete(userId: string, schoolId: string, planId: string, id: string) {
-    await this.authorize(userId, schoolId, planId, true);
+    return this.completeRecord(userId, schoolId, DashboardCollection.PLANS, planId, id);
+  }
+
+  async completeResource(userId: string, schoolId: string, resourceId: string, id: string) {
+    return this.completeRecord(userId, schoolId, DashboardCollection.RESOURCES, resourceId, id);
+  }
+
+  private async completeRecord(userId: string, schoolId: string, collection: FileCollection, recordId: string, id: string) {
+    await this.authorizeRecord(userId, schoolId, collection, recordId, true);
     const item = await this.prisma.fileAttachment.findFirst({
-      where: { id, schoolId, recordId: planId, collection: DashboardCollection.PLANS, userId },
+      where: { id, schoolId, recordId, collection, userId },
     });
     if (!item) throw new NotFoundException('Anexo pendente não encontrado');
     const response = await fetch(
@@ -242,12 +278,20 @@ export class FilesService {
   }
 
   async list(userId: string, schoolId: string, planId: string) {
-    await this.authorize(userId, schoolId, planId);
+    return this.listRecord(userId, schoolId, DashboardCollection.PLANS, planId);
+  }
+
+  async listResource(userId: string, schoolId: string, resourceId: string) {
+    return this.listRecord(userId, schoolId, DashboardCollection.RESOURCES, resourceId);
+  }
+
+  private async listRecord(userId: string, schoolId: string, collection: FileCollection, recordId: string) {
+    await this.authorizeRecord(userId, schoolId, collection, recordId);
     return this.prisma.fileAttachment.findMany({
       where: {
         schoolId,
-        recordId: planId,
-        collection: DashboardCollection.PLANS,
+        recordId,
+        collection,
         uploadedAt: { not: null },
       },
       orderBy: { createdAt: 'asc' },
@@ -256,13 +300,21 @@ export class FilesService {
   }
 
   async download(userId: string, schoolId: string, planId: string, id: string) {
-    await this.authorize(userId, schoolId, planId);
+    return this.downloadRecord(userId, schoolId, DashboardCollection.PLANS, planId, id);
+  }
+
+  async downloadResource(userId: string, schoolId: string, resourceId: string, id: string) {
+    return this.downloadRecord(userId, schoolId, DashboardCollection.RESOURCES, resourceId, id);
+  }
+
+  private async downloadRecord(userId: string, schoolId: string, collection: FileCollection, recordId: string, id: string) {
+    await this.authorizeRecord(userId, schoolId, collection, recordId);
     const item = await this.prisma.fileAttachment.findFirst({
       where: {
         id,
         schoolId,
-        recordId: planId,
-        collection: DashboardCollection.PLANS,
+        recordId,
+        collection,
         uploadedAt: { not: null },
       },
     });
@@ -277,13 +329,21 @@ export class FilesService {
   }
 
   async remove(userId: string, schoolId: string, planId: string, id: string) {
-    const membership = await this.authorize(userId, schoolId, planId, true);
+    return this.removeRecord(userId, schoolId, DashboardCollection.PLANS, planId, id);
+  }
+
+  async removeResource(userId: string, schoolId: string, resourceId: string, id: string) {
+    return this.removeRecord(userId, schoolId, DashboardCollection.RESOURCES, resourceId, id);
+  }
+
+  private async removeRecord(userId: string, schoolId: string, collection: FileCollection, recordId: string, id: string) {
+    const membership = await this.authorizeRecord(userId, schoolId, collection, recordId, true);
     const item = await this.prisma.fileAttachment.findFirst({
       where: {
         id,
         schoolId,
-        recordId: planId,
-        collection: DashboardCollection.PLANS,
+        recordId,
+        collection,
         ...(membership.role === 'TEACHER' ? { userId } : {}),
       },
     });
