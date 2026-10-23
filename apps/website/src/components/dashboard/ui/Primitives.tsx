@@ -355,7 +355,14 @@ export function ActionMenu({
   items,
 }: {
   label?: string;
-  items: { label: string; action: () => void; danger?: boolean }[];
+  items: {
+    label: string;
+    action: () => void;
+    danger?: boolean;
+    icon?: LucideIcon;
+    description?: string;
+    separatorBefore?: boolean;
+  }[];
 }) {
   const { t } = useLocale();
   const ref = useRef<HTMLDetailsElement>(null);
@@ -366,8 +373,8 @@ export function ActionMenu({
     const summary = ref.current?.querySelector('summary');
     if (!summary) return;
     const rect = summary.getBoundingClientRect();
-    const width = 210;
-    const height = Math.min(items.length * 38 + 12, window.innerHeight - 24);
+    const width = 260;
+    const height = Math.min(items.length * 56 + 12, window.innerHeight - 24);
     const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12));
     const top = rect.bottom + height + 8 <= window.innerHeight
       ? rect.bottom + 4
@@ -418,7 +425,7 @@ export function ActionMenu({
       >
         {items.map((item) => (
           <button
-            className={item.danger ? 'danger' : ''}
+            className={`${item.danger ? 'is-danger' : ''} ${'icon' in item && item.icon ? 'has-icon' : ''} ${'separatorBefore' in item && item.separatorBefore ? 'has-separator' : ''}`}
             key={item.label}
             onClick={() => {
               if (ref.current) ref.current.open = false;
@@ -426,7 +433,8 @@ export function ActionMenu({
               item.action();
             }}
           >
-            {t(item.label)}
+            {'icon' in item && item.icon && <span className="dash-action-menu-item-icon"><item.icon size={17} strokeWidth={1.8} /></span>}
+            <span className="dash-action-menu-item-copy"><strong>{t(item.label)}</strong>{'description' in item && item.description && <small>{t(item.description)}</small>}</span>
           </button>
         ))}
       </div>, document.body)}

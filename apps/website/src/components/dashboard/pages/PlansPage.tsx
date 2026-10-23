@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Copy, Eye, FileDown, Pencil, Plus, Share2, Star, Trash2 } from 'lucide-react';
 import { useDashboard } from '../state/DashboardProvider';
 import {
   ActionMenu,
@@ -123,19 +123,23 @@ export function PlansPage({
     <ActionMenu
       label={`Opções: ${entry.plan.title || 'Plano sem título'}`}
       items={[
-        { label: 'Pré-visualizar', action: () => setSelected(entry) },
-        { label: 'Editar', action: () => resume(entry) },
+        { label: 'Pré-visualizar', description: 'Ver o plano antes de abrir', icon: Eye, action: () => setSelected(entry) },
+        { label: 'Editar', description: 'Alterar dados e atividades', icon: Pencil, action: () => resume(entry) },
         ...(entry.saved
           ? [
               ...(apiMode
-                ? [{ label: 'Partilhar com outro professor', action: () => setSharingEntry(entry) }]
+                ? [{ label: 'Partilhar com outro professor', description: 'Enviar uma cópia para um colega', icon: Share2, action: () => setSharingEntry(entry) }]
                 : []),
               {
                 label: 'Usar noutra turma / duplicar',
+                description: 'Criar uma cópia independente',
+                icon: Copy,
                 action: () => openModal({ kind: 'plan', copyFrom: entry.key }),
               },
               {
                 label: entry.plan.favorite ? 'Remover favorito' : 'Favoritar',
+                description: entry.plan.favorite ? 'Retirar da lista de favoritos' : 'Guardar nos seus favoritos',
+                icon: Star,
                 action: () =>
                   update((s) => ({
                     ...s,
@@ -157,6 +161,8 @@ export function PlansPage({
           : []),
         {
           label: 'Imprimir A4 / PDF',
+          description: 'Abrir a versão pronta para impressão',
+          icon: FileDown,
           action: () => {
             if (!printLessonPlan(entry.plan, state))
               notify('Permita janelas para imprimir o plano.');
@@ -164,7 +170,10 @@ export function PlansPage({
         },
         {
           label: entry.saved ? 'Eliminar plano' : 'Descartar rascunho',
+          description: 'Esta ação pede confirmação',
+          icon: Trash2,
           danger: true,
+          separatorBefore: true,
           action: () => setDeleting(entry),
         },
       ]}
