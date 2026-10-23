@@ -31,7 +31,7 @@ export function LinkedPlanResources({ resourceIds, onChange, children }: { resou
     }
   }
   return <section id="plan-linked-resources" className="dash-plan-linked-resources" aria-label="Materiais associados">
-    <div className="dash-plan-linked-heading"><div><h3>Materiais da aula <span>Opcional</span></h3><p>Adicione ficheiros próprios ou escolha materiais da biblioteca.</p></div>
+    <div className="dash-plan-linked-heading"><div><h3>Materiais da aula {onChange && <span>Opcional</span>}</h3><p>{onChange ? 'Adicione ficheiros próprios ou escolha materiais da biblioteca.' : 'Materiais associados a esta aula.'}</p></div>
       {onChange && <button className="dash-btn secondary" type="button" aria-expanded={showLibrary} onClick={() => { setShowLibrary(!showLibrary); setQuery(''); }}>{showLibrary ? 'Fechar biblioteca' : 'Escolher da biblioteca'}</button>}
     </div>
     {children && <div className="dash-plan-material-upload">{children}</div>}

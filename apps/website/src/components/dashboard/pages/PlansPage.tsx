@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Copy, Eye, FileDown, Pencil, Plus, Share2, Star, Trash2 } from 'lucide-react';
+import { BookOpen, CalendarDays, Clock3, Copy, Eye, FileDown, Pencil, Plus, Share2, Star, Trash2 } from 'lucide-react';
 import { useDashboard } from '../state/DashboardProvider';
 import {
   ActionMenu,
@@ -179,6 +179,10 @@ export function PlansPage({
       ]}
     />
   );
+  const previewRows = selected ? planRows(selected.plan, state) : [];
+  const previewValue = (label: string) => previewRows.find(([rowLabel]) => rowLabel === label)?.[1] || '';
+  const previewMetaLabels = new Set(['Modelo', 'Escola', 'Professor', 'Ano letivo', 'Turma', 'Disciplina', 'Data', 'Hora de início', 'Duração', 'Tipo / modalidade', 'Estado', 'Materiais associados', 'Anexos (referências locais)']);
+  const previewSections = previewRows.filter(([label]) => !previewMetaLabels.has(label));
   return (
     <>
       <PageHeader
@@ -404,25 +408,34 @@ export function PlansPage({
         </>
       )}
       {selected && (
-        <Modal title={selected.plan.title || 'Plano sem título'} onClose={() => setSelected(null)}>
-          <div className="dash-modal-simple">
-            <StatusBadge>{status(selected)}</StatusBadge>
-            {planRows(selected.plan, state).map(([label, text], index) => (
-              <section key={index}>
-                <h3>{label}</h3>
-                <p style={{ whiteSpace: 'pre-wrap' }}>{text || 'Por preencher'}</p>
-              </section>
-            ))}
+        <Modal title="Pré-visualização do plano" description="Revise os dados e o conteúdo da aula." icon={BookOpen} onClose={() => setSelected(null)} className="dash-dialog-plan-preview">
+          <div className="dash-plan-preview-body">
+            <header className="dash-plan-preview-hero">
+              <div><span>PLANO DE AULA</span><h2>{selected.plan.title || 'Plano sem título'}</h2><p>{previewValue('Turma') || 'Turma por selecionar'} <i /> {previewValue('Disciplina') || 'Disciplina por selecionar'}</p></div>
+              <StatusBadge tone={selected.unfinished ? 'amber' : selected.plan.status === 'Concluído' ? 'green' : 'blue'}>{status(selected)}</StatusBadge>
+            </header>
+            <div className="dash-plan-preview-facts">
+              <div><span><CalendarDays size={16} /> Data e hora</span><strong>{dateLabel(selected.plan)} · {previewValue('Hora de início') || '08:00'}</strong></div>
+              <div><span><Clock3 size={16} /> Duração</span><strong>{previewValue('Duração') || '—'}</strong></div>
+            </div>
+            <details className="dash-plan-preview-details"><summary>Dados complementares</summary><dl>
+              {previewRows.filter(([label]) => ['Modelo', 'Escola', 'Professor', 'Ano letivo', 'Tipo / modalidade'].includes(label)).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || 'Por preencher'}</dd></div>)}
+            </dl></details>
+            <div className="dash-plan-preview-content">
+              <div className="dash-plan-preview-content-heading"><span>CONTEÚDO</span><h3>Preparação da aula</h3></div>
+              <div className="dash-plan-preview-sections">
+                {previewSections.map(([label, value], index) => <section key={`${label}-${index}`} className={!value.trim() ? 'is-empty' : ''}>
+                  <h4>{label}</h4><p>{value || 'Por preencher'}</p>
+                </section>)}
+                {!previewSections.length && <p className="dash-plan-preview-empty">Ainda não há conteúdo preenchido neste plano.</p>}
+              </div>
+            </div>
+            {!!selected.plan.attachments?.length && <div className="dash-plan-preview-attachments"><strong>Ficheiros associados</strong><p>{selected.plan.attachments.join(' · ')}</p></div>}
             <LinkedPlanResources resourceIds={selected.plan.resourceIds || []} />
-            <button
-              className="dash-btn"
-              onClick={() => {
-                resume(selected);
-                setSelected(null);
-              }}
-            >
-              Editar plano
-            </button>
+            <footer className="dash-plan-preview-footer">
+              <span>Pré-visualização do documento</span>
+              <button className="dash-btn" onClick={() => { resume(selected); setSelected(null); }}>Editar plano</button>
+            </footer>
           </div>
         </Modal>
       )}

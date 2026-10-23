@@ -3,6 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { DashboardCollection } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SchoolsService } from '../schools/schools.service.js';
+import { resolveEmailSiteUrl } from '../auth/email-templates.js';
 
 const managers = new Set(['OWNER', 'ADMIN', 'COORDINATOR']);
 const stringValue = (value: unknown) => (typeof value === 'string' ? value : '');
@@ -41,10 +42,6 @@ export class PlanSharesService {
     await this.planForMember(userId, schoolId, planId);
     const token = randomBytes(32).toString('base64url');
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    await this.prisma.sharedPlanLink.updateMany({
-      where: { schoolId, recordId: planId, createdById: userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
     const link = await this.prisma.sharedPlanLink.create({
       data: {
         schoolId,
@@ -55,8 +52,10 @@ export class PlanSharesService {
       },
       select: { id: true, createdAt: true, expiresAt: true },
     });
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || process.env.WEB_APP_URL || 'https://agendaki.net';
+    const siteUrl = resolveEmailSiteUrl(
+      process.env.NEXT_PUBLIC_SITE_URL || process.env.WEB_APP_URL,
+      process.env.NODE_ENV === 'production',
+    );
     return {
       ...link,
       revokedAt: null,
