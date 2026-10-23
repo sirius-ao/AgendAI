@@ -19,7 +19,13 @@ Para executar os testes unitários das regras de acesso: `pnpm test:api`.
 
 Defina `JWT_ACCESS_SECRET` como uma string aleatória de pelo menos 32 caracteres em `apps/api/.env`. A API fica em `http://localhost:3001/api/v1`; `WEB_ORIGIN` deve corresponder exatamente à origem do frontend. O website usa `/api/v1` na mesma origem, encaminhado pelo Next.js para a API. `GET /api/v1/health` confirma que o processo responde.
 
-Para executar a stack completa em Docker, copie `.env.example` para `.env`, defina `JWT_ACCESS_SECRET` e execute `docker compose up --build -d --wait`. A API aplica as migrações pendentes ao iniciar. `POSTGRES_PASSWORD` pode substituir a palavra-passe local predefinida; configure valores fortes antes de qualquer publicação.
+### Gemini para planos de aula
+
+O serviço de IA usa o endpoint compatível com OpenAI da Gemini API. O exemplo local já define o modelo testado `gemini-3.6-flash`; preencha `AI_API_KEY` com uma chave criada no Google AI Studio. Mantenha `AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/` e `AI_MODEL=gemini-3.6-flash`. A chave é usada apenas no servidor e não deve ser definida como variável pública nem como argumento de build. Se `AI_API_KEY` estiver vazio, a API inicia normalmente e informa que a geração está desativada.
+
+Em produção com Docker Compose, defina `AI_API_KEY` como segredo no ambiente do serviço `api`; `AI_BASE_URL` e `AI_MODEL` já têm esses padrões no Compose. Se a aplicação foi implantada sem Compose, defina as três variáveis no runtime da API. Para o website alcançar uma API fora da rede Compose padrão, configure `API_INTERNAL_URL` no build do website com a origem interna acessível entre os containers.
+
+Para executar a stack completa em Docker, copie `.env.example` para `.env`, preencha todos os segredos de produção indicados em [docs/coolify.md](coolify.md) e execute `docker compose config --quiet` antes de `docker compose up --build -d --wait`. A API aplica as migrações pendentes ao iniciar. `POSTGRES_PASSWORD` precisa ter pelo menos 32 caracteres aleatórios em produção.
 
 O Compose também inicia MinIO com bucket privado persistente (`agendai-local`), usando uma imagem Elestio fixada por digest porque a imagem upstream `minio/minio` deixou de estar disponível no Docker Hub. Essa imagem é um snapshot legado, sem atualizações recentes; para armazenamento de produção a longo prazo, configure um serviço S3 mantido e configure `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY` e `S3_SECRET_KEY`. Em Docker, `S3_ENDPOINT` é o endereço acessível pela API (`http://storage:9000`) e `S3_PUBLIC_ENDPOINT` é o endereço acessível pelo navegador (`http://localhost:9000` localmente). Use credenciais fortes, bucket privado e TLS; nunca exponha as credenciais no frontend. Mantenha backups do volume de armazenamento e da base de dados. No Coolify, remova a variável antiga `MINIO_IMAGE`; a imagem pode ser substituída por `STORAGE_IMAGE`.
 

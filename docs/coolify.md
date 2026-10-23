@@ -18,6 +18,21 @@ Criar uma aplicação a partir do repositório Git e selecionar **Dockerfile** c
 
 **Não usar `apps/website` como contexto de build:** os packages partilhados e o lockfile estão na raiz. Não configurar comandos Nixpacks, `pnpm dev`, nem publicação estática. O Dockerfile define os comandos de instalação, build e arranque.
 
+Este Dockerfile publica apenas o website. Para login, dados sincronizados e planos com IA, implante também a API e PostgreSQL. Pode usar o `docker-compose.yml` para a stack completa ou manter API e website como serviços separados no Coolify, configurando `API_INTERNAL_URL` no website.
+
+## Pré-requisitos da API em produção
+
+Antes do primeiro deploy da API, configure as variáveis obrigatórias no ambiente do Coolify. A API encerra no arranque se faltarem credenciais ou configurações de produção:
+
+- `JWT_ACCESS_SECRET` (pelo menos 32 caracteres) e `POSTGRES_PASSWORD` (pelo menos 32 caracteres aleatórios).
+- `NEXT_PUBLIC_SITE_URL` com HTTPS, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` no build e runtime do website, `WEB_ORIGIN` com a origem pública exata do website, `TURNSTILE_SECRET_KEY` e `TURNSTILE_HOSTNAMES`.
+- `SUPER_ADMIN_EMAILS`, mais duas chaves distintas de 64 caracteres hexadecimais para `ADMIN_BACKUP_ENCRYPTION_KEY` e `ADMIN_MFA_ENCRYPTION_KEY`. Gerar cada chave com `openssl rand -hex 32`.
+- `S3_ACCESS_KEY` (pelo menos 16 caracteres), `S3_SECRET_KEY` (pelo menos 32 caracteres), `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_BUCKET` e `S3_REGION`.
+- `RESEND_API_KEY`, `EMAIL_FROM` com domínio verificado e `CONTACT_EMAIL`.
+- Para ativar a geração com Gemini, definir `AI_API_KEY` no runtime da API. `AI_BASE_URL` e `AI_MODEL` têm padrões funcionais definidos no Compose; veja a secção Gemini abaixo.
+
+Use valores próprios em produção e guarde os segredos num gestor de segredos. Os valores de `.env.example` são apenas exemplos e não substituem credenciais reais. Execute `docker compose config --quiet` antes do deploy para detectar variáveis obrigatórias ausentes.
+
 ## Variável obrigatória para SEO de produção
 
 No Coolify, definir `NEXT_PUBLIC_SITE_URL` com a origem pública completa, por exemplo `https://o-seu-dominio.ao`, sem barra final. O website chama a API em `/api/v1` no mesmo domínio; o Next.js encaminha estas chamadas ao serviço `api` pela rede interna do Compose, sem expor um endereço local no browser.
@@ -30,7 +45,13 @@ Ativar `NEXT_PUBLIC_SITE_URL` **no build e no runtime**. O Dockerfile declara o 
 
 Para mostrar o botão Google, configurar `GOOGLE_CLIENT_ID` no serviço da API e `NEXT_PUBLIC_GOOGLE_CLIENT_ID` como variável de build do website, ambos com o mesmo OAuth Client ID Web, e definir `GOOGLE_AUTH_ENABLED=true` (padrão). Para desativar, definir `GOOGLE_AUTH_ENABLED=false`; no website fora do Docker, usar `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=false` na build. Registar a origem pública do website (por exemplo, `https://www.agendaki.net`) em *Authorized JavaScript origins* no Google Cloud. Como o controle público é incorporado no build, uma alteração exige novo deploy do website.
 
-O website define `NODE_ENV=production`, `PORT=3000` e `HOSTNAME=0.0.0.0`. Para login e dashboard autenticado, publicar também a API e uma base PostgreSQL; a instalação e variáveis estão em [docs/api.md](api.md). Configurar `WEB_ORIGIN` na API com a origem exata do website e guardar `JWT_ACCESS_SECRET` como segredo. O Dockerfile da API aplica as migrações ao arrancar.
+O website define `NODE_ENV=production`, `PORT=3000` e `HOSTNAME=0.0.0.0`. Para login, dashboard autenticado e geração de planos com IA, publicar também a API e uma base PostgreSQL; a instalação e variáveis estão em [docs/api.md](api.md). Configurar `WEB_ORIGIN` na API com a origem exata do website e guardar `JWT_ACCESS_SECRET` como segredo. O Dockerfile da API aplica as migrações ao arrancar.
+
+### Gemini no serviço da API
+
+No deploy por Compose, configure `AI_API_KEY` como segredo de runtime do serviço `api`. `AI_BASE_URL` e `AI_MODEL` usam por padrão o endpoint compatível da Gemini API e o modelo testado `gemini-3.6-flash`; se definir essas variáveis manualmente, use esses mesmos valores. Não passe a chave ao build do website nem a publique como `NEXT_PUBLIC_*`. Sem `AI_API_KEY`, a aplicação inicia, mas a geração de planos com IA fica desativada.
+
+Se o website e a API forem implantados como serviços Coolify separados, defina `API_INTERNAL_URL` no build do website para a URL interna da API acessível pela rede do Coolify, incluindo protocolo e porta, por exemplo `http://agendai-api:3001`. Essa variável também precisa estar disponível no runtime do website. Na API, use a origem pública exata em `WEB_ORIGIN` e configure as variáveis Gemini acima no runtime. O valor padrão `http://api:3001` só funciona quando ambos estão na mesma rede Compose e a API se chama `api`.
 
 ## Saúde e verificações após deploy
 

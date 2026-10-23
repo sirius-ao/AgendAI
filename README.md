@@ -24,12 +24,13 @@ O repositório inclui `Dockerfile` multi-stage, `.dockerignore`, `docker-compose
 
 ```sh
 cp .env.example .env
-# Definir JWT_ACCESS_SECRET em .env (gerar com openssl rand -hex 32).
+# Antes de iniciar, preencher os segredos reais do Turnstile, Resend, PostgreSQL,
+# S3, JWT e as duas chaves de cifragem descritas em docs/coolify.md.
 docker compose config --quiet
 docker compose up --build -d --wait
 ```
 
-O ficheiro `.env.example` reúne as variáveis da stack e um placeholder para o segredo exigido pela API. Troque-o por um segredo aleatório próprio antes de publicar. Para executar só a API e a base de dados localmente, consulte [docs/api.md](docs/api.md).
+O `.env.example` documenta a stack, mas não contém credenciais de produção. O Compose rejeita valores obrigatórios em falta; confirme as variáveis de produção antes de iniciar. Para executar só a API e a base de dados localmente, consulte [docs/api.md](docs/api.md).
 
 Os serviços publicados ficam em `127.0.0.1` por omissão. Para acesso remoto, configure `API_BIND_ADDRESS` e `WEBSITE_BIND_ADDRESS` (por exemplo, `0.0.0.0`), bem como a URL pública do website e `WEB_ORIGIN`. O website chama a API por `/api/v1` na mesma origem, encaminhada internamente pelo Next.js; alterações a `NEXT_PUBLIC_SITE_URL` exigem novo build.
 
