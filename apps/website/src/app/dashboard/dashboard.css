@@ -3936,6 +3936,8 @@
 .dash-plan-preview-body > .dash-plan-linked-resources { margin: 14px 0 0; background: #fff; }
 .dash-plan-preview-footer { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #dce3e9; }
 .dash-plan-preview-footer > span { color: var(--dash-muted); font-size: 11px; }
+.dash-plan-preview-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; }
+.dash-plan-preview-actions .dash-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 @media (max-width: 600px) {
   .dash-dialog-plan-preview { width: calc(100vw - 20px); border-radius: 12px; }
   .dash-dialog-plan-preview .dash-modal-heading { padding: 15px; }
@@ -3943,7 +3945,8 @@
   .dash-plan-preview-hero { flex-direction: column-reverse; padding: 17px; }
   .dash-plan-preview-facts, .dash-plan-preview-details dl, .dash-plan-preview-sections { grid-template-columns: minmax(0, 1fr); }
   .dash-plan-preview-footer { align-items: stretch; flex-direction: column; }
-  .dash-plan-preview-footer .dash-btn { min-height: 46px; }
+  .dash-plan-preview-actions { flex-direction: column; align-items: stretch; }
+  .dash-plan-preview-actions .dash-btn { min-height: 46px; }
 }
 @media (max-width: 1000px) {
   .dash-model-gallery { grid-template-columns: minmax(0, 1fr); }

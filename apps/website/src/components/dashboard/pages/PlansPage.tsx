@@ -434,7 +434,19 @@ export function PlansPage({
             <LinkedPlanResources resourceIds={selected.plan.resourceIds || []} />
             <footer className="dash-plan-preview-footer">
               <span>Pré-visualização do documento</span>
-              <button className="dash-btn" onClick={() => { resume(selected); setSelected(null); }}>Editar plano</button>
+              <div className="dash-plan-preview-actions">
+                <button
+                  className="dash-btn secondary"
+                  onClick={() => {
+                    if (!printLessonPlan(selected.plan, state)) {
+                      notify('Permita a abertura de janelas para imprimir ou guardar o plano em PDF.');
+                    }
+                  }}
+                >
+                  <FileDown size={16} /> Imprimir / Guardar PDF
+                </button>
+                <button className="dash-btn" onClick={() => { resume(selected); setSelected(null); }}>Editar plano</button>
+              </div>
             </footer>
           </div>
         </Modal>
