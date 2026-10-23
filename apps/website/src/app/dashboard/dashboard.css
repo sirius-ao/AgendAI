@@ -2622,6 +2622,60 @@
   display: grid;
   grid-template-columns: minmax(0, 1.75fr) minmax(260px, 1fr);
 }
+.dash-dialog-plan {
+  width: min(1160px, calc(100vw - 40px));
+  border-radius: 18px;
+  box-shadow: 0 28px 90px #10271b36;
+}
+.dash-dialog-plan .dash-modal-heading {
+  padding: 20px 24px;
+  background: linear-gradient(110deg, #f1faf4, var(--dash-surface) 70%);
+  border-bottom: 1px solid var(--dash-border);
+}
+.dash-dialog-plan .dash-creation-form { grid-template-columns: minmax(0, 1.7fr) minmax(270px, .8fr); }
+.dash-plan-status-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(190px, .7fr) minmax(0, 2fr);
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  background: linear-gradient(115deg, #f5faf6, #fff 75%);
+  border-bottom: 1px solid var(--dash-border);
+}
+.dash-plan-status-intro > span { color: var(--dash-green); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.dash-plan-status-intro h2 { margin: 5px 0; font-size: 17px; letter-spacing: -.02em; }
+.dash-plan-status-intro p { margin: 0; color: var(--dash-muted); font-size: 12px; line-height: 1.5; }
+.dash-plan-status-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.dash-plan-status-choice {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 94px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px;
+  text-align: left;
+  color: var(--dash-text);
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease, background .16s ease;
+}
+.dash-plan-status-choice:hover:not(:disabled) { border-color: #9bcbaa; transform: translateY(-1px); }
+.dash-plan-status-choice.is-selected { border: 2px solid var(--dash-green); padding: 12px; background: #f4fbf5; box-shadow: 0 0 0 3px #07803b12; }
+.dash-plan-status-choice:focus-visible { outline: 3px solid #0a8d4938; outline-offset: 2px; }
+.dash-plan-status-choice.is-unavailable { cursor: not-allowed; opacity: .62; }
+.dash-plan-status-icon { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border-radius: 10px; }
+.dash-plan-status-icon.amber { color: #9a6300; background: #fff4d9; }
+.dash-plan-status-icon.blue { color: #2365a8; background: #e8f2ff; }
+.dash-plan-status-icon.green { color: #08783a; background: #e4f6e9; }
+.dash-plan-status-copy { display: grid; gap: 5px; min-width: 0; padding-right: 10px; }
+.dash-plan-status-copy strong { font-size: 12px; }
+.dash-plan-status-copy small { color: var(--dash-muted); font-size: 10px; line-height: 1.45; white-space: normal; }
+.dash-plan-status-indicator { position: absolute; top: 13px; right: 13px; width: 15px; height: 15px; border: 1.5px solid #bdc9c0; border-radius: 50%; }
+.dash-plan-status-choice.is-selected .dash-plan-status-indicator { border: 5px solid var(--dash-green); }
 .dash-form-main {
   padding: 20px 23px;
 }
@@ -3828,11 +3882,17 @@
 .dash-plan-preview dd { margin: 4px 0 0; white-space: pre-wrap; color: var(--dash-muted); font-size: 12px; }
 @media (max-width: 1000px) {
   .dash-model-gallery { grid-template-columns: minmax(0, 1fr); }
+  .dash-plan-status-panel { grid-template-columns: minmax(0, 1fr); gap: 13px; }
 }
 .dash-example-plans { padding: 18px; }
 .dash-dialog-plan .dash-form-actions { flex-wrap: wrap; }
 .dash-dialog-plan .dash-form-actions .dash-btn { white-space: normal; }
 @media (max-width: 700px) {
+  .dash-dialog-plan { width: calc(100vw - 20px); border-radius: 12px; }
+  .dash-dialog-plan .dash-modal-heading { padding: 16px; }
+  .dash-plan-status-panel { padding: 16px; }
+  .dash-plan-status-options { grid-template-columns: minmax(0, 1fr); }
+  .dash-plan-status-choice { min-height: 72px; align-items: center; }
   .dash-dialog-plan .dash-plan-stage { padding: 12px; }
   .dash-dialog-plan .dash-guide-actions > button { min-height: 44px; }
   .dash-dialog-plan .dash-form-aside > .dash-form-actions { position: sticky; bottom: 0; padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); background: var(--dash-surface); z-index: 2; }

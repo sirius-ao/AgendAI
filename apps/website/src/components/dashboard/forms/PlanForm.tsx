@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { FilePlus } from 'lucide-react';
+import { CheckCircle2, CircleDashed, ClipboardCheck, FilePlus } from 'lucide-react';
 import { useDashboard } from '../state/DashboardProvider';
 import { Attachments, Field, Modal, StatusBadge, Switch } from '../ui/Primitives';
 import { PlanFileAttachments } from './PlanFileAttachments';
@@ -39,7 +39,7 @@ export function PlanForm() {
     id: '', teacherId: state.user.id, title: '', description: '',
     subjectId: modal?.subjectId || initialClass?.subjectIds[0] || '',
     classId: initialClass?.id || '', date: modal?.date || DEMO_DATE, duration: 50,
-    status: 'Planeado', favorite: false, shared: false, template: false, ai: false,
+    status: 'Rascunho', favorite: false, shared: false, template: false, ai: false,
     lessonType: 'Aula teórica', modality: 'Presencial', objectives: '', content: '',
     methodology: '', resources: '', evaluation: '', tags: '', visibility: 'Apenas eu', attachments: [], resourceIds: modal?.resourceId ? [modal.resourceId] : [],
     ...old,
@@ -156,8 +156,23 @@ export function PlanForm() {
       <div className="dash-plan-savebar" role="status"><div>{storageError ? apiMode ? 'Não foi possível sincronizar o rascunho. Verifique a ligação.' : 'Não foi possível guardar no navegador. Mantenha esta página aberta.' : state.planDrafts?.[draftKey] ? apiMode ? 'Rascunho automático guardado na escola. Pode continuar noutro dispositivo.' : 'Rascunho automático neste dispositivo. Pode fechar e retomar aqui.' : apiMode ? 'As alterações são sincronizadas automaticamente com a escola.' : 'As alterações são guardadas automaticamente neste dispositivo.'}
         {source && <p>Escolha a turma e a nova data. O plano original não será alterado.</p>}
         <p>Guardar o plano atualiza a aula correspondente no calendário.</p></div><button className="dash-btn secondary" type="button" onClick={close}>Continuar depois</button></div>
+      <section id="plan-status" className="dash-plan-status-panel" aria-labelledby="plan-status-heading">
+        <div className="dash-plan-status-intro"><span>Antes de guardar</span><h2 id="plan-status-heading">Em que ponto está este plano?</h2><p>Escolha uma opção. Pode alterar o estado mais tarde.</p></div>
+        <div className="dash-plan-status-options" role="group" aria-label="Estado do plano">
+          {[
+            { value: 'Rascunho', title: 'Por terminar', description: 'Ainda estou a preparar. Posso guardar e continuar depois.', icon: CircleDashed, tone: 'amber' },
+            { value: 'Planeado', title: 'Preparado', description: 'Está pronto para dar a aula e aparece como preparado.', icon: ClipboardCheck, tone: 'blue' },
+            { value: 'Concluído', title: 'Concluído', description: canMarkCompleted ? 'A aula já aconteceu.' : 'Disponível depois da data da aula.', icon: CheckCircle2, tone: 'green', disabled: !canMarkCompleted },
+          ].map(({ value, title, description, icon: Icon, tone, disabled }) => {
+            const active = selectedStatus === value;
+            return <button key={value} type="button" className={`dash-plan-status-choice ${active ? 'is-selected' : ''} ${disabled ? 'is-unavailable' : ''}`} aria-pressed={active} disabled={disabled} onClick={() => { setError(''); patch({ status: value as LessonPlan['status'] }); }}>
+              <span className={`dash-plan-status-icon ${tone}`}><Icon size={19} /></span><span className="dash-plan-status-copy"><strong>{title}</strong><small>{description}</small></span><span className="dash-plan-status-indicator" aria-hidden="true" />
+            </button>;
+          })}
+        </div>
+      </section>
       <div className="dash-form-main">
-        <nav className="dash-plan-section-nav" aria-label="Secções do plano"><a href="#plan-data">Dados</a><a href="#plan-content">Conteúdo</a><a href="#plan-ai-toggle">IA</a><a href="#plan-linked-resources">Materiais</a>{plan.modelId !== 'simple' && <a href="#plan-stages">Etapas</a>}<a href="#plan-document">Documento</a></nav>
+        <nav className="dash-plan-section-nav" aria-label="Secções do plano"><a href="#plan-status">Estado</a><a href="#plan-data">Dados</a><a href="#plan-content">Conteúdo</a><a href="#plan-ai-toggle">IA</a><a href="#plan-linked-resources">Materiais</a>{plan.modelId !== 'simple' && <a href="#plan-stages">Etapas</a>}<a href="#plan-document">Documento</a></nav>
         <section id="plan-data" className="dash-plan-section"><h2>1. Dados da aula</h2>
         <Field label="Modelo de plano"><select value={plan.modelId} onChange={(e) => patch({ modelId: e.target.value as LessonPlan['modelId'] })}>{planModels.map((model) => <option value={model.id} key={model.id}>{model.name}</option>)}</select></Field>
         <p>{planModels.find((m) => m.id === plan.modelId)?.description} Mudar de modelo preserva os campos preenchidos; a pré-visualização mostra os campos do modelo escolhido.</p>
@@ -181,13 +196,6 @@ export function PlanForm() {
           <Field label="Tipo de aula"><input value={plan.lessonType} onChange={(e) => patch({ lessonType: e.target.value })} /></Field>
           <Field label="Modalidade"><select value={plan.modality} onChange={(e) => patch({ modality: e.target.value })}>{['Presencial', 'Online', 'Híbrida'].map((v) => <option key={v}>{v}</option>)}</select></Field>
         </div>
-        <Field label="Estado do plano" hint={canMarkCompleted ? 'Por terminar: rascunho para continuar depois. Preparado: pronto para dar. Concluído: aula já realizada.' : 'Por terminar: rascunho para continuar depois. Preparado: pronto para dar. Concluído fica disponível depois da data da aula.'}>
-          <select value={selectedStatus} onChange={(e) => patch({ status: e.target.value as LessonPlan['status'] })}>
-            <option value="Rascunho">Por terminar</option>
-            <option value="Planeado">Preparado</option>
-            {canMarkCompleted && <option value="Concluído">Concluído</option>}
-          </select>
-        </Field>
         </section>
         <section id="plan-ai-toggle" className="dash-plan-ai-toggle" aria-labelledby="plan-ai-toggle-heading">
           <h3 id="plan-ai-toggle-heading">Como queres preparar o plano?</h3>
