@@ -23,8 +23,9 @@ import { PlanModels } from '../PlanModels';
 import { planModels, planRows } from '@/lib/dashboard/plan-models';
 import { SharePlanDialog } from '../SharePlanDialog';
 import { LinkedPlanResources } from '../forms/LinkedPlanResources';
+import { lessonPlanIsReady } from '@/lib/dashboard/plan-readiness';
 
-type Entry = { key: string; plan: LessonPlan; saved: boolean; unfinished: boolean };
+type Entry = { key: string; plan: LessonPlan; saved: boolean; unfinished: boolean; drafted: boolean };
 export function PlansPage({
   initialQuery = '',
   initialPlan = '',
@@ -53,30 +54,24 @@ export function PlansPage({
   const availableSubjects = state.subjects.filter(
     (item) => state.user.role !== 'Professor' || state.teacherSubjectIds.includes(item.id),
   );
-  const incomplete = (plan: LessonPlan) =>
-    plan.status === 'Rascunho' ||
-    !plan.title.trim() ||
-    !plan.classId ||
-    !plan.subjectId ||
-    !plan.objectives.trim() ||
-    !plan.methodology.trim();
+  const incomplete = (plan: LessonPlan) => plan.status === 'Rascunho' || !lessonPlanIsReady(plan);
   const entries: Entry[] = [
     ...state.plans.map((saved) => ({
       key: saved.id,
       saved: true,
       plan: state.planDrafts?.[saved.id] || saved,
-      unfinished: Boolean(state.planDrafts?.[saved.id]) || incomplete(saved),
+      unfinished: Boolean(state.planDrafts?.[saved.id]) || incomplete(state.planDrafts?.[saved.id] || saved),
+      drafted: Boolean(state.planDrafts?.[saved.id]),
     })),
     ...Object.entries(state.planDrafts || {})
       .filter(([key]) => !state.plans.some((p) => p.id === key))
-      .map(([key, plan]) => ({ key, plan, saved: false, unfinished: true })),
+      .map(([key, plan]) => ({ key, plan, saved: false, unfinished: true, drafted: true })),
   ];
-  const status = (entry: Entry) =>
-    entry.unfinished
-      ? 'Por terminar'
-      : entry.plan.status === 'Concluído'
-        ? 'Concluídos'
-        : 'Preparados';
+  const status = (entry: Entry) => {
+    if (entry.drafted) return 'Por terminar';
+    if (entry.plan.status === 'Concluído') return 'Concluídos';
+    return entry.unfinished ? 'Por terminar' : 'Preparados';
+  };
   const className = (plan: LessonPlan) =>
     state.classes.find((c) => c.id === plan.classId)?.name || 'Turma por escolher';
   const subjectName = (plan: LessonPlan) =>

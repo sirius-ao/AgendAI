@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { FilePlus } from 'lucide-react';
 import { useDashboard } from '../state/DashboardProvider';
-import { Attachments, Field, Modal, Switch } from '../ui/Primitives';
+import { Attachments, Field, Modal, StatusBadge, Switch } from '../ui/Primitives';
 import { PlanFileAttachments } from './PlanFileAttachments';
 import { LinkedPlanResources } from './LinkedPlanResources';
 import { planModels, planRows } from '@/lib/dashboard/plan-models';
@@ -11,11 +11,23 @@ import { printLessonPlan } from '@/lib/dashboard/print-lesson-plan';
 import { syncPlanEvent } from '@/lib/dashboard/plan-calendar';
 import { planExamples } from '@/data/dashboard/plan-examples';
 import { localId } from '@/lib/dashboard/selectors';
+import { lessonPlanIsReady } from '@/lib/dashboard/plan-readiness';
 import { apiRequest } from '@/lib/api/client';
 import { DEMO_DATE } from '@/data/dashboard/seed';
 import type { LessonPlan } from '@/types/dashboard';
 
 type AISuggestions = Pick<LessonPlan, 'objectives' | 'content' | 'methodology' | 'resources' | 'evaluation'> & { stages: NonNullable<LessonPlan['stages']> };
+
+function dateInTimezone(timeZone: string) {
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat('en-GB', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  } catch {
+    parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Luanda', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  }
+  const value = (type: string) => parts.find((part) => part.type === type)?.value || '';
+  return `${value('year')}-${value('month')}-${value('day')}`;
+}
 
 export function PlanForm() {
   const { state, modal, update, openModal, notify, error: storageError, apiMode } = useDashboard();
@@ -27,7 +39,7 @@ export function PlanForm() {
     id: '', teacherId: state.user.id, title: '', description: '',
     subjectId: modal?.subjectId || initialClass?.subjectIds[0] || '',
     classId: initialClass?.id || '', date: modal?.date || DEMO_DATE, duration: 50,
-    status: 'Rascunho', favorite: false, shared: false, template: false, ai: false,
+    status: 'Planeado', favorite: false, shared: false, template: false, ai: false,
     lessonType: 'Aula teórica', modality: 'Presencial', objectives: '', content: '',
     methodology: '', resources: '', evaluation: '', tags: '', visibility: 'Apenas eu', attachments: [], resourceIds: modal?.resourceId ? [modal.resourceId] : [],
     ...old,
@@ -72,22 +84,30 @@ export function PlanForm() {
   };
   const stages = plan.stages || [];
   const totalMinutes = stages.reduce((total, stage) => total + stage.minutes, 0);
+  const today = dateInTimezone(state.settings.timezone);
+  const canMarkCompleted = Boolean(plan.date && plan.date < today) || plan.status === 'Concluído';
+  const selectedStatus = plan.status === 'Em utilização' ? 'Planeado' : plan.status;
   const close = () => openModal(null);
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!plan.title.trim() || !plan.classId || !plan.subjectId || !plan.date || !plan.startTime || !Number.isFinite(plan.duration) || plan.duration < 1) {
       setError('Preencha o tema, a turma e a disciplina.'); return;
     }
-    if (plan.status !== 'Rascunho' && (!plan.objectives.trim() || !plan.methodology.trim())) {
-      setError('Preencha os objetivos e as atividades antes de guardar um plano pronto.'); return;
+    const statusToSave = plan.status === 'Em utilização' ? 'Planeado' : plan.status;
+    const alreadyCompletedOnThisDate = old?.status === 'Concluído' && old.date === plan.date;
+    if (statusToSave === 'Concluído' && plan.date >= today && !alreadyCompletedOnThisDate) {
+      setError('Só pode marcar como concluída uma aula com data passada.'); return;
     }
-    if (plan.modelId !== 'simple' && plan.status !== 'Rascunho' && totalMinutes !== plan.duration) {
+    if (statusToSave !== 'Rascunho' && plan.modelId !== 'simple' && totalMinutes !== plan.duration) {
       setError('A soma dos minutos das etapas deve corresponder à duração da aula. Pode guardar como rascunho.'); return;
     }
-    if (plan.modelId === 'school' && plan.schoolFields?.some((field) => !field.label.trim())) {
+    if (statusToSave !== 'Rascunho' && plan.modelId === 'school' && plan.schoolFields?.some((field) => !field.label.trim())) {
       setError('Dê um nome a cada campo da escola ou remova os campos sem nome.'); return;
     }
-    const saved = { ...plan, id: old?.id || localId('plan'), title: plan.title.trim() };
+    if (statusToSave !== 'Rascunho' && !lessonPlanIsReady(plan)) {
+      setError('Complete os dados, objetivos e atividades antes de guardar como preparado ou concluído. Para continuar depois, escolha “Por terminar”.'); return;
+    }
+    const saved = { ...plan, id: old?.id || localId('plan'), title: plan.title.trim(), status: statusToSave };
     update((s) => ({ ...s,
       plans: old ? s.plans.map((p) => p.id === old.id ? saved : p) : [saved, ...s.plans],
       events: syncPlanEvent(s, saved, modal?.eventId),
@@ -127,6 +147,7 @@ export function PlanForm() {
   }
   if (savedPlan) return <Modal title="Plano e calendário atualizados" onClose={close} className="dash-dialog-small"><div className="dash-modal-simple">
     <h3>{savedPlan.title}</h3><p role="status">{storageError ? apiMode ? 'Não foi possível sincronizar com o servidor. Verifique a ligação antes de sair.' : 'Alterações disponíveis nesta sessão, mas não foi possível guardá-las no navegador. Mantenha esta página aberta.' : apiMode ? 'Plano guardado na escola e aula atualizada no calendário.' : 'Plano guardado e aula atualizada no calendário deste dispositivo.'}</p>
+    <StatusBadge tone={savedPlan.status === 'Concluído' ? 'green' : savedPlan.status === 'Rascunho' ? 'amber' : 'blue'}>{savedPlan.status === 'Concluído' ? 'Concluído' : savedPlan.status === 'Rascunho' ? 'Por terminar' : 'Preparado'}</StatusBadge>
     <p>{savedPlan.date} · {savedPlan.startTime} · {savedPlan.duration} minutos</p>
     <div className="dash-guide-actions"><Link className="dash-btn" onClick={close} href={`/dashboard/calendario?turma=${savedPlan.classId}&data=${savedPlan.date}&plano=${savedPlan.id}`}>Ver aula no calendário</Link><button className="dash-btn secondary" onClick={close}>Continuar nos planos</button></div>
   </div></Modal>;
@@ -160,6 +181,13 @@ export function PlanForm() {
           <Field label="Tipo de aula"><input value={plan.lessonType} onChange={(e) => patch({ lessonType: e.target.value })} /></Field>
           <Field label="Modalidade"><select value={plan.modality} onChange={(e) => patch({ modality: e.target.value })}>{['Presencial', 'Online', 'Híbrida'].map((v) => <option key={v}>{v}</option>)}</select></Field>
         </div>
+        <Field label="Estado do plano" hint={canMarkCompleted ? 'Por terminar: rascunho para continuar depois. Preparado: pronto para dar. Concluído: aula já realizada.' : 'Por terminar: rascunho para continuar depois. Preparado: pronto para dar. Concluído fica disponível depois da data da aula.'}>
+          <select value={selectedStatus} onChange={(e) => patch({ status: e.target.value as LessonPlan['status'] })}>
+            <option value="Rascunho">Por terminar</option>
+            <option value="Planeado">Preparado</option>
+            {canMarkCompleted && <option value="Concluído">Concluído</option>}
+          </select>
+        </Field>
         </section>
         <section id="plan-ai-toggle" className="dash-plan-ai-toggle" aria-labelledby="plan-ai-toggle-heading">
           <h3 id="plan-ai-toggle-heading">Como queres preparar o plano?</h3>
@@ -215,7 +243,6 @@ export function PlanForm() {
         <button className="dash-btn secondary" type="button" aria-expanded={preview} onClick={() => setPreview(!preview)}>{preview ? 'Fechar pré-visualização' : 'Pré-visualizar plano'}</button>
         {preview && <div className="dash-plan-preview"><h3>{plan.title || 'Tema da aula'}</h3><dl>{planRows(plan, state).map(([label, text], i) => <div key={i}><dt>{label}</dt><dd>{text || 'Por preencher'}</dd></div>)}</dl></div>}
         <button className="dash-btn secondary" type="button" onClick={() => { if (!printLessonPlan(plan, state)) notify('Permita janelas para imprimir o plano.'); }}>Imprimir A4 / PDF</button>
-        <Switch label="Guardar como rascunho" checked={plan.status === 'Rascunho'} onChange={(checked) => patch({ status: checked ? 'Rascunho' : old && old.status !== 'Rascunho' ? old.status : 'Planeado' })} hint="Pode completar os objetivos e atividades mais tarde." />
         <Switch label="Reutilizar este modelo nas próximas aulas" checked={preferred} onChange={setPreferred} hint="Guarda a estrutura e os nomes dos campos, sem copiar o conteúdo da aula." />
         <Switch label="Guardar como plano reutilizável" checked={plan.template} onChange={(template) => patch({ template })} hint="Permite encontrar e duplicar este conteúdo na lista Reutilizáveis." />
         <details className="dash-plan-advanced"><summary>Mais opções: partilha, etiquetas e materiais</summary>
