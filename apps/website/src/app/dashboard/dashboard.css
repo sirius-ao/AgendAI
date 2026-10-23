@@ -758,7 +758,30 @@
   border-radius: 6px;
   min-width: 190px;
 }
+.dash-action-menu-popover {
+  position: fixed;
+  z-index: 1000;
+  width: max-content;
+  min-width: 210px;
+  max-width: min(280px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  background: var(--dash-surface);
+  border: 1px solid var(--dash-border);
+  box-shadow: 0 8px 25px #001b2426;
+  padding: 5px;
+  border-radius: 6px;
+}
 .dash-action-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: var(--dash-text);
+  padding: 9px;
+}
+.dash-action-menu-popover button {
   display: block;
   width: 100%;
   text-align: left;

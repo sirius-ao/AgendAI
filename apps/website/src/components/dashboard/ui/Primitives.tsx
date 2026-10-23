@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState, type ReactNode, type SelectHTMLAttributes } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -358,38 +359,77 @@ export function ActionMenu({
 }) {
   const { t } = useLocale();
   const ref = useRef<HTMLDetailsElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const updatePosition = () => {
+    const summary = ref.current?.querySelector('summary');
+    if (!summary) return;
+    const rect = summary.getBoundingClientRect();
+    const width = 210;
+    const height = Math.min(items.length * 38 + 12, window.innerHeight - 24);
+    const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12));
+    const top = rect.bottom + height + 8 <= window.innerHeight
+      ? rect.bottom + 4
+      : Math.max(12, rect.top - height - 4);
+    setPosition({ top, left });
+  };
   useEffect(() => {
     const close = (event: PointerEvent) => {
-      if (!ref.current?.contains(event.target as Node) && ref.current) ref.current.open = false;
+      const target = event.target as Node;
+      if (!ref.current?.contains(target) && !menuRef.current?.contains(target) && ref.current) {
+        ref.current.open = false;
+        setOpen(false);
+      }
     };
+    const reposition = () => { if (ref.current?.open) updatePosition(); };
     document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
-  }, []);
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, true);
+    return () => {
+      document.removeEventListener('pointerdown', close);
+      window.removeEventListener('resize', reposition);
+      window.removeEventListener('scroll', reposition, true);
+    };
+  });
   return (
     <details
       className="dash-action-menu"
       ref={ref}
+      onToggle={() => {
+        const isOpen = Boolean(ref.current?.open);
+        setOpen(isOpen);
+        if (isOpen) updatePosition();
+      }}
       onKeyDown={(e) => {
-        if (e.key === 'Escape' && ref.current) ref.current.open = false;
+        if (e.key === 'Escape' && ref.current) {
+          ref.current.open = false;
+          setOpen(false);
+        }
       }}
     >
       <summary aria-label={t(label)}>
         <MoreHorizontal size={19} />
       </summary>
-      <div>
+      {open && typeof document !== 'undefined' && createPortal(<div
+        className="dash-action-menu-popover"
+        ref={menuRef}
+        style={{ top: position.top, left: position.left }}
+      >
         {items.map((item) => (
           <button
             className={item.danger ? 'danger' : ''}
             key={item.label}
             onClick={() => {
               if (ref.current) ref.current.open = false;
+              setOpen(false);
               item.action();
             }}
           >
             {t(item.label)}
           </button>
         ))}
-      </div>
+      </div>, document.body)}
     </details>
   );
 }
