@@ -222,9 +222,11 @@ export function PlanForm() {
         {area('content', 'Conteúdos programáticos')}
         {area('methodology', 'Atividades / Estratégias de ensino')}
         {area('resources', 'Recursos necessários')}
-        <LinkedPlanResources resourceIds={plan.resourceIds || []} onChange={(resourceIds) => patch({ resourceIds })} />
         {area('evaluation', 'Avaliação da aprendizagem')}
         </section>
+        <LinkedPlanResources resourceIds={plan.resourceIds || []} onChange={(resourceIds) => patch({ resourceIds })}>
+          {apiMode ? <PlanFileAttachments schoolId={state.activeSchoolId} planId={old?.id} /> : <Attachments initialNames={plan.attachments} onChange={(attachments) => patch({ attachments })} />}
+        </LinkedPlanResources>
         {plan.modelId !== 'simple' && <section id="plan-stages" className="dash-plan-section"><h2>3. Etapas da aula</h2>
           {area('prerequisites', 'Pré-requisitos')}
           <h3>Etapas da aula</h3><p role="status">{totalMinutes} de {plan.duration} minutos distribuídos.</p>
@@ -253,10 +255,9 @@ export function PlanForm() {
         <button className="dash-btn secondary" type="button" onClick={() => { if (!printLessonPlan(plan, state)) notify('Permita janelas para imprimir o plano.'); }}>Imprimir A4 / PDF</button>
         <Switch label="Reutilizar este modelo nas próximas aulas" checked={preferred} onChange={setPreferred} hint="Guarda a estrutura e os nomes dos campos, sem copiar o conteúdo da aula." />
         <Switch label="Guardar como plano reutilizável" checked={plan.template} onChange={(template) => patch({ template })} hint="Permite encontrar e duplicar este conteúdo na lista Reutilizáveis." />
-        <details className="dash-plan-advanced"><summary>Mais opções: partilha, etiquetas e materiais</summary>
+        <details className="dash-plan-advanced"><summary>Mais opções: partilha e etiquetas</summary>
         <Field label="Visibilidade"><select value={plan.visibility} onChange={(e) => patch({ visibility: e.target.value })}>{['Apenas eu', 'Visível para os alunos', 'Visível para selecionados', 'Equipa pedagógica'].map((v) => <option key={v}>{v}</option>)}</select></Field>
         <Field label="Etiquetas"><input value={plan.tags} onChange={(e) => patch({ tags: e.target.value })} /></Field>
-        {apiMode ? <PlanFileAttachments schoolId={state.activeSchoolId} planId={old?.id} /> : <Attachments initialNames={plan.attachments} onChange={(attachments) => patch({ attachments })} />}
         </details>
         {error && <p role="alert" className="dash-error-text">{error}</p>}
         <div className="dash-form-actions"><button type="button" className="dash-btn secondary" onClick={close}>Fechar e continuar depois</button><button type="submit" className="dash-btn">{old ? 'Guardar alterações' : 'Criar plano de aula'}</button></div>

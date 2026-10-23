@@ -1,14 +1,19 @@
 'use client';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Download } from 'lucide-react';
 import { useDashboard } from '../state/DashboardProvider';
 import { apiRequest } from '@/lib/api/client';
 
-export function LinkedPlanResources({ resourceIds, onChange }: { resourceIds: string[]; onChange?: (ids: string[]) => void }) {
+export function LinkedPlanResources({ resourceIds, onChange, children }: { resourceIds: string[]; onChange?: (ids: string[]) => void; children?: ReactNode }) {
   const { state, apiMode } = useDashboard();
   const [error, setError] = useState('');
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [query, setQuery] = useState('');
   const linked = resourceIds.map((id) => ({ id, resource: state.resources.find((item) => item.id === id) }));
   const availableIds = new Set(linked.map(({ id }) => id));
+  const available = state.resources.filter((resource) =>
+    !availableIds.has(resource.id) && `${resource.title} ${resource.category}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+  );
   async function download(resource: NonNullable<(typeof state.resources)[number]>) {
     const schoolId = resource.sourceSchoolId || state.activeSchoolId;
     if (!apiMode || !schoolId || !resource.attachmentId) return;
@@ -26,21 +31,24 @@ export function LinkedPlanResources({ resourceIds, onChange }: { resourceIds: st
     }
   }
   return <section id="plan-linked-resources" className="dash-plan-linked-resources" aria-label="Materiais associados">
-    <h3>Materiais da aula</h3>
-    <p>Os materiais ficam ligados ao plano; o ficheiro original não é copiado nem alterado.</p>
-    {onChange && <fieldset className="dash-plan-linked-picker"><legend>Adicionar ou remover materiais</legend>
-      {state.resources.map((resource) => <label className="dash-check" key={`${resource.sourceSchoolId || ''}:${resource.id}`}>
-        <input type="checkbox" checked={availableIds.has(resource.id)} onChange={(event) => onChange(event.target.checked ? [...resourceIds, resource.id] : resourceIds.filter((id) => id !== resource.id))} />
-        <span>{resource.title}<small>{resource.category} · {resource.attachmentId ? 'Ficheiro disponível' : 'Sem ficheiro original'}</small></span>
-      </label>)}
-      {!state.resources.length && <p>Não há recursos disponíveis. Carregue um material ou explore a Biblioteca.</p>}
-    </fieldset>}
-    {linked.length ? <ul>{linked.map(({ id, resource }) => <li key={id}>
-      {resource ? <><span><strong>{resource.title}</strong><small>{resource.category} · {resource.format}</small></span>
-        {resource.attachmentId && apiMode ? <button className="dash-btn secondary" type="button" onClick={() => void download(resource)}><Download size={15} /> Abrir ficheiro</button> : <small>{apiMode ? 'Ficheiro indisponível' : 'Pré-visualização local'}</small>}
-      </> : <span><strong>Material sem acesso</strong><small>Este recurso já não está disponível para a sua conta. Pode remover a ligação ou pedir acesso ao autor.</small></span>}
-      {onChange && <button className="dash-btn secondary" type="button" onClick={() => onChange(resourceIds.filter((resourceId) => resourceId !== id))}>Remover do plano</button>}
-    </li>)}</ul> : <p>Nenhum material associado a este plano.</p>}
+    <div className="dash-plan-linked-heading"><div><h3>Materiais da aula <span>Opcional</span></h3><p>Adicione ficheiros próprios ou escolha materiais da biblioteca.</p></div>
+      {onChange && <button className="dash-btn secondary" type="button" aria-expanded={showLibrary} onClick={() => { setShowLibrary(!showLibrary); setQuery(''); }}>{showLibrary ? 'Fechar biblioteca' : 'Escolher da biblioteca'}</button>}
+    </div>
+    {children && <div className="dash-plan-material-upload">{children}</div>}
+    {showLibrary && onChange && <div className="dash-plan-library-picker">
+      <label className="dash-field"><span>Pesquisar na biblioteca</span><input autoFocus type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nome ou categoria" /></label>
+      {available.length ? <ul>{available.map((resource) => <li key={`${resource.sourceSchoolId || ''}:${resource.id}`}>
+        <span><strong>{resource.title}</strong><small>{resource.category}</small></span>
+        <button className="dash-btn secondary" type="button" onClick={() => onChange([...resourceIds, resource.id])}>Adicionar</button>
+      </li>)}</ul> : <p>{state.resources.length ? 'Não foram encontrados outros materiais.' : 'A biblioteca ainda não tem materiais disponíveis.'}</p>}
+    </div>}
+    {linked.length > 0 && <div className="dash-plan-selected-resources"><h4>Materiais escolhidos <span>{linked.length}</span></h4><ul>{linked.map(({ id, resource }) => <li key={id}>
+      {resource ? <><span><strong>{resource.title}</strong><small>{resource.category}</small></span>
+        {resource.attachmentId && apiMode && <button className="dash-btn secondary" type="button" onClick={() => void download(resource)}><Download size={15} /> Abrir</button>}
+      </> : <span><strong>Material sem acesso</strong><small>Este recurso já não está disponível. Pode remover a ligação ou pedir acesso ao autor.</small></span>}
+      {onChange && <button className="dash-plan-resource-remove" type="button" onClick={() => onChange(resourceIds.filter((resourceId) => resourceId !== id))}>Remover</button>}
+    </li>)}</ul></div>}
+    {!linked.length && !children && <p className="dash-plan-no-resources">Ainda não adicionou materiais. Esta secção é opcional.</p>}
     {error && <p role="alert" className="dash-error-text">{error}</p>}
   </section>;
 }
