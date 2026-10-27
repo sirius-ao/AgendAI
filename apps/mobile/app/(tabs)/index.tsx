@@ -80,7 +80,9 @@ export default function Home() {
       if (timeKnown && endsAt && endsAt.getTime() <= now.getTime()) continue;
       candidates.push({
         id: event.recordId,
-        title: String(payload.title || plan?.payload.title || 'Aula'),
+        // Events linked to a lesson plan can retain an older title. The plan is
+        // the source of truth for the lesson title once a matching plan exists.
+        title: String(plan?.payload.title || payload.title || 'Aula'),
         classId,
         subjectId,
         date,

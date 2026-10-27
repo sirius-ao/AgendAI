@@ -1,7 +1,7 @@
 import { AppText } from '@/components/app-text';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Switch, View } from 'react-native';
+import { ActivityIndicator, Pressable, Switch, View } from 'react-native';
 
 import { Button, Card, ChoiceField, Field, Heading, Notice, Page, styles } from '@/components/ui';
 import { useDashboard } from '@/providers/dashboard-provider';
@@ -38,6 +38,7 @@ export default function CreatePlan() {
   const { request } = useAuth();
   const classes = snapshot?.data.classes || [];
   const subjects = snapshot?.data.subjects || [];
+  const resourcesList = snapshot?.data.resources || [];
   const existing = snapshot?.data.plans.find((row) => row.recordId === planId);
   const plan = existing?.payload;
   const initialized = useRef(false);
@@ -48,6 +49,10 @@ export default function CreatePlan() {
   const [resources, setResources] = useState('');
   const [evaluation, setEvaluation] = useState('');
   const [description, setDescription] = useState('');
+  const [modelId, setModelId] = useState('simple');
+  const [resourceIds, setResourceIds] = useState<string[]>([]);
+  const [stages, setStages] = useState<Array<{ title: string; minutes: number; teacher: string; students: string }>>([]);
+  const [schoolFields, setSchoolFields] = useState<Array<{ label: string; value: string }>>([]);
   const [date, setDate] = useState(localDate());
   const [classId, setClassId] = useState('');
   const [subjectId, setSubjectId] = useState('');
@@ -81,12 +86,22 @@ export default function CreatePlan() {
       setResources(String(plan.resources || ''));
       setEvaluation(String(plan.evaluation || ''));
       setDescription(String(plan.description || ''));
+      setModelId(String(plan.modelId || 'simple'));
+      setResourceIds(Array.isArray(plan.resourceIds) ? plan.resourceIds.map(String) : []);
+      setStages(Array.isArray(plan.stages) ? plan.stages as typeof stages : []);
+      setSchoolFields(Array.isArray(plan.schoolFields) ? plan.schoolFields as typeof schoolFields : []);
       setDate(String(plan.date || localDate()).slice(0, 10));
       setClassId(String(plan.classId || classes[0]?.recordId || ''));
       setSubjectId(String(plan.subjectId || subjects[0]?.recordId || ''));
       setTime(String(plan.startTime || plan.time || '08:00'));
       setDuration(String(plan.duration || 45));
     } else {
+      setStages([
+        { title: 'Introdução', minutes: 10, teacher: '', students: '' },
+        { title: 'Desenvolvimento', minutes: 30, teacher: '', students: '' },
+        { title: 'Síntese e avaliação', minutes: 10, teacher: '', students: '' },
+      ]);
+      setSchoolFields(['Unidade temática', 'Competências', 'Visto da coordenação'].map((label) => ({ label, value: '' })));
       setClassId(
         classes.some((row) => row.recordId === requestedClass)
           ? String(requestedClass)
@@ -175,8 +190,11 @@ export default function CreatePlan() {
         lessonType: plan?.lessonType || 'Aula teórica',
         modality: plan?.modality || 'Presencial',
         visibility: plan?.visibility || 'Apenas eu',
+        modelId,
+        stages,
+        schoolFields,
         attachments: plan?.attachments || [],
-        resourceIds: plan?.resourceIds || [],
+        resourceIds,
       });
       router.replace(planId ? `/aula/${planId}` : '/(tabs)/planos');
     } catch (e) {
@@ -228,6 +246,7 @@ export default function CreatePlan() {
           onChangeText={setDuration}
           keyboardType="number-pad"
         />
+        <ChoiceField label="Modelo do plano" value={modelId} options={[{ id: 'simple', label: 'Simples' }, { id: 'detailed', label: 'Detalhado' }, { id: 'school', label: 'Da escola' }]} onSelect={setModelId} />
         <View style={{ borderWidth: 1, borderColor: BRAND.line, borderRadius: 12, padding: 14, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <View style={{ flex: 1, gap: 3 }}>
@@ -304,6 +323,34 @@ export default function CreatePlan() {
           multiline
           placeholder="Materiais necessários"
         />
+        <View style={{ gap: 8 }}>
+          <AppText style={{ color: BRAND.ink, fontWeight: '800' }}>Materiais da biblioteca</AppText>
+          {resourcesList.map(({ recordId, payload }) => {
+            const selected = resourceIds.includes(recordId);
+            return <Pressable key={recordId} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} onPress={() => setResourceIds((current) => selected ? current.filter((id) => id !== recordId) : [...current, recordId])} style={{ padding: 12, backgroundColor: selected ? BRAND.greenPale : BRAND.white, borderColor: selected ? BRAND.green : BRAND.line, borderWidth: 1, borderRadius: 12 }}><AppText style={{ color: BRAND.ink, fontWeight: '700' }}>{selected ? '✓ ' : ''}{String(payload.title || 'Recurso')}</AppText><AppText style={styles.subtitle}>{String(payload.subjectName || payload.category || '')}</AppText></Pressable>;
+          })}
+          {!resourcesList.length ? <AppText style={styles.subtitle}>Ainda não há recursos da escola para associar.</AppText> : null}
+        </View>
+        {modelId !== 'simple' ? <View style={{ gap: 10 }}>
+          <AppText style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>Etapas da aula</AppText>
+          {stages.map((stage, index) => <Card key={`stage-${index}`}>
+            <Field label={`Etapa ${index + 1}`} value={stage.title} onChangeText={(title) => setStages((rows) => rows.map((row, i) => i === index ? { ...row, title } : row))} />
+            <Field label="Duração (minutos)" value={String(stage.minutes)} keyboardType="number-pad" onChangeText={(raw) => setStages((rows) => rows.map((row, i) => i === index ? { ...row, minutes: Number(raw) || 0 } : row))} />
+            <Field label="Ações do professor" value={stage.teacher} multiline onChangeText={(teacher) => setStages((rows) => rows.map((row, i) => i === index ? { ...row, teacher } : row))} />
+            <Field label="Atividades dos alunos" value={stage.students} multiline onChangeText={(students) => setStages((rows) => rows.map((row, i) => i === index ? { ...row, students } : row))} />
+            <Button title="Remover etapa" secondary onPress={() => setStages((rows) => rows.filter((_, i) => i !== index))} />
+          </Card>)}
+          <Button title="＋ Adicionar etapa" secondary onPress={() => setStages((rows) => [...rows, { title: '', minutes: 10, teacher: '', students: '' }])} />
+        </View> : null}
+        {modelId === 'school' ? <View style={{ gap: 10 }}>
+          <AppText style={{ color: BRAND.ink, fontWeight: '800', fontSize: 16 }}>Campos da escola</AppText>
+          {schoolFields.map((field, index) => <Card key={`school-field-${index}`}>
+            <Field label="Nome do campo" value={field.label} onChangeText={(label) => setSchoolFields((rows) => rows.map((row, i) => i === index ? { ...row, label } : row))} />
+            <Field label="Conteúdo" value={field.value} multiline onChangeText={(value) => setSchoolFields((rows) => rows.map((row, i) => i === index ? { ...row, value } : row))} />
+            <Button title="Remover campo" secondary onPress={() => setSchoolFields((rows) => rows.filter((_, i) => i !== index))} />
+          </Card>)}
+          <Button title="＋ Adicionar campo" secondary onPress={() => setSchoolFields((rows) => [...rows, { label: '', value: '' }])} />
+        </View> : null}
         <Field
           label="Avaliação"
           value={evaluation}

@@ -33,7 +33,7 @@ export default function Calendar() {
             String(row.payload.date || '').slice(0, 10) === String(p.date || '').slice(0, 10)),
       );
       if (plan) linkedPlanIds.add(plan.recordId);
-      return { ...event, planId: plan?.recordId || '' };
+      return { ...event, planId: plan?.recordId || '', planTitle: plan?.payload.title };
     });
     const planItems = plans
       .filter((row) => !linkedPlanIds.has(row.recordId))
@@ -149,7 +149,7 @@ export default function Calendar() {
                 {p.endTime || p.end ? `– ${String(p.endTime || p.end)}` : ''}
               </AppText>
               <AppText style={{ color: BRAND.ink, fontSize: 17, fontWeight: '800' }}>
-                {String(p.title || p.subject || 'Compromisso')}
+                {String(row.planTitle || p.title || p.subject || 'Compromisso')}
               </AppText>
               <AppText style={styles.subtitle}>
                 {[p.subjectName, group?.name || p.className, p.location]

@@ -5,9 +5,9 @@ import { File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, Share, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, Share, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, Field, Heading, Notice, Page, styles } from '@/components/ui';
+import { Button, Card, Empty, Field, Heading, Notice, Page, styles } from '@/components/ui';
 import { useAuth } from '@/providers/auth-provider';
 import { useDashboard } from '@/providers/dashboard-provider';
 
@@ -42,11 +42,18 @@ export default function LessonDetail() {
     'Recursos',
     'Avaliação',
     'Observações',
+    'Etapas da aula',
+    'Campos da escola',
+    'Materiais associados',
   ]);
   const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
   const [shareUrl, setShareUrl] = useState('');
   const [shareError, setShareError] = useState('');
   const [shareBusy, setShareBusy] = useState(false);
+  const [showTeacherPicker, setShowTeacherPicker] = useState(false);
+  const [teachers, setTeachers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [selectedTeacher, setSelectedTeacher] = useState('');
+  const [teacherQuery, setTeacherQuery] = useState('');
   const [showLessonNote, setShowLessonNote] = useState(false);
   const [lessonNote, setLessonNote] = useState('');
   const [lessonNoteMessage, setLessonNoteMessage] = useState('');
@@ -107,6 +114,56 @@ export default function LessonDetail() {
       setShareBusy(false);
     }
   };
+  const openTeacherPicker = async () => {
+    setShowTeacherPicker(true);
+    setShareError('');
+    setTeacherQuery('');
+    if (teachers.length) return;
+    setShareBusy(true);
+    try {
+      setTeachers(await request<Array<{ id: string; name: string; email: string }>>(`/schools/${encodeURIComponent(schoolId)}/messaging/participants`));
+    } catch (cause) {
+      setShareError(cause instanceof Error ? cause.message : 'Não foi possível carregar os professores.');
+    } finally { setShareBusy(false); }
+  };
+  const sendToTeacher = async () => {
+    const teacher = teachers.find((item) => item.id === selectedTeacher);
+    if (!teacher || !plan || !user) return;
+    setShareBusy(true);
+    setShareError('');
+    try {
+      const link = await request<ShareLink & { url: string }>(shareLinksPath, { method: 'POST' });
+      setShareUrl(link.url);
+      setShareLinks((current) => [link, ...current]);
+      const conversation = await request<{ id: string; title?: string; subtitle?: string }>(
+        `/schools/${encodeURIComponent(schoolId)}/messaging/conversations`,
+        { method: 'POST', body: JSON.stringify({ recipientId: teacher.id }) },
+      );
+      const existingConversation = snapshot?.data.conversations.find((row) => row.recordId === conversation.id)?.payload || {};
+      const messages = Array.isArray(existingConversation.messages) ? existingConversation.messages : [];
+      const message = {
+        id: `mobile-plan-share-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        senderId: user.id,
+        text: `Partilhou consigo o plano “${value(plan.title || plan.subject)}”.\n\nVer o plano: ${link.url}`,
+        time: new Date().toISOString(),
+        attachments: [],
+      };
+      await saveRecord('conversations', conversation.id, {
+        ...existingConversation,
+        id: conversation.id,
+        title: conversation.title || teacher.name,
+        subtitle: conversation.subtitle || teacher.email,
+        schoolId,
+        unread: 0,
+        messages: [...messages, message],
+      });
+      setSelectedTeacher('');
+      setShowTeacherPicker(false);
+      Alert.alert('Plano enviado', `A mensagem para ${teacher.name} será sincronizada com a escola.`);
+    } catch (cause) {
+      setShareError(cause instanceof Error ? cause.message : 'Não foi possível enviar o plano.');
+    } finally { setShareBusy(false); }
+  };
   const revokeShareLink = async (linkId: string) => {
     setShareBusy(true);
     setShareError('');
@@ -164,9 +221,15 @@ export default function LessonDetail() {
       if (!available)
         throw new Error('A partilha de ficheiros não está disponível neste dispositivo.');
       const title = value(plan.title || plan.subject) || 'Plano de aula';
+      const planStages = Array.isArray(plan.stages) ? plan.stages as Array<Record<string, unknown>> : [];
+      const planSchoolFields = Array.isArray(plan.schoolFields) ? plan.schoolFields as Array<Record<string, unknown>> : [];
+      const attachedResources = Array.isArray(plan.resourceIds) ? plan.resourceIds.map(String).map((resourceId) => snapshot?.data.resources.find((item) => item.recordId === resourceId)?.payload.title).filter((item): item is string => typeof item === 'string') : [];
+      const attachments = Array.isArray(plan.attachments) ? plan.attachments.map(String) : [];
       const metadata = [
         ['Disciplina', value(plan.subject)],
         ['Turma', value(group?.payload.name || plan.className)],
+        ['Tipo de aula', value(plan.lessonType)],
+        ['Modalidade', value(plan.modality)],
         ...(includeSchedule
           ? [
               ['Data', formatDate(value(plan.date))],
@@ -207,6 +270,9 @@ export default function LessonDetail() {
         <div class="meta">${metadata.map(([label, content]) => `<p><b>${escapeHtml(label)}:</b> ${escapeHtml(content)}</p>`).join('')}</div>
         ${teacherLine}
         ${fields.map(([label, content]) => `<section><h2>${escapeHtml(String(label))}</h2><p>${escapeHtml(value(content))}</p></section>`).join('')}
+        ${includedSections.includes('Etapas da aula') && planStages.length ? `<section><h2>Etapas da aula</h2>${planStages.map((stage, index) => `<div class="stage"><strong>${index + 1}. ${escapeHtml(value(stage.title) || `Etapa ${index + 1}`)} · ${escapeHtml(value(stage.minutes))} min</strong><p><b>Ações do professor:</b> ${escapeHtml(value(stage.teacher) || '—')}</p><p><b>Atividades dos alunos:</b> ${escapeHtml(value(stage.students) || '—')}</p></div>`).join('')}</section>` : ''}
+        ${includedSections.includes('Campos da escola') && planSchoolFields.length ? `<section><h2>Campos da escola</h2>${planSchoolFields.filter((field) => value(field.label).trim()).map((field) => `<div class="stage"><strong>${escapeHtml(value(field.label))}</strong><p>${escapeHtml(value(field.value) || 'Por preencher')}</p></div>`).join('')}</section>` : ''}
+        ${includedSections.includes('Materiais associados') && (attachedResources.length || attachments.length) ? `<section><h2>Materiais associados</h2>${attachedResources.length ? `<p><b>Biblioteca:</b> ${attachedResources.map(escapeHtml).join(' · ')}</p>` : ''}${attachments.length ? `<p><b>Ficheiros:</b> ${attachments.map(escapeHtml).join(' · ')}</p>` : ''}</section>` : ''}
         <footer><span>Criado com <a href="https://agendaki.net" style="color:#00851b;text-decoration:none;font-weight:bold">AgendAKI · agendaki.net</a></span><span>Gerado em ${escapeHtml(new Date().toLocaleDateString('pt-PT'))}</span></footer>
       </body></html>`;
       const { uri } = await Print.printToFileAsync({ html });
@@ -346,6 +412,14 @@ export default function LessonDetail() {
                   }
                 />
               ))}
+              {['Etapas da aula', 'Campos da escola', 'Materiais associados'].map((label) => (
+                <PdfOption
+                  key={label}
+                  label={label}
+                  selected={includedSections.includes(label)}
+                  onPress={() => setIncludedSections((current) => current.includes(label) ? current.filter((item) => item !== label) : [...current, label])}
+                />
+              ))}
             </Card>
           ) : null}
           <Button
@@ -368,6 +442,7 @@ export default function LessonDetail() {
               onPress={() => void createShareLink()}
               loading={shareBusy}
             />
+            <Button title="Enviar pelas Mensagens" secondary onPress={() => void openTeacherPicker()} disabled={shareBusy} />
             {shareError ? <Notice text={shareError} type="error" /> : null}
             {shareUrl ? (
               <AppText selectable style={{ color: BRAND.forestSoft, fontSize: 12, marginTop: 8 }}>
@@ -422,6 +497,29 @@ export default function LessonDetail() {
           </AppText>
         </Card>
       )}
+      <Modal visible={showTeacherPicker} animationType="slide" transparent onRequestClose={() => setShowTeacherPicker(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' }}>
+          <View style={{ maxHeight: '82%', backgroundColor: BRAND.canvas, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 12 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <AppText style={{ fontSize: 20, fontWeight: '800', color: BRAND.ink }}>Enviar a um professor</AppText>
+              <Pressable onPress={() => setShowTeacherPicker(false)} accessibilityRole="button"><AppText style={{ color: BRAND.forestSoft }}>Fechar</AppText></Pressable>
+            </View>
+            <AppText style={styles.subtitle}>Será enviada uma mensagem privada com um link válido por 30 dias.</AppText>
+            <Field label="Pesquisar por nome ou email" value={teacherQuery} onChangeText={setTeacherQuery} />
+            <Notice text={shareError} type="error" />
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 8 }}>
+              {teachers.filter((teacher) => `${teacher.name} ${teacher.email}`.toLocaleLowerCase().includes(teacherQuery.toLocaleLowerCase())).map((teacher) => (
+                <Pressable key={teacher.id} onPress={() => setSelectedTeacher(teacher.id)} style={{ padding: 12, borderRadius: 12, borderWidth: 1, borderColor: selectedTeacher === teacher.id ? BRAND.green : BRAND.line, backgroundColor: selectedTeacher === teacher.id ? BRAND.greenPale : BRAND.white }}>
+                  <AppText style={{ color: BRAND.ink, fontWeight: '800' }}>{teacher.name}</AppText>
+                  <AppText style={styles.subtitle}>{teacher.email}</AppText>
+                </Pressable>
+              ))}
+              {!teachers.length && !shareBusy ? <Empty title="Sem professores disponíveis" text="Apenas membros ativos aparecem aqui." /> : null}
+            </ScrollView>
+            <Button title="Enviar plano" onPress={() => void sendToTeacher()} disabled={!selectedTeacher} loading={shareBusy} />
+          </View>
+        </View>
+      </Modal>
     </Page>
   );
 }
